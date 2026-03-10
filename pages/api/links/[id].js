@@ -2,6 +2,12 @@ import supabase from '../../../lib/supabase'
 export default async function handler(req, res) {
   const { id } = req.query
   try {
+    if (req.method === 'PUT') {
+      const { title, url, icon } = req.body
+      const { data, error } = await supabase.from('links').update({ title, url, icon }).eq('id', id).select().single()
+      if (error) throw error
+      return res.status(200).json(data)
+    }
     if (req.method === 'DELETE') {
       const { error } = await supabase.from('links').delete().eq('id', id)
       if (error) throw error

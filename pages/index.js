@@ -60,6 +60,26 @@ button{cursor:pointer;font-family:'Poppins',sans-serif;}
 input,textarea,select{font-family:'Poppins',sans-serif;}
 a{color:var(--accent);text-decoration:none;}
 
+/* ── Fancy scrollbars ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(113,163,193,.25);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(113,163,193,.5);}
+body.light ::-webkit-scrollbar-thumb{background:rgba(78,127,160,.2);}
+body.light ::-webkit-scrollbar-thumb:hover{background:rgba(78,127,160,.45);}
+*{scrollbar-width:thin;scrollbar-color:rgba(113,163,193,.25) transparent;}
+body.light *{scrollbar-color:rgba(78,127,160,.2) transparent;}
+
+/* ── Fancy scrollbars ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(113,163,193,.22);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(113,163,193,.5);}
+body.light ::-webkit-scrollbar-thumb{background:rgba(78,127,160,.18);}
+body.light ::-webkit-scrollbar-thumb:hover{background:rgba(78,127,160,.42);}
+*{scrollbar-width:thin;scrollbar-color:rgba(113,163,193,.22) transparent;}
+body.light *{scrollbar-color:rgba(78,127,160,.18) transparent;}
+
 /* ── Shell ── */
 .shell{display:flex;min-height:100vh;}
 .sidebar{
@@ -1967,44 +1987,77 @@ function AnnouncementsPage({ announcements, addAnnouncement, removeAnnouncement,
 // ─────────────────────────────────────────────────────────────────────────────
 // LINKS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function LinksPage({ links, addLink, removeLink }) {
+function LinksPage({ links, addLink, updateLink, removeLink }) {
   const [adding,setAdding]=useState(false);
+  const [editing,setEditing]=useState(null); // link object being edited
   const [form,setForm]=useState({title:"",url:"",icon:"🔗"});
+  const [editForm,setEditForm]=useState({title:"",url:"",icon:"🔗"});
   const [toast,showToast]=useToast();
-  const ICONS=["🔗","📄","📊","🛠️","📧","🌐","📱","💼","📝","⚙️","🔑","📂"];
+  const ICONS=["🔗","📄","📊","🛠️","📧","🌐","📱","💼","📝","⚙️","🔑","📂","🏠","🎯","📌","💡","🔒","🚀","⭐","🧩"];
 
   const submit=()=>{
     if(!form.title.trim()||!form.url.trim())return showToast("Title and URL required","error");
     let url=form.url.trim();if(!url.startsWith("http"))url="https://"+url;
     addLink({...form,url});
-    setForm({title:"",url:"",icon:"🔗"});setAdding(false);showToast("Link added to sidebar!");
+    setForm({title:"",url:"",icon:"🔗"});setAdding(false);showToast("Link added!");
+  };
+
+  const startEdit=(l)=>{setEditing(l);setEditForm({title:l.title,url:l.url,icon:l.icon||"🔗"});};
+  const saveEdit=()=>{
+    if(!editForm.title.trim()||!editForm.url.trim())return showToast("Title and URL required","error");
+    let url=editForm.url.trim();if(!url.startsWith("http"))url="https://"+url;
+    updateLink(editing.id,{...editForm,url});
+    setEditing(null);showToast("Link updated ✅");
   };
   const remove=(id)=>{removeLink(id);showToast("Link removed","info");};
+
+  const iconPicker=(val,onChange)=>(
+    <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>
+      {ICONS.map(ic=>(
+        <button key={ic} style={{width:36,height:36,borderRadius:0,background:val===ic?"var(--entry-accent-bg)":"var(--card2)",border:val===ic?"1.5px solid var(--accent)":"1.5px solid var(--border)",fontSize:18,cursor:"pointer",transition:".15s"}} onClick={()=>onChange(ic)}>{ic}</button>
+      ))}
+    </div>
+  );
 
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
-        <div><div className="page-title">🔗 Quick Links</div><div className="page-sub">Custom links added to the sidebar</div></div>
+        <div><div className="page-title">🔗 Quick Links</div><div className="page-sub">Custom links shown in the sidebar</div></div>
         <button className="btn btn-primary" onClick={()=>setAdding(true)}>＋ Add Link</button>
       </div>
+
+      {/* Add modal */}
       {adding&&(<div className="modal-bg"><div className="edit-modal">
         <h3 style={{marginBottom:16}}>🔗 Add Quick Link</h3>
-        <div className="field"><label>Label <span className="req">*</span></label><input className="inp" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Salesforce"/></div>
-        <div className="field"><label>URL <span className="req">*</span></label><input className="inp" value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="https://..."/></div>
-        <div className="field"><label>Icon</label><div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>{ICONS.map(ic=>(<button key={ic} style={{width:36,height:36,borderRadius:0,background:form.icon===ic?"var(--entry-accent-bg)":"var(--card2)",border:form.icon===ic?"1.5px solid var(--accent)":"1.5px solid var(--border)",fontSize:18,cursor:"pointer",transition:".15s"}} onClick={()=>setForm(f=>({...f,icon:ic}))}>{ic}</button>))}</div></div>
+        <div className="field"><label>Label <span className="req">*</span></label><input className="inp" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Salesforce" autoFocus/></div>
+        <div className="field"><label>URL <span className="req">*</span></label><input className="inp" value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} placeholder="https://..." onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
+        <div className="field"><label>Icon</label>{iconPicker(form.icon,ic=>setForm(f=>({...f,icon:ic})))}</div>
         <div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setAdding(false)}>Cancel</button><button className="btn btn-primary" onClick={submit}>Add Link</button></div>
       </div></div>)}
+
+      {/* Edit modal */}
+      {editing&&(<div className="modal-bg"><div className="edit-modal">
+        <h3 style={{marginBottom:16}}>✏️ Edit Link</h3>
+        <div className="field"><label>Label <span className="req">*</span></label><input className="inp" value={editForm.title} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} autoFocus/></div>
+        <div className="field"><label>URL <span className="req">*</span></label><input className="inp" value={editForm.url} onChange={e=>setEditForm(f=>({...f,url:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&saveEdit()}/></div>
+        <div className="field"><label>Icon</label>{iconPicker(editForm.icon,ic=>setEditForm(f=>({...f,icon:ic})))}</div>
+        <div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setEditing(null)}>Cancel</button><button className="btn btn-save" onClick={saveEdit}>💾 Save Changes</button></div>
+      </div></div>)}
+
       {links.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>🔗</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No links yet</div><div>Add a link to have it appear in the sidebar.</div></div>)}
+
       {links.map(l=>(
         <div key={l.id} className="link-card">
           <div className="link-icon">{l.icon}</div>
           <div className="link-info"><div className="link-title">{l.title}</div><div className="link-url">{l.url}</div></div>
           <div className="link-actions">
             <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" style={{textDecoration:"none"}}>↗ Open</a>
+            <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>startEdit(l)}>✏️ Edit</button>
             <button className="h-btn danger" onClick={()=>remove(l.id)}>🗑</button>
           </div>
         </div>
       ))}
+      <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
 }
@@ -2014,15 +2067,86 @@ function LinksPage({ links, addLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function ProfilePage({ user, setUser, onLogout }) {
   const [editing,setEditing]=useState(false);
-  const [avatarUrl,setAvatarUrl]=useState(user.avatarUrl||null);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [toast,showToast]=useToast();
   const avatarInputRef=useRef();
 
+  const defNames=(name)=>{
+    const n=(name||"User").trim().replace(/\s+/g,"_");
+    return {beforeName:`Post_Live_Amend_Before_${n}_Amends`,afterName:`Post_Live_Amend_After_${n}_Amends`,screenshotName:`Post_Live_Amend_Screenshot_${n}_Amends`};
+  };
+
+  const [form,setForm]=useState({
+    name:user.name||"",email:user.email||"",role:user.role||"",
+    beforeName:user.beforeName||defNames(user.name).beforeName,
+    afterName:user.afterName||defNames(user.name).afterName,
+    screenshotName:user.screenshotName||defNames(user.name).screenshotName,
+    avatarUrl:user.avatarUrl||"",
+  });
+  const [pwForm,setPwForm]=useState({next:"",confirm:""});
+
+  // ── Load latest profile from DB on mount ──
+  useEffect(()=>{
+    fetch(`/api/profile?email=${encodeURIComponent(user.email)}`)
+      .then(r=>r.json())
+      .then(data=>{
+        if(data && data.email){
+          const merged={
+            ...user,
+            name:       data.name        || user.name,
+            role:       data.role        || user.role||"",
+            avatarUrl:  data.avatar_url  || user.avatarUrl||"",
+            beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
+            afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
+            screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
+          };
+          setForm(f=>({...f,
+            name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
+            beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
+          }));
+          // Sync to localStorage so rest of app sees it
+          localStorage.setItem("ch_user",JSON.stringify(merged));
+          setUser(merged);
+        }
+      })
+      .catch(()=>{})
+      .finally(()=>setLoading(false));
+  },[]);
+
+  // ── Save profile to DB ──
+  const saveProfile=async()=>{
+    if(!form.name.trim())return showToast("Name required","error");
+    setSaving(true);
+    try{
+      const payload={
+        email:user.email,
+        name:form.name,
+        role:form.role,
+        before_name:form.beforeName,
+        after_name:form.afterName,
+        screenshot_name:form.screenshotName,
+        avatar_url:form.avatarUrl||null,
+      };
+      const res=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const data=await res.json();
+      if(!res.ok)return showToast(data.error||"Error saving profile","error");
+      // Update local state and localStorage
+      const updated={...user,...form,
+        beforeName:form.beforeName,afterName:form.afterName,
+        screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||""};
+      localStorage.setItem("ch_user",JSON.stringify(updated));
+      setUser(updated);
+      setEditing(false);
+      showToast("Profile saved ✅");
+    }catch(e){showToast("Error saving profile","error");}
+    finally{setSaving(false);}
+  };
+
+  // ── Avatar upload ──
   const handleAvatarChange=async(e)=>{
     const file=e.target.files?.[0]; if(!file)return;
-    // Show preview immediately
-    const localUrl=URL.createObjectURL(file);
-    setAvatarUrl(localUrl);
-    // Upload to Supabase Storage
+    setForm(f=>({...f,avatarUrl:URL.createObjectURL(file)})); // preview
     try{
       const reader=new FileReader();
       reader.onload=async(ev)=>{
@@ -2030,73 +2154,62 @@ function ProfilePage({ user, setUser, onLogout }) {
           body:JSON.stringify({fileBase64:ev.target.result,fileName:`avatar_${user.id}`,mimeType:file.type||"image/jpeg"})});
         const data=await res.json();
         if(res.ok){
-          const updated={...user,avatarUrl:data.url};
+          const newUrl=data.url;
+          setForm(f=>({...f,avatarUrl:newUrl}));
+          // Immediately persist to DB so it isn't lost
+          await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({email:user.email,avatar_url:newUrl})});
+          const updated={...user,avatarUrl:newUrl};
           localStorage.setItem("ch_user",JSON.stringify(updated));
-          setUser(updated); setAvatarUrl(data.url);
-        }
+          setUser(updated);
+          showToast("Photo updated ✅");
+        }else{ showToast("Upload failed","error"); }
       };
       reader.readAsDataURL(file);
-    }catch(e){console.warn("Avatar upload failed",e);}
-  };
-  const defaultNames=(name)=>{const n=(name||"User").trim().replace(/\s+/g,"_");return{beforeName:`Post_Live_Amend_Before_${n}_Amends`,afterName:`Post_Live_Amend_After_${n}_Amends`,screenshotName:`Post_Live_Amend_Screenshot_${n}_Amends`};};
-  // File names stored separately in user.fileNames — never auto-derived from profile name
-  const storedFileNames = user.fileNames || user.beforeName ? {beforeName:user.beforeName,afterName:user.afterName,screenshotName:user.screenshotName} : defaultNames(user.name);
-  const [form,setForm]=useState({name:user.name,email:user.email,role:user.role||"",...storedFileNames});
-  const [pwForm,setPwForm]=useState({current:"",next:"",confirm:""});
-  const [saving,setSaving]=useState(false);
-  const [toast,showToast]=useToast();
-
-  // Name and file names are fully independent — changing name never touches file names
-  const handleNameChange=(newName)=>{
-    setForm(f=>({...f,name:newName}));
+    }catch(e){ showToast("Upload error","error"); }
   };
 
-  const saveProfile=async()=>{
-    if(!form.name.trim())return showToast("Name required","error");
-    setSaving(true);
-    try{
-      // Update Supabase Auth metadata
-      await fetch("/api/auth/update",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({userId:user.id,name:form.name,role:form.role,fileNames:{beforeName:form.beforeName,afterName:form.afterName,screenshotName:form.screenshotName}})});
-      const updated={...user,...form};
-      localStorage.setItem("ch_user",JSON.stringify(updated));
-      setUser(updated);setEditing(false);showToast("Profile updated! Filenames will update in the form ✅");
-    }catch(e){showToast("Error saving profile","error");}
-    finally{setSaving(false);}
-  };
-
+  // ── Change password (still uses Supabase Auth via access token) ──
   const changePw=async()=>{
-    if(pwForm.next.length<6)return showToast("New password must be at least 6 characters","error");
+    if(pwForm.next.length<6)return showToast("Min. 6 characters","error");
     if(pwForm.next!==pwForm.confirm)return showToast("Passwords don't match","error");
     setSaving(true);
     try{
-      const res=await fetch("/api/auth/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:user.id,newPassword:pwForm.next})});
+      const accessToken=localStorage.getItem("ch_token");
+      const res=await fetch("/api/auth/password",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({accessToken,newPassword:pwForm.next})});
       const data=await res.json();
       if(!res.ok)return showToast(data.error||"Error","error");
-      setPwForm({current:"",next:"",confirm:""});showToast("Password changed! ✅");
-    }catch(e){showToast("Error changing password","error");}
+      setPwForm({next:"",confirm:""});showToast("Password changed ✅");
+    }catch(e){showToast("Error","error");}
     finally{setSaving(false);}
   };
-  const initials=user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+  const initials=(form.name||user.name).split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 
   return (
     <div>
       <div className="page-header"><div className="page-title">👤 My Profile</div><div className="page-sub">Manage your account details and file naming</div></div>
+      {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"var(--muted)"}}>Loading profile…</div>}
+      {!loading&&<>
 
       {/* ── Info card ── */}
       <div className="profile-card">
         <div style={{display:"flex",alignItems:"center",gap:20,marginBottom:20}}>
           <div className="profile-avatar-large" title="Click to change photo" onClick={()=>avatarInputRef.current?.click()}>
-            {avatarUrl?<img src={avatarUrl} alt="Profile"/>:<span>{initials}</span>}
+            {form.avatarUrl?<img src={form.avatarUrl} alt="Profile"/>:<span>{initials}</span>}
             <div className="profile-avatar-overlay">📷</div>
             <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{display:"none"}}/>
           </div>
-          <div><h3 style={{fontSize:20,fontWeight:800}}>{user.name}</h3><p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{user.email}</p>{user.role&&<p style={{fontSize:12,color:"var(--accent)",marginTop:3,fontWeight:600}}>{user.role}</p>}</div>
+          <div>
+            <h3 style={{fontSize:20,fontWeight:800}}>{form.name||user.name}</h3>
+            <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{user.email}</p>
+            {form.role&&<p style={{fontSize:12,color:"var(--accent)",marginTop:3,fontWeight:600}}>{form.role}</p>}
+          </div>
           <div style={{marginLeft:"auto"}}><button className="btn btn-ghost" onClick={()=>setEditing(e=>!e)}>{editing?"Cancel":"✏️ Edit Profile"}</button></div>
         </div>
         {editing&&(<div style={{borderTop:"1px solid var(--border)",paddingTop:20}}>
-          <div className="field"><label>Full Name</label><input className="inp" value={form.name} onChange={e=>handleNameChange(e.target.value)}/></div>
-          <div className="field"><label>Email</label><input className="inp" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
+          <div className="field"><label>Full Name</label><input className="inp" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
           <div className="field"><label>Role / Title</label><input className="inp" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} placeholder="e.g. Web Specialist"/></div>
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Changes"}</button>
         </div>)}
@@ -2105,7 +2218,7 @@ function ProfilePage({ user, setUser, onLogout }) {
       {/* ── File naming card ── */}
       <div className="profile-card">
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>🖼️ Screenshot File Names</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>These names are used when uploading screenshots in Post-Live Amends. Edit your name above to auto-update, or customize each one below.</p>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>These names are used when uploading screenshots in Post-Live Amends. Fully independent from your profile name.</p>
         <div className="field">
           <label>Before Screenshot Name</label>
           <input className="inp" value={form.beforeName||""} onChange={e=>setForm(f=>({...f,beforeName:e.target.value}))}/>
@@ -2138,6 +2251,7 @@ function ProfilePage({ user, setUser, onLogout }) {
         <p style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>Signing out will end your current session.</p>
         <button className="btn btn-danger" onClick={onLogout}>🚪 Sign Out</button>
       </div>
+      </>}
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
@@ -2358,14 +2472,28 @@ function App() {
       fetch(`/api/links?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
       fetch("/api/requestors").then(r=>r.json()).catch(()=>[]),
       fetch(`/api/drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
-    ]).then(([cases,anns,lnks,reqs,draftList])=>{
+      fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
+    ]).then(([cases,anns,lnks,reqs,draftList,profile])=>{
       setAllCases(Array.isArray(cases)?cases:[]);
-      setAnnouncements(Array.isArray(anns)?anns:[]); // Always use DB, no hardcoded fallback
+      setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
-      setSpecialRequestors(Array.isArray(reqs)?reqs:[]); // always from DB
+      setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
       setDrafts(Array.isArray(draftList)?draftList:[]);
+      // Merge profile data into user object so filenames/avatar are always current
+      if(profile && profile.email){
+        const merged={...user,
+          name:       profile.name         || user.name,
+          role:       profile.role         || user.role||"",
+          avatarUrl:  profile.avatar_url   || user.avatarUrl||"",
+          beforeName: profile.before_name  || user.beforeName||"",
+          afterName:  profile.after_name   || user.afterName||"",
+          screenshotName: profile.screenshot_name || user.screenshotName||"",
+        };
+        localStorage.setItem("ch_user",JSON.stringify(merged));
+        setUser(merged);
+      }
     }).catch(console.error).finally(()=>setDataLoading(false));
-  },[user]);
+  },[user?.email]);
 
   // ── Cases ──
   const addCase=async(c)=>{
@@ -2454,6 +2582,13 @@ function App() {
       const saved=await res.json();
       setLinks(p=>[...p,saved]);
     }catch(e){console.error(e);setLinks(p=>[...p,{...l,id:Date.now()}]);}
+  };
+  const updateLink=async(id,updates)=>{
+    try{
+      const res=await fetch(`/api/links/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(updates)});
+      const saved=await res.json();
+      if(res.ok) setLinks(l=>l.map(x=>x.id===id?saved:x));
+    }catch(e){console.error(e);}
   };
   const removeLink=async(id)=>{
     try{await fetch(`/api/links/${id}`,{method:"DELETE"});}catch(e){console.error(e);}
@@ -2588,7 +2723,7 @@ function App() {
           {!dataLoading&&page==="postlive"&&<PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm}/>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
-          {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} removeLink={removeLink}/>}
+          {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout}/>}
         </main>
       </div>

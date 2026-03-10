@@ -19,6 +19,7 @@ export default async function handler(req, res) {
           email: data.user.email,
           name: meta.name || email.split('@')[0],
           role: meta.role || 'User',
+          avatarUrl: meta.avatarUrl || null,
           ...(meta.fileNames || {}),
         },
       })
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
           email: data.user.email,
           name: meta.name || data.user.email.split('@')[0],
           role: meta.role || 'User',
+          avatarUrl: meta.avatarUrl || null,
           ...(meta.fileNames || {}),
         },
       })
@@ -70,12 +72,26 @@ export default async function handler(req, res) {
 
     // ── UPDATE PROFILE ──
     if (action === 'update' && req.method === 'POST') {
-      const { name, role, fileNames, accessToken } = req.body
-      if (!accessToken) return res.status(400).json({ error: 'accessToken required' })
+      const { name, role, fileNames, avatarUrl, accessToken } = req.body
+      if (!accessToken) return res.status(400).json({ error: 'accessToken required — please sign in again' })
       const authed = createAuthedClient(accessToken)
-      const { error } = await authed.auth.updateUser({
-        data: { name, role, ...(fileNames ? { fileNames } : {}) },
-      })
+
+      // First fetch existing metadata so we don't wipe fields we're not updating
+      const { data: existing, error: getErr } = await authed.auth.getUser()
+      if (getErr) return res.status(401).json({ error: 'Could not fetch user — token may be expired' })
+
+      const currentMeta = existing.user.user_metadata || {}
+
+      // Merge: only overwrite fields we're explicitly setting
+      const merged = {
+        ...currentMeta,
+        ...(name    !== undefined ? { name }    : {}),
+        ...(role    !== undefined ? { role }    : {}),
+        ...(fileNames             ? { fileNames } : {}),
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+      }
+
+      const { error } = await authed.auth.updateUser({ data: merged })
       if (error) return res.status(400).json({ error: error.message })
       return res.status(200).json({ success: true })
     }
