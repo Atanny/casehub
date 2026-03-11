@@ -39,6 +39,7 @@ export function caseToDb(c) {
     checklist: c.checklist || {},
     email_address: c.emailAddress || null,
     email_type: c.emailType || 'clarification',
+    ended_at: c.endedAt || null,
     image_urls: [
       ...(c.images || []).map(i => ({ url: i.url, name: i.name, path: i.path || null, type: 'main' })),
       ...(c.backupImages || []).map(i => ({ url: i.url, name: i.name, path: i.path || null, type: 'backup' })),

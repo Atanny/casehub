@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Head from 'next/head'
+import dynamic from 'next/dynamic'
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -739,16 +740,16 @@ function fmtElapsed(s) {
   return h>0?`${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
 }
 async function checkGrammar(text) {
-  if (!text.trim()) return text;
+  if (!text.trim()) return {result:text,changes:0};
   try {
     const r = await fetch("/api/grammar",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({text})
     });
-    if(!r.ok) return text;
+    if(!r.ok) return {result:text,changes:0};
     const d = await r.json();
-    return d.result || text;
-  } catch { return text; }
+    return {result:d.result||text, changes:d.changes||0};
+  } catch { return {result:text,changes:0}; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -938,7 +939,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
 
 function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
   const [checking,setChecking]=useState(null);
-  const ai=async(field)=>{ if(!entry[field]?.trim())return; setChecking(field); const c=await checkGrammar(entry[field]); onChange({...entry,[field]:c}); setChecking(null); };
+  const ai=async(field)=>{ if(!entry[field]?.trim())return; setChecking(field); const {result,changes}=await checkGrammar(entry[field]); onChange({...entry,[field]:result}); setChecking(changes>0?`fixed-${field}`:null); setTimeout(()=>setChecking(null),2000); };
   return (
     <div className="entry-card">
       <div className="entry-header">
@@ -946,8 +947,8 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
         {(showNumber||(index>0))&&<button className="entry-del" onClick={onDelete}><Icon name="trash" size={13} color="var(--red)"/></button>}
       </div>
       {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
-      <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"⏳ Checking...":"✨ AI Grammar Check"}</button></div></div>
-      <div className="field"><label>Clarification (optional)</label><textarea className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"⏳ Checking...":"✨ AI Grammar Check"}</button></div></div>
+      <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"Checking...":(checking===`fixed-note`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+      <div className="field"><label>Clarification (optional)</label><textarea className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"Checking...":(checking===`fixed-clarification`?"✓ Fixed!":"Grammar Check")}</button></div></div>
     </div>
   );
 }
@@ -1050,7 +1051,11 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
 
 // ─── Flat SVG Icon System ──────────────────────────────
 function Icon({ name, size=16, color="currentColor", style={} }) {
+  const [mounted,setMounted]=useState(false);
+  useEffect(()=>setMounted(true),[]);
   const s = { width:size, height:size, display:"inline-block", flexShrink:0, ...style };
+  const sp = { display:"inline-flex",alignItems:"center",verticalAlign:"middle",flexShrink:0,width:size,height:size };
+  if(!mounted) return <span style={sp}/>;
   const icons = {
     dashboard:    <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="1" width="6" height="6" fill={color}/><rect x="9" y="1" width="6" height="6" fill={color} opacity=".5"/><rect x="1" y="9" width="6" height="6" fill={color} opacity=".5"/><rect x="9" y="9" width="6" height="6" fill={color} opacity=".25"/></svg>,
     postlive:     <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="2" y="2" width="12" height="12" rx="0" stroke={color} strokeWidth="1.5"/><path d="M5 8.5l2.5 2.5L11 6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
@@ -1094,7 +1099,8 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
     snooze:       <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="9" r="6" stroke={color} strokeWidth="1.5"/><path d="M5.5 7h3L5.5 11H9" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M3 3L2 2M13 3l1-2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
     inprogress:   <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5"/><path d="M8 5v3.5l2.5 1.5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><circle cx="8" cy="8" r="2" fill={color} opacity=".25"/></svg>,
   };
-  return icons[name] || <svg viewBox="0 0 16 16" style={s}/>;
+  const el = icons[name] || <svg viewBox="0 0 16 16" style={s}/>;
+  return <span style={sp}>{el}</span>;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // FORM DATA
@@ -1135,6 +1141,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [copiedAll,setCopiedAll] = useState(false);
   const [autoSaved,setAutoSaved] = useState(null);
   const [draftSaving,setDraftSaving] = useState(false);
+  const dragEntryIdxRef = useRef(null);
+  const [dragEntryIdx,setDragEntryIdx] = useState(-1); // -1 = none dragging
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1179,6 +1187,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
+  const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
@@ -1248,10 +1257,16 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
           {form.entries.map((e,i)=>(
-            <div key={e.id} draggable onDragStart={()=>setDragEntryIdx(i)}
-              onDragOver={ev=>{ev.preventDefault();}} 
-              onDrop={()=>{if(dragEntryIdx!==null&&dragEntryIdx!==i){moveEntry(dragEntryIdx,i);}setDragEntryIdx(null);}}
-              style={{opacity:dragEntryIdx===i?.4:1,transition:"opacity .15s",cursor:"grab"}}>
+            <div key={e.id} draggable
+              onDragStart={()=>{dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
+              onDragOver={ev=>ev.preventDefault()}
+              onDrop={()=>{
+                const from=dragEntryIdxRef.current;
+                if(from!==-1&&from!==i)moveEntry(from,i);
+                dragEntryIdxRef.current=-1;setDragEntryIdx(-1);
+              }}
+              onDragEnd={()=>{dragEntryIdxRef.current=-1;setDragEntryIdx(-1);}}
+              style={{opacity:dragEntryIdx===i?0.4:1,transition:"opacity .15s",cursor:"grab",userSelect:"none"}}>
               <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
             </div>
           ))}
@@ -1261,8 +1276,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
               <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value})}/></div>
               <div className="field" style={{marginBottom:0}}><label>Email Type <span className="req">*</span></label>
                 <div className="radio-group">
-                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})}/>❓ Clarification</label>
-                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})}/>✅ Completed</label>
+                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})}/>Clarification</label>
+                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})}/>Completed</label>
                 </div>
               </div>
             </div>
@@ -1278,7 +1293,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All three must be checked <span className="req">*</span></p>
           <div className="check-group">
-            {[["mobile","📱 Mobile"],["tablet","💻 Tablet"],["desktop","🖥️ Desktop"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.devices[k]&&"checked")}><input type="checkbox" checked={form.devices[k]} onChange={e=>setF({devices:{...form.devices,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["mobile","Mobile"],["tablet","Tablet"],["desktop","Desktop"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.devices[k]&&"checked")}><input type="checkbox" checked={form.devices[k]} onChange={e=>setF({devices:{...form.devices,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -1849,8 +1864,8 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
                     <div className="field-row-edit"><label>Email Address</label><input className="inp" type="email" value={D.emailAddress||""} onChange={e=>setD({emailAddress:e.target.value})}/></div>
                     <div className="field-row-edit"><label>Email Type</label>
                       <div className="radio-group">
-                        <label className={cls("radio-label",D.emailType==="clarification"&&"selected-clarif")}><input type="radio" checked={D.emailType==="clarification"} onChange={()=>setD({emailType:"clarification"})}/>❓ Clarification</label>
-                        <label className={cls("radio-label",D.emailType==="completed"&&"selected-complete")}><input type="radio" checked={D.emailType==="completed"} onChange={()=>setD({emailType:"completed"})}/>✅ Completed</label>
+                        <label className={cls("radio-label",D.emailType==="clarification"&&"selected-clarif")}><input type="radio" checked={D.emailType==="clarification"} onChange={()=>setD({emailType:"clarification"})}/>Clarification</label>
+                        <label className={cls("radio-label",D.emailType==="completed"&&"selected-complete")}><input type="radio" checked={D.emailType==="completed"} onChange={()=>setD({emailType:"completed"})}/>Completed</label>
                       </div>
                     </div>
                   </>
@@ -1868,7 +1883,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
               <div className="case-section-title">📱 Device Check</div>
               {editMode ? (
                 <div className="device-edit-group">
-                  {[["mobile","📱 Mobile"],["tablet","💻 Tablet"],["desktop","🖥️ Desktop"]].map(([k,l])=>(
+                  {[["mobile","Mobile"],["tablet","Tablet"],["desktop","Desktop"]].map(([k,l])=>(
                     <label key={k} className={cls("check-label",D.devices?.[k]&&"checked")} style={{fontSize:12}}>
                       <input type="checkbox" checked={!!D.devices?.[k]} onChange={e=>setD({devices:{...D.devices,[k]:e.target.checked}})}/>{l}
                     </label>
@@ -1876,7 +1891,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
                 </div>
               ) : (
                 <div className="case-device-chips">
-                  {[["mobile","📱 Mobile"],["tablet","💻 Tablet"],["desktop","🖥️ Desktop"]].map(([k,l])=>(
+                  {[["mobile","Mobile"],["tablet","Tablet"],["desktop","Desktop"]].map(([k,l])=>(
                     <div key={k} className={cls("case-device-chip",c.devices?.[k]?"active":"inactive")}>{l}{c.devices?.[k]?" ✓":" ✗"}</div>
                   ))}
                 </div>
@@ -2203,7 +2218,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
 // ─────────────────────────────────────────────────────────────────────────────
 // LINKS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function LinksPage({ links, addLink, updateLink, removeLink }) {
+function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
   const dragLinkRef=useRef(null);
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null); // link object being edited
@@ -3053,14 +3068,14 @@ function App() {
             </div>
           )}
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
-          {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge">🏗️</div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
-          {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
+          {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
+          {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
             <PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
-          {!dataLoading&&page==="links"&&<LinksPage links={links} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
+          {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit}/>}
         </main>
       </div>
@@ -3115,4 +3130,7 @@ function App() {
   );
 }
 
-export default function CaseHubPage(){return <App/>}
+// Disable SSR entirely — prevents all hydration mismatches from dynamic content
+function CaseHubPage(){ return <App/>; }
+const CaseHubPageNoSSR = dynamic(()=>Promise.resolve(CaseHubPage),{ssr:false});
+export default CaseHubPageNoSSR;
