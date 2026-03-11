@@ -406,38 +406,29 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 select.inp{cursor:pointer;}
 
 /* Radio */
-.radio-group{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
+.radio-group{display:flex;gap:0;margin-top:6px;}
 .radio-label{
-  display:inline-flex;align-items:center;gap:9px;
-  background:var(--inp-bg);border:1.5px solid var(--border);
-  padding:9px 16px;border-radius:0;font-size:13px;cursor:pointer;
-  transition:.15s;font-family:'Poppins',sans-serif;
-  line-height:1;user-select:none;
+  display:none;
 }
-.radio-label:hover{border-color:var(--accent);}
-.radio-label input[type="radio"]{
-  appearance:none;-webkit-appearance:none;
-  width:15px;height:15px;min-width:15px;
-  border:2px solid var(--border);border-radius:50%;
-  background:var(--inp-bg);
-  display:inline-flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:.15s;margin:0;padding:0;vertical-align:middle;
-  position:relative;flex-shrink:0;
+.email-type-toggle{display:flex;gap:0;margin-top:6px;border:1.5px solid var(--border);overflow:hidden;}
+.email-type-btn{
+  flex:1;padding:10px 18px;font-size:13px;font-weight:600;
+  font-family:'Poppins',sans-serif;cursor:pointer;border:none;
+  background:var(--inp-bg);color:var(--muted);
+  transition:.15s;outline:none;line-height:1;
+  border-right:1px solid var(--border);
+  letter-spacing:.01em;
 }
-.radio-label input[type="radio"]::after{
-  content:"";display:block;width:7px;height:7px;
-  border-radius:50%;background:transparent;
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  transition:.15s;
+.email-type-btn:last-child{border-right:none;}
+.email-type-btn:hover{color:var(--text);background:var(--card2);}
+.email-type-btn.clarif{
+  background:var(--btn-draft-bg);color:var(--amber);
+  border-color:var(--amber);
 }
-.radio-label input[type="radio"]:checked{border-color:var(--accent);background:var(--inp-bg);}
-.radio-label input[type="radio"]:checked::after{background:var(--accent);}
-.radio-label.selected-clarif{border-color:var(--amber);color:var(--amber);background:var(--btn-draft-bg);}
-.radio-label.selected-clarif input[type="radio"]{border-color:var(--amber);}
-.radio-label.selected-clarif input[type="radio"]:checked::after{background:var(--amber);}
-.radio-label.selected-complete{border-color:var(--green);color:var(--green);background:rgba(16,185,129,.08);}
-.radio-label.selected-complete input[type="radio"]{border-color:var(--green);}
-.radio-label.selected-complete input[type="radio"]:checked::after{background:var(--green);}
+.email-type-btn.complete{
+  background:rgba(16,185,129,.1);color:var(--green);
+  border-color:var(--green);
+}
 
 /* Checkboxes */
 .check-group{display:flex;flex-wrap:wrap;gap:9px;}
@@ -1091,33 +1082,25 @@ function CopyRow({ label, value }) {
 }
 
 // ── GreetingRow — dropdown type selector for check-in message ──
-function GreetingRow({ greetingMsg, caseNum, accountNum, isSC, entries }) {
-  const [type,setType]=useState(isSC?"Site Comment":"Inbound Email");
-  const [refType,setRefType]=useState(isSC?"Site Comment #":"Case #");
+function GreetingRow({ greetingMsg, caseNum, accountNum, isSC, entries, greetingRefType }) {
   const [copied,setCopied]=useState(false);
-  const refTypes=["Site Comment #","Case #","Acc#"];
-  const typeOpts=["Site Comment","Inbound Email"];
+  // Build reference value from the type saved in profile
+  const refType = greetingRefType || (isSC?"Site Comment #":"Case #");
   const refVal = refType==="Site Comment #"
     ? (entries&&entries.length>0&&entries[0].number ? `Site Comment #${entries[0].number}` : "Site Comment #")
     : refType==="Acc#"
     ? `Acc# ${accountNum||""}`
     : `Case #${caseNum||""}`;
+  const typeLabel = isSC?"Site Comment":"Inbound Email";
   const baseMsg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd();
-  const msg=baseMsg+" ("+refVal+") "+type;
+  const msg=baseMsg+" "+refVal+" "+typeLabel;
   const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
   return (
     <div className="copy-row-wrap">
       <div className="copy-row-label">Message</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          <select value={refType} onChange={e=>setRefType(e.target.value)}
-            style={{background:"var(--inp-bg)",border:"1.5px solid var(--accent)",color:"var(--accent)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none",fontWeight:600}}>
-            {refTypes.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={type} onChange={e=>setType(e.target.value)}
-            style={{background:"var(--inp-bg)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none"}}>
-            {typeOpts.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{fontSize:10,color:"var(--muted)",fontStyle:"italic",flex:1}}>ref: <strong style={{color:"var(--accent)"}}>{refType}</strong></span>
           <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
         </div>
         <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,padding:"5px 8px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>{msg}</div>
@@ -1126,7 +1109,7 @@ function GreetingRow({ greetingMsg, caseNum, accountNum, isSC, entries }) {
   );
 }
 
-function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po (Case #)" }) {
+function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po", greetingRefType }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
@@ -1166,7 +1149,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} isSC={isSC} entries={f.entries}/>
+          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} isSC={isSC} entries={f.entries} greetingRefType={greetingRefType}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
@@ -1261,7 +1244,7 @@ const emptyBase  = ()=>({
 
 
 // ── Table of Contents / Outline Panel — sticky card column ──────────────────
-function TocPanel({ openStep, setOpenStep, isSC, page }) {
+function TocPanel({ openStep, setOpenStep, isSC, page, specialRequestors }) {
   if(page!=="postlive") return null;
   const steps=[
     {num:1,label:"Case Info"},
@@ -1272,7 +1255,6 @@ function TocPanel({ openStep, setOpenStep, isSC, page }) {
     {num:5,label:"After Name"},
     {num:6,label:"Before/After"},
     {num:7,label:"Checklist"},
-    {num:"req",label:"Requestors"},
   ];
   return (
     <div className="toc-card">
@@ -1292,6 +1274,19 @@ function TocPanel({ openStep, setOpenStep, isSC, page }) {
           <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
         </button>
       ))}
+      {specialRequestors&&specialRequestors.length>0&&(
+        <div style={{borderTop:"1px solid var(--border)",marginTop:4,paddingTop:8,paddingBottom:4}}>
+          <div style={{padding:"4px 12px 6px",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>Requestors</div>
+          {specialRequestors.map((name,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 12px"}}>
+              <span style={{width:18,height:18,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:8,fontWeight:700,flexShrink:0}}>
+                {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+              </span>
+              <span style={{fontSize:11,color:"var(--text)",fontWeight:600,fontFamily:"'Poppins',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1325,6 +1320,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [dragEntryIdx,setDragEntryIdx] = useState(-1);
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
+  const [dragOverPos,setDragOverPos] = useState(null); // "before" | "after"
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1366,7 +1362,12 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const step4Done = form.devices.mobile&&form.devices.tablet&&form.devices.desktop;
   const step7Done = Object.values(form.checklist).every(Boolean);
 
-  const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
+  const addEntry    = ()=>setF(f=>{
+    // Auto-save last entry if unsaved
+    const last=f.entries[f.entries.length-1];
+    const saved=last&&!last._saved?(f.entries.map((e,i)=>i===f.entries.length-1?{...e,_saved:true}:e)):f.entries;
+    return{entries:[...saved,emptyEntry()]};
+  });
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
   const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
@@ -1422,7 +1423,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
   return (
     <div className="form-cols">
-      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"/>
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive" specialRequestors={specialRequestors}/>
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
@@ -1440,19 +1441,44 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
           {form.entries.map((e,i)=>(
-            <div key={e.id}>
-              {dragOverIdx===i&&dragEntryIdx!==i&&(
-                <div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+            <div key={e.id}
+              style={{position:"relative"}}
+              onDragOver={ev=>{
+                ev.preventDefault();ev.dataTransfer.dropEffect="move";
+                const rect=ev.currentTarget.getBoundingClientRect();
+                const pos=ev.clientY<rect.top+rect.height/2?"before":"after";
+                if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}
+                setDragOverPos(pos);
+              }}
+              onDrop={ev=>{
+                ev.preventDefault();
+                const from=dragEntryIdxRef.current;
+                if(from!==-1&&from!==i){
+                  const to=dragOverPos==="before"?i:(i+1>from?i:i);
+                  moveEntry(from,to);
+                }
+                dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;
+                setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
+              }}
+              onDragLeave={ev=>{
+                if(!ev.currentTarget.contains(ev.relatedTarget)){
+                  dragOverIdxRef.current=-1;setDragOverIdx(-1);setDragOverPos(null);
+                }
+              }}
+            >
+              {dragOverIdx===i&&dragEntryIdx!==i&&dragOverPos==="before"&&(
+                <div className="drag-skeleton" style={{margin:"0 0 4px"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
               )}
               <div
                 draggable
-                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
-                onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
-                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
-                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
-                style={{userSelect:"none",opacity:dragEntryIdx===i?0.25:1,transition:"opacity .12s"}}>
+                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",String(i));dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
+                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);}}
+                style={{userSelect:"none",opacity:dragEntryIdx===i?0.22:1,transition:"opacity .1s"}}>
                 <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
               </div>
+              {dragOverIdx===i&&dragEntryIdx!==i&&dragOverPos==="after"&&(
+                <div className="drag-skeleton" style={{margin:"4px 0 0"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+              )}
             </div>
           ))}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
@@ -1460,9 +1486,13 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
               <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value})}/></div>
               <div className="field" style={{marginBottom:0}}><label>Email Type <span className="req">*</span></label>
-                <div className="radio-group">
-                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})}/>Clarification</label>
-                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})}/>Completed</label>
+                <div className="email-type-toggle">
+                  <button className={cls("email-type-btn",form.emailType==="clarification"&&"clarif")} onClick={()=>setF({emailType:"clarification"})}>
+                    📝 Clarification
+                  </button>
+                  <button className={cls("email-type-btn",form.emailType==="completed"&&"complete")} onClick={()=>setF({emailType:"completed"})}>
+                    ✅ Completed
+                  </button>
                 </div>
               </div>
             </div>
@@ -1548,7 +1578,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <Toast msg={toast.msg} type={toast.type}/>
       </div>
       <div className="form-right">
-        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)"}/>
+        <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMsg={user?.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po"} greetingRefType={user?.greetingRefType}/>
       </div>
     </div>
   );
@@ -2446,6 +2476,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
   const dragLinkRef=useRef(null);
   const [dragLinkActive,setDragLinkActive]=useState(null);
   const [dragLinkOver,setDragLinkOver]=useState(null);
+  const [dragLinkPos,setDragLinkPos]=useState(null);
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null); // link object being edited
   const [form,setForm]=useState({title:"",url:"",icon:"🔗"});
@@ -2505,21 +2536,31 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
       {links.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>🔗</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No links yet</div><div>Add a link to have it appear in the sidebar.</div></div>)}
 
       {links.map((l,i)=>(
-        <div key={l.id}>
-          {dragLinkOver===i&&dragLinkActive!==i&&(
+        <div key={l.id} style={{position:"relative"}}
+          onDragOver={e=>{
+            e.preventDefault();e.dataTransfer.dropEffect="move";
+            const rect=e.currentTarget.getBoundingClientRect();
+            const pos=e.clientY<rect.top+rect.height/2?"before":"after";
+            if(dragLinkOver!==i)setDragLinkOver(i);
+            setDragLinkPos(pos);
+          }}
+          onDrop={e=>{
+            e.preventDefault();
+            const from=dragLinkRef.current!=null?dragLinkRef.current:parseInt(e.dataTransfer.getData("text/plain"));
+            if(!isNaN(from)&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
+            dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);setDragLinkPos(null);
+          }}
+          onDragLeave={e=>{
+            if(!e.currentTarget.contains(e.relatedTarget)){setDragLinkOver(null);setDragLinkPos(null);}
+          }}
+        >
+          {dragLinkOver===i&&dragLinkActive!==i&&dragLinkPos==="before"&&(
             <div className="link-drag-skeleton"><Icon name="links" size={14} color="var(--accent)"/>Drop here</div>
           )}
           <div className="link-card"
             draggable
             onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i));dragLinkRef.current=i;setDragLinkActive(i);}}
-            onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dragLinkOver!==i)setDragLinkOver(i);}}
-            onDrop={e=>{
-              e.preventDefault();
-              const from=dragLinkRef.current!=null?dragLinkRef.current:parseInt(e.dataTransfer.getData("text/plain"));
-              if(!isNaN(from)&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
-              dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);
-            }}
-            onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);}}
+            onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);setDragLinkPos(null);}}
             style={{cursor:"grab",userSelect:"none",opacity:dragLinkActive===i?0.25:1,transition:"opacity .12s"}}
           >
           <div className="drag-handle" title="Drag to reorder" style={{flexDirection:"row",gap:3,padding:"6px 4px"}}>
@@ -2535,6 +2576,9 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
             <button className="h-btn danger" onClick={()=>remove(l.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
           </div>
           </div>
+          {dragLinkOver===i&&dragLinkActive!==i&&dragLinkPos==="after"&&(
+            <div className="link-drag-skeleton"><Icon name="links" size={14} color="var(--accent)"/>Drop here</div>
+          )}
         </div>
       ))}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -2563,7 +2607,8 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
     afterName:user.afterName||defNames(user.name).afterName,
     screenshotName:user.screenshotName||defNames(user.name).screenshotName,
     avatarUrl:user.avatarUrl||"",
-    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+    greetingMsg:user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
+    greetingRefType:user.greetingRefType||"Case #",
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
@@ -2582,12 +2627,14 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             beforeName: data.before_name || user.beforeName||defNames(user.name).beforeName,
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
-            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+            greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
+            greetingRefType: data.greeting_ref_type || user.greetingRefType||"Case #",
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
             beforeName:merged.beforeName,afterName:merged.afterName,screenshotName:merged.screenshotName,
-            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)",
+            greetingMsg:merged.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
+            greetingRefType:merged.greetingRefType||"Case #",
           }));
           // Sync to localStorage so rest of app sees it
           localStorage.setItem("ch_user",JSON.stringify(merged));
@@ -2612,6 +2659,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         screenshot_name:form.screenshotName,
         avatar_url:form.avatarUrl||null,
         greeting_msg:form.greetingMsg,
+        greeting_ref_type:form.greetingRefType||"Case #",
       };
       const res=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json();
@@ -2620,7 +2668,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
       const updated={...user,...form,
         beforeName:form.beforeName,afterName:form.afterName,
         screenshotName:form.screenshotName,avatarUrl:form.avatarUrl||user.avatarUrl||"",
-        greetingMsg:form.greetingMsg};
+        greetingMsg:form.greetingMsg,greetingRefType:form.greetingRefType||"Case #"};
       localStorage.setItem("ch_user",JSON.stringify(updated));
       setUser(updated);
       setEditing(false);
@@ -2704,12 +2752,33 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
       {/* ── Greeting / check-in message card ── */}
       <div className="profile-card">
         <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Check-in Message</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Appears in your Live Summary panel. The reference number (Site Comment #, Case #, or Acc#) is added via dropdown when using the form.</p>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>This message appears in your Live Summary panel. Choose what reference number to include.</p>
         <div className="field">
           <label>Message Template</label>
           <input className="inp" value={form.greetingMsg||""} onChange={e=>setForm(f=>({...f,greetingMsg:e.target.value}))} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
         </div>
-        <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Preview: <span style={{color:"var(--accent)",fontWeight:600}}>{(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd()} (Case #12345) Site Comment</span></div>
+        <div className="field" style={{marginBottom:0}}>
+          <label>Reference Number Type</label>
+          <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
+            {["Site Comment #","Case #","Acc#"].map(opt=>(
+              <button key={opt} onClick={()=>setForm(f=>({...f,greetingRefType:opt}))}
+                style={{padding:"6px 14px",fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",
+                  border:"1.5px solid "+(form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--accent)":"var(--border)"),
+                  background:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--entry-accent-bg)":"var(--inp-bg)",
+                  color:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--accent)":"var(--muted)",
+                  fontWeight:form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?700:400,
+                  borderRadius:0,transition:".15s"}}>
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",marginTop:14,padding:"8px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>
+          Preview: <span style={{color:"var(--accent)",fontWeight:600}}>
+            {(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd()}
+            {" "}{form.greetingRefType==="Site Comment #"?"Site Comment #3":form.greetingRefType==="Acc#"?"Acc# 123456":"Case #12345"}{" "}Site Comment
+          </span>
+        </div>
         <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
       </div>
 
