@@ -362,7 +362,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .summary-locked-icon{font-size:32px;margin-bottom:8px;}
 
 /* Copy row */
-.copy-row-wrap{margin-bottom:10px;background:var(--sum-bg);border:1px solid var(--border);border-radius:0;padding:12px 14px;transition:.15s;}
+.copy-row-wrap{margin-bottom:8px;background:var(--sum-bg);border:1px solid var(--border);border-radius:0;padding:10px 14px;transition:.15s;}
 .copy-row-wrap:hover{border-color:var(--accent);}
 .copy-row-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-family:'Poppins',sans-serif;}
 .copy-row-inner{display:flex;align-items:flex-start;gap:8px;}
@@ -1050,10 +1050,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <div style={{background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"10px 14px",margin:"2px 0",fontFamily:"'Poppins',sans-serif"}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5}}>Message</div>
-            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7,cursor:"pointer"}} onClick={()=>copyToClipboard(greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)).then(()=>{})}>{greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)} <span style={{fontSize:10,color:"var(--accent)"}}>[copy]</span></div>
-          </div>
+          <CopyRow label="Message" value={greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
@@ -1345,9 +1342,9 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <button className={cls("copy-all-btn",copiedAll&&"copied")} onClick={handleCopyAll}>{copiedAll?"✓ Copied!":"📋 Copy All "+(isSC?"Site Comments":"Assumptions + Email")}</button>
         </StepCard>
 
-        <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step1Done&&!isDraft} {...stepProps}>
+        <StepCard num="6b" title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step1Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false} initialImages={form.backupImages||[]}/>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]}/>
         </StepCard>
 
         <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!isDraft} {...stepProps}>
@@ -2338,8 +2335,23 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 
       {links.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>🔗</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No links yet</div><div>Add a link to have it appear in the sidebar.</div></div>)}
 
-      {links.map(l=>(
-        <div key={l.id} className="link-card">
+      {links.map((l,i)=>(
+        <div key={l.id} className="link-card"
+          draggable
+          onDragStart={()=>{dragLinkRef.current=i;}}
+          onDragOver={e=>e.preventDefault()}
+          onDrop={()=>{
+            const from=dragLinkRef.current;
+            if(from==null||from===i)return;
+            const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);
+            setLinks(arr);dragLinkRef.current=null;
+          }}
+          onDragEnd={()=>{dragLinkRef.current=null;}}
+          style={{cursor:"grab",userSelect:"none"}}
+        >
+          <div style={{display:"flex",alignItems:"center",gap:6,opacity:.35,flexShrink:0,paddingRight:2}}>
+            <Icon name="draft" size={13} color="var(--muted)"/>
+          </div>
           <div className="link-icon">{l.icon}</div>
           <div className="link-info"><div className="link-title">{l.title}</div><div className="link-url">{l.url}</div></div>
           <div className="link-actions">
@@ -2695,6 +2707,7 @@ function App() {
   const [user,setUser]=useState(null);
   const [sessionChecked,setSessionChecked]=useState(false); // prevents flash of login screen
   const [page,setPage]=useState("dashboard");
+  const sidebarDragRef=useRef(null);
   const [pendingPage,setPendingPage]=useState(null);
   const [navConfirm,setNavConfirm]=useState(false);
   const dbStatus = useDbStatus();
@@ -3069,7 +3082,22 @@ function App() {
 
           {links.length>0&&(<>
             <div className="nav-group">Custom Links</div>
-            {links.map(l=>(<a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" className={cls("nav-custom-link")}>{l.icon} {l.title}</a>))}
+            {links.map((l,i)=>{
+              const ref=sidebarDragRef;
+              return(<div key={l.id} draggable
+                onDragStart={()=>{ref.current=i;}}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={()=>{
+                  const from=ref.current;
+                  if(from==null||from===i)return;
+                  const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);
+                  setLinks(arr);ref.current=null;
+                }}
+                onDragEnd={()=>{ref.current=null;}}
+                style={{cursor:"grab"}}>
+                <a href={l.url} target="_blank" rel="noopener noreferrer" className={cls("nav-custom-link")} onClick={e=>e.stopPropagation()}>{l.icon} {l.title}</a>
+              </div>);
+            })}
           </>)}
 
           <div style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
@@ -3172,6 +3200,18 @@ function App() {
       )}
 
       {/* Nav no longer shows discard warning — form state preserved on page switch */}
+
+      {/* ── Floating in-progress pill (fixed, sitewide, bottom-right) ── */}
+      {formActive&&page!=="postlive"&&(
+        <div className="form-progress-pill" onClick={()=>handleNav("postlive")}>
+          <div className="form-progress-pill-dot"/>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,lineHeight:1}}>Form In Progress</div>
+            <div style={{fontSize:10,opacity:.85,marginTop:2}}>Click to resume</div>
+          </div>
+          <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:4}}/>
+        </div>
+      )}
     </>
   );
 }
