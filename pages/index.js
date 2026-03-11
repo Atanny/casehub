@@ -1354,14 +1354,10 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const step4Done = form.devices.mobile&&form.devices.tablet&&form.devices.desktop;
   const step7Done = Object.values(form.checklist).every(Boolean);
 
-  const addEntry    = ()=>setF(f=>{
-    // Auto-save all unsaved entries before adding a new one
-    const saved=f.entries.map(e=>e._saved?e:{...e,_saved:true});
-    return{entries:[...saved,emptyEntry()]};
-  });
+  const addEntry    = ()=>setForm(f=>{const saved=f.entries.map(e=>e._saved?e:{...e,_saved:true});return{...f,entries:[...saved,emptyEntry()]};});
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
-  const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
+  const moveEntry   = (from,to)=>setForm(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
@@ -1891,7 +1887,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon"><Icon name="inbound" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
       </div>
 
-      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{[...dbDrafts].reverse().map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · 📝 Draft saved {d.draftAt||d.saved_at||""}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
+      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{[...dbDrafts].map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · 📝 Draft saved {d.draftAt||d.saved_at||""}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
 
       <div>
         <div className="section-title">Recently Saved Cases</div>
@@ -3132,7 +3128,7 @@ function App() {
       fetch(`/api/drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
       fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
     ]).then(([cases,anns,lnks,reqs,draftList,profile])=>{
-      setAllCases(Array.isArray(cases)?[...cases].reverse():[]);
+      setAllCases(Array.isArray(cases)?[...cases]:[]);
       setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
       setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
