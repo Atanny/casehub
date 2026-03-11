@@ -116,6 +116,12 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   border-radius:0;font-size:10px;font-weight:700;
   padding:1px 7px;line-height:1.6;
 }
+.nav-inprogress{
+  margin-left:auto;display:flex;align-items:center;gap:4px;
+  font-size:9px;font-weight:700;color:var(--accent);
+  font-family:'Poppins',sans-serif;letter-spacing:.3px;
+  animation:pulse-dot 1.4s ease-in-out infinite;
+}
 .nav-custom-link{
   display:flex;align-items:center;gap:10px;
   padding:9px 12px;border-radius:0;
@@ -780,7 +786,7 @@ function StepCard({ num, title, children, done, locked, openStep, setOpenStep })
       <div className="step-header" onClick={()=>{ if(!locked) setOpenStep(isOpen ? null : num); }}>
         <div className="step-num">{done?"✓":num}</div>
         <div className="step-title">{title}</div>
-        {locked ? <span className="step-lock-icon">🔒</span> : <span className="step-chevron">▼</span>}
+        {locked ? <span className="step-lock-icon"> </span> : <span className="step-chevron">▼</span>}
       </div>
       {isOpen&&!locked&&<div className="step-body" onClick={e=>e.stopPropagation()}>{children}</div>}
     </div>
@@ -897,7 +903,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
     <div>
       <div className={cls("img-zone", drag&&"drag")} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);addFiles(e.dataTransfer.files);}} onClick={()=>!uploading&&ref.current?.click()}>
         <input ref={ref} type="file" accept="image/*" multiple={multiple} onChange={e=>addFiles(e.target.files)} style={{pointerEvents:"none"}}/>
-        <div style={{fontSize:28,marginBottom:8}}>{uploading ? "⏳" : "🖼️"}</div>
+        <div style={{fontSize:28,marginBottom:8}}>{uploading ? <Icon name="loading" size={28} color="var(--accent)"/> : <Icon name="image" size={28} color="var(--muted)"/>}</div>
         <div style={{fontSize:13,color:"var(--muted)"}}>
           {uploading
             ? (immediateUpload ? "Uploading to database…" : "Preparing image…")
@@ -937,7 +943,7 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
     <div className="entry-card">
       <div className="entry-header">
         <span className="entry-label">{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
-        {(showNumber||(index>0))&&<button className="entry-del" onClick={onDelete}>🗑</button>}
+        {(showNumber||(index>0))&&<button className="entry-del" onClick={onDelete}><Icon name="trash" size={13} color="var(--red)"/></button>}
       </div>
       {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
       <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"⏳ Checking...":"✨ AI Grammar Check"}</button></div></div>
@@ -983,14 +989,14 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   const allImages=[...(f.images||[]),...(f.backupImages||[])];
   return (
     <div className="right-panel">
-      <div className="right-panel-header">📋 Live Summary</div>
+      <div className="right-panel-header"> Live Summary</div>
       <div className="meta-stack">
         <div className="meta-row">
           <span className="meta-label">📅 Started</span>
           <span className="meta-val">{fmtDT(new Date(startTimeRef.current))}</span>
         </div>
         <div className="meta-row">
-          <span className="meta-label">⏱ Elapsed</span>
+          <span className="meta-label"> Elapsed</span>
           <span className="timer-val">{fmtElapsed(elapsed)}</span>
         </div>
         <div className="meta-row">
@@ -1010,7 +1016,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
       </div>
       {specialRequestors&&specialRequestors.length>0&&(
         <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>⭐ Special Requestors</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {specialRequestors.map((name,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
@@ -1027,6 +1033,55 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   );
 }
 
+
+// ─── Flat SVG Icon System ──────────────────────────────
+function Icon({ name, size=16, color="currentColor", style={} }) {
+  const s = { width:size, height:size, display:"inline-block", flexShrink:0, ...style };
+  const icons = {
+    dashboard:    <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="1" width="6" height="6" fill={color}/><rect x="9" y="1" width="6" height="6" fill={color} opacity=".5"/><rect x="1" y="9" width="6" height="6" fill={color} opacity=".5"/><rect x="9" y="9" width="6" height="6" fill={color} opacity=".25"/></svg>,
+    postlive:     <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="2" y="2" width="12" height="12" rx="0" stroke={color} strokeWidth="1.5"/><path d="M5 8.5l2.5 2.5L11 6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    prelive:      <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="2" y="2" width="12" height="12" stroke={color} strokeWidth="1.5"/><path d="M5 8h6M8 5v6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    history:      <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5"/><path d="M8 5v3.5l2.5 1.5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    announcements:<svg viewBox="0 0 16 16" fill="none" style={s}><path d="M3 6h2v5H3V6zM5 6l7-4v13L5 11V6z" fill={color} opacity=".8"/><rect x="8" y="12" width="2" height="3" rx="1" fill={color}/></svg>,
+    links:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M6 9.5a3.5 3.5 0 004.95-4.95L9.54 3.15A3.5 3.5 0 004.6 8.1" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M10 6.5a3.5 3.5 0 00-4.95 4.95l1.41 1.4A3.5 3.5 0 0011.4 7.9" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    profile:      <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="5" r="3" stroke={color} strokeWidth="1.5"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    analytics:    <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="9" width="3" height="6" fill={color}/><rect x="6" y="5" width="3" height="10" fill={color} opacity=".7"/><rect x="11" y="1" width="3" height="14" fill={color} opacity=".45"/></svg>,
+    requestors:   <svg viewBox="0 0 16 16" fill="none" style={s}><polygon points="8,1 10,6 15,6 11,9.5 12.5,15 8,11.5 3.5,15 5,9.5 1,6 6,6" fill={color} opacity=".8"/></svg>,
+    quickaction:  <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M9 1L4 9h5l-2 6 7-8h-5l2-6z" fill={color}/></svg>,
+    sitecomment:  <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="2" width="14" height="10" rx="0" stroke={color} strokeWidth="1.5"/><path d="M4 14l3-2h5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M4 6h8M4 8.5h5" stroke={color} strokeWidth="1.4" strokeLinecap="square" opacity=".6"/></svg>,
+    inbound:      <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="3" width="14" height="10" stroke={color} strokeWidth="1.5"/><path d="M1 3l7 6 7-6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    draft:        <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="3" y="1" width="10" height="14" stroke={color} strokeWidth="1.5"/><path d="M6 5h4M6 8h4M6 11h2" stroke={color} strokeWidth="1.4" strokeLinecap="square" opacity=".7"/></svg>,
+    save:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M2 2h9l3 3v9H2V2z" stroke={color} strokeWidth="1.5"/><rect x="5" y="10" width="6" height="4" stroke={color} strokeWidth="1.4"/><rect x="5" y="2" width="5" height="4" fill={color} opacity=".5"/></svg>,
+    trash:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    edit:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M10 2l4 4-8 8H2v-4l8-8z" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    back:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M10 3L5 8l5 5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    check:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M2 8l4.5 5L14 3" stroke={color} strokeWidth="2" strokeLinecap="square"/></svg>,
+    warn:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M8 1L1 14h14L8 1z" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M8 6v4M8 12v1" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    clear:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M2 4h12M5 4V2h6v2M4 4l8 10H4L2 4" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    pin:          <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M10 2l4 4-2 2-1-1-4 4 1 1-2 2-4-4 2-2 1 1 4-4-1-1 2-2zM5 11l-3 3" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    image:        <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="2" width="14" height="12" stroke={color} strokeWidth="1.5"/><circle cx="5.5" cy="6" r="1.5" fill={color} opacity=".7"/><path d="M1 11l4-4 3 3 2-2 5 5" stroke={color} strokeWidth="1.4" strokeLinecap="square" opacity=".8"/></svg>,
+    copy:         <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="5" y="1" width="10" height="12" stroke={color} strokeWidth="1.5"/><rect x="1" y="4" width="10" height="12" fill="var(--bg)" stroke={color} strokeWidth="1.5"/></svg>,
+    close:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M3 3l10 10M13 3L3 13" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    play:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M4 2l10 6-10 6V2z" fill={color}/></svg>,
+    loading:      <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5" opacity=".25"/><path d="M8 2a6 6 0 016 6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    empty:        <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="2" y="2" width="12" height="12" stroke={color} strokeWidth="1.5" opacity=".4"/><path d="M6 6h4M6 10h2" stroke={color} strokeWidth="1.4" strokeLinecap="square" opacity=".4"/></svg>,
+    coffee:       <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M3 5h8v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" stroke={color} strokeWidth="1.5"/><path d="M11 7h1a2 2 0 010 4h-1" stroke={color} strokeWidth="1.5"/><path d="M6 2v2M8 1v2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    meditate:     <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="3" r="2" stroke={color} strokeWidth="1.5"/><path d="M4 8c0-2 1.5-3.5 4-3.5S12 6 12 8" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M1 11h14M4 11v3M12 11v3M8 8v3" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    lunch:        <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M3 2v12M6 2v5a3 3 0 003 3v4M9 2v4a3 3 0 003-3V2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    lock:         <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="3" y="7" width="10" height="8" stroke={color} strokeWidth="1.5"/><path d="M5 7V5a3 3 0 016 0v2" stroke={color} strokeWidth="1.5"/><circle cx="8" cy="11" r="1.5" fill={color}/></svg>,
+    user:         <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="5" r="3" stroke={color} strokeWidth="1.5"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    signout:      <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M6 14H2V2h4" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M10 5l4 3-4 3M14 8H6" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    announce:     <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M3 6h2v5H3V6zM5 6l7-4v13L5 11V6z" fill={color} opacity=".8"/></svg>,
+    camera:       <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M1 5h14v9H1V5z" stroke={color} strokeWidth="1.5"/><circle cx="8" cy="9.5" r="2.5" stroke={color} strokeWidth="1.5"/><path d="M5 5l1.5-2h3L11 5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    casebox:      <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="4" width="14" height="11" stroke={color} strokeWidth="1.5"/><path d="M5 4V2h6v2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M1 8h14" stroke={color} strokeWidth="1.5"/></svg>,
+    timer:        <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="9" r="6" stroke={color} strokeWidth="1.5"/><path d="M8 6v3.5l2 2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M6 1h4" stroke={color} strokeWidth="2" strokeLinecap="square"/></svg>,
+    bell:         <svg viewBox="0 0 16 16" fill="none" style={s}><path d="M8 1v1M8 1a5 5 0 015 5v4l1.5 1.5H1.5L3 11V7a5 5 0 015-5z" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M6 13a2 2 0 004 0" stroke={color} strokeWidth="1.5"/></svg>,
+    password:     <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="4" cy="8" r="2" stroke={color} strokeWidth="1.5"/><path d="M6 8h8M11 6v4M13 7v2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    snooze:       <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="9" r="6" stroke={color} strokeWidth="1.5"/><path d="M5.5 7h3L5.5 11H9" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M3 3L2 2M13 3l1-2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
+    inprogress:   <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5"/><path d="M8 5v3.5l2.5 1.5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><circle cx="8" cy="8" r="2" fill={color} opacity=".25"/></svg>,
+  };
+  return icons[name] || <svg viewBox="0 0 16 16" style={s}/>;
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // FORM DATA
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1225,23 +1280,23 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <button className="btn btn-cancel" onClick={()=>setModal("cancel")}>✕ Cancel</button>
           <button className="btn btn-ghost" onClick={()=>setModal("clear")}>🧹 Clear</button>
           <div className="spacer"/>
-          <button className="btn btn-draft" onClick={openDraftModal}>📝 Save Draft</button>
+          <button className="btn btn-draft" onClick={openDraftModal}> Save Draft</button>
           {autoSaved&&<span style={{fontSize:11,color:"var(--muted)",alignSelf:"center",marginLeft:4}}>✓ Auto-saved {autoSaved}</span>}
           <button className="btn btn-save" onClick={handleSave}>💾 Save Case</button>
         </div>
 
-        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⚠️</div><h3>Discard Form?</h3><p>Going back will delete all entered data.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack();}}>Yes, Discard</button></div></div></div>)}
-        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>🧹</div><h3>Clear All Fields?</h3><p>This resets every field. Cannot be undone.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("Cleared","info");}}>Clear</button></div></div></div>)}
-        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>💾</div><h3>Save Case?</h3><p>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>Confirm Save</button></div></div></div>)}
+        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="warn" size={40} color="var(--amber)"/></div><h3>Discard Form?</h3><p>Going back will delete all entered data.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack();}}>Yes, Discard</button></div></div></div>)}
+        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p>This resets every field. Cannot be undone.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("Cleared","info");}}>Clear</button></div></div></div>)}
+        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>Confirm Save</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
-          <div style={{fontSize:40,marginBottom:10}}>📝</div>
+          <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
           <h3 style={{marginBottom:8}}>Save as Draft?</h3>
           <p style={{color:"var(--muted)",fontSize:13,marginBottom:8,lineHeight:1.6}}>
             Your progress will be saved and you can resume anytime from Post-Live Amends.
           </p>
           <div style={{background:"var(--entry-accent-bg)",border:"1.5px solid var(--accent)",borderRadius:0,padding:"12px 16px",marginBottom:18,display:"flex",flexDirection:"column",gap:6}}>
             {form.caseNum&&<div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>Case #{form.caseNum}</div>}
-            <div style={{fontSize:12,color:"var(--muted)"}}>⏱ Time on case: <strong style={{color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15}}>{fmtElapsed(Math.floor((Date.now()-startTimeRef.current)/1000))}</strong></div>
+            <div style={{fontSize:12,color:"var(--muted)"}}> Time on case: <strong style={{color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15}}>{fmtElapsed(Math.floor((Date.now()-startTimeRef.current)/1000))}</strong></div>
             <div style={{fontSize:11,color:"var(--muted)"}}>This time will be restored when you resume.</div>
           </div>
           <div className="modal-btns">
@@ -1361,14 +1416,14 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
       <div className="stat-grid">
         <div className="stat-card blue"><div className="stat-icon">📁</div><div className="stat-label">Total Cases</div><div className="stat-val">{total}</div><div className="stat-sub">All time</div></div>
         <div className="stat-card green"><div className="stat-icon">📅</div><div className="stat-label">Today</div><div className="stat-val">{today}</div><div className="stat-sub">Cases today</div></div>
-        <div className="stat-card amber"><div className="stat-icon">💬</div><div className="stat-label">Site Comments</div><div className="stat-val">{scCount}</div><div className="stat-sub">Post-live</div></div>
-        <div className="stat-card purple"><div className="stat-icon">📧</div><div className="stat-label">Inbound Email</div><div className="stat-val">{ibCount}</div><div className="stat-sub">Assumptions</div></div>
+        <div className="stat-card amber"><div className="stat-icon"> </div><div className="stat-label">Site Comments</div><div className="stat-val">{scCount}</div><div className="stat-sub">Post-live</div></div>
+        <div className="stat-card purple"><div className="stat-icon"> </div><div className="stat-label">Inbound Email</div><div className="stat-val">{ibCount}</div><div className="stat-sub">Assumptions</div></div>
         <div className="stat-card green"><div className="stat-icon">✅</div><div className="stat-label">Completed</div><div className="stat-val">{rate}%</div><div className="stat-sub">Checklist rate</div></div>
-        <div className="stat-card red"><div className="stat-icon">⚠️</div><div className="stat-label">Incomplete</div><div className="stat-val">{total-completed}</div><div className="stat-sub">Missing checklist</div></div>
+        <div className="stat-card red"><div className="stat-icon"> </div><div className="stat-label">Incomplete</div><div className="stat-val">{total-completed}</div><div className="stat-sub">Missing checklist</div></div>
       </div>
 
       {/* Charts row */}
-      <div className="section-title">📊 Analytics</div>
+      <div className="section-title">Analytics</div>
       <div className="analytics-grid">
         <div className="analytics-card">
           <div className="analytics-title">Cases by Amend Type</div>
@@ -1398,7 +1453,7 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 
       {/* Special Requestors */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-        <div className="section-title" style={{marginBottom:0}}>⭐ Special Requestors</div>
+        <div className="section-title" style={{marginBottom:0}}>Special Requestors</div>
         <button className="btn btn-primary" style={{padding:"7px 14px",fontSize:12}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
       </div>
       <div className="requestor-grid">
@@ -1411,20 +1466,20 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
         ))}
         {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
       </div>
-      {addingReq&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>⭐</div><h3>Add Special Requestor</h3><div className="field" style={{textAlign:"left",marginBottom:16}}><label>Full Name</label><input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button><button className="btn btn-primary" onClick={handleAddRequestor}>Add</button></div></div></div>)}
+      {addingReq&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div><h3>Add Special Requestor</h3><div className="field" style={{textAlign:"left",marginBottom:16}}><label>Full Name</label><input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button><button className="btn btn-primary" onClick={handleAddRequestor}>Add</button></div></div></div>)}
 
       {/* Quick Actions */}
-      <div className="section-title" style={{marginTop:4}}>⚡ Quick Actions</div>
+      <div className="section-title" style={{marginTop:4}}>Quick Actions</div>
       <div className="quick-links">
-        <div className="quick-card" onClick={()=>setPage("postlive")}><span className="quick-icon">🚀</span><div><div className="quick-title">Post-Live Amends</div><div className="quick-sub">Site Comment or Inbound Email</div></div></div>
-        <div className="quick-card" onClick={()=>setPage("prelive")}><span className="quick-icon">🔧</span><div><div className="quick-title">Pre-Live Amends</div><div className="quick-sub">Coming soon</div></div></div>
-        <div className="quick-card" onClick={()=>setPage("history")}><span className="quick-icon">📂</span><div><div className="quick-title">Case History</div><div className="quick-sub">{total} case{total!==1?"s":""} saved</div></div></div>
-        <div className="quick-card" onClick={()=>setPage("announcements")}><span className="quick-icon">📢</span><div><div className="quick-title">Announcements</div><div className="quick-sub">Team updates</div></div></div>
+        <div className="quick-card" onClick={()=>setPage("postlive")}><span className="quick-icon"><Icon name="postlive" size={22}/></span><div><div className="quick-title">Post-Live Amends</div><div className="quick-sub">Site Comment or Inbound Email</div></div></div>
+        <div className="quick-card" onClick={()=>setPage("prelive")}><span className="quick-icon"><Icon name="prelive" size={22}/></span><div><div className="quick-title">Pre-Live Amends</div><div className="quick-sub">Coming soon</div></div></div>
+        <div className="quick-card" onClick={()=>setPage("history")}><span className="quick-icon"><Icon name="history" size={22}/></span><div><div className="quick-title">Case History</div><div className="quick-sub">{total} case{total!==1?"s":""} saved</div></div></div>
+        <div className="quick-card" onClick={()=>setPage("announcements")}><span className="quick-icon"><Icon name="announce" size={22}/></span><div><div className="quick-title">Announcements</div><div className="quick-sub">Team updates</div></div></div>
       </div>
 
       {/* Recent */}
       {savedCases.length>0&&(<>
-        <div className="section-title">🕒 Recent Cases</div>
+        <div className="section-title">Recent Cases</div>
         {[...savedCases].reverse().slice(0,6).map((c,i)=>(
           <div key={i} className="activity-row">
             <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
@@ -1433,7 +1488,7 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
           </div>
         ))}
       </>)}
-      {savedCases.length===0&&(<div style={{textAlign:"center",color:"var(--muted)",padding:"40px 0",fontSize:14}}><div style={{fontSize:48,marginBottom:12}}>📭</div>No cases saved yet. Start by creating a Post-Live Amend!</div>)}
+      {savedCases.length===0&&(<div style={{textAlign:"center",color:"var(--muted)",padding:"40px 0",fontSize:14}}><div style={{marginBottom:16}}><Icon name="empty" size={52} color="var(--muted)"/></div>No cases saved yet. Start by creating a Post-Live Amend!</div>)}
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
@@ -1467,7 +1522,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
               {e.clarification&&<div className="case-entry-field"><span className="case-entry-key">Clarification: </span>{e.clarification}</div>}
             </div>
           ))}
-          {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}>📧 {c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
+          {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}><Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>{c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
           {allImages.length>0&&(<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>{allImages.map(img=>(<div key={img.id||img.name} style={{width:72,height:56,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div>)}
         </div>
       )}
@@ -1510,7 +1565,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
           }}
           onSaveDraftDirect={handleSaveDraft}
           onBack={exitMode}/>
-        {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{fontSize:36,marginBottom:10}}>📌</div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
+        {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
   }
@@ -1520,18 +1575,18 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
   return (
     <div>
       <div className="page-header">
-        <div className="page-title">🚀 Post-Live Amends</div>
+        <div className="page-title">Post-Live Amends</div>
         <div className="page-sub">Choose the type of amend to begin.</div>
       </div>
       <div className="choice-row">
-        <button className="choice-btn" onClick={()=>enterMode("siteComment")}><span className="choice-icon">💬</span><div><div className="choice-btn-title">Site Comment</div><div className="choice-btn-sub">Step-by-step with live timer</div></div></button>
-        <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon">📧</span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
+        <button className="choice-btn" onClick={()=>enterMode("siteComment")}><span className="choice-icon"><Icon name="sitecomment" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Site Comment</div><div className="choice-btn-sub">Step-by-step with live timer</div></div></button>
+        <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon"><Icon name="inbound" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
       </div>
 
-      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">📝 Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}>▶ Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}>🗑</button></div>))}</div>)}
+      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
 
       <div>
-        <div className="section-title">🕒 Recently Saved Cases</div>
+        <div className="section-title">Recently Saved Cases</div>
         {recentAll.length===0&&<div style={{color:"var(--muted)",fontSize:13,padding:"8px 0"}}>No cases saved yet. Complete a form to see it here.</div>}
         {recentAll.map((c,i)=>(<SavedCaseCard key={c._id||`local-${i}`} c={c} idx={i} openId={openSavedId} setOpenId={setOpenSavedId}/>))}
       </div>
@@ -1683,7 +1738,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
           <div className="case-meta-sub">
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
             {c.savedAt}
-            {allImages.length>0&&<span style={{marginLeft:8}}>🖼️ {allImages.length}</span>}
+            {allImages.length>0&&<span style={{marginLeft:8}}> {allImages.length}</span>}
             {c.checklist&&<span style={{marginLeft:8,color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
           </div>
         </div>
@@ -1708,7 +1763,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
 
             {/* ── CASE INFO ── */}
             <div className="case-section">
-              <div className="case-section-title">📋 Case Info</div>
+              <div className="case-section-title">Case Info</div>
               {editMode ? (
                 <>
                   <div className="field-row-edit"><label>Case # <span className="req">*</span></label><input className="inp" value={D.caseNum||""} onChange={e=>setD({caseNum:e.target.value})}/></div>
@@ -1731,13 +1786,13 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
             {/* ── SITE COMMENTS / ASSUMPTIONS ── */}
             <div className="case-section">
               <div className="edit-section-header">
-                <div className="case-section-title" style={{marginBottom:0}}>{isSC?"💬 Site Comments":"📝 Assumptions"}</div>
+                <div className="case-section-title" style={{marginBottom:0}}>{isSC?"Site Comments":"Assumptions"}</div>
                 {editMode&&<button className="add-entry-btn-sm" onClick={addEntry}>＋ Add {isSC?"Comment":"Assumption"}</button>}
               </div>
               {editMode ? (
                 (D.entries||[]).map((e,ei)=>(
                   <div key={e.id} className="edit-entry-card">
-                    {(isSC||(D.entries.length>1))&&<button className="entry-del" onClick={()=>deleteEntry(e.id)}>🗑</button>}
+                    {(isSC||(D.entries.length>1))&&<button className="entry-del" onClick={()=>deleteEntry(e.id)}><Icon name="trash" size={13} color="var(--red)"/></button>}
                     {isSC&&<div className="field-row-edit"><label>SC Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={e.number||""} onChange={ev=>updateEntry(e.id,{number:ev.target.value})}/></div>}
                     <div className="field-row-edit"><label>Note</label><textarea className="inp" rows={3} value={e.note||""} onChange={ev=>updateEntry(e.id,{note:ev.target.value})} placeholder="Note..."/></div>
                     <div className="field-row-edit"><label>Clarification</label><textarea className="inp" rows={3} value={e.clarification||""} onChange={ev=>updateEntry(e.id,{clarification:ev.target.value})} placeholder="Clarification..."/></div>
@@ -1759,7 +1814,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
             {/* ── EMAIL DETAILS (inbound) ── */}
             {!isSC&&(
               <div className="case-section">
-                <div className="case-section-title">📧 Email Details</div>
+                <div className="case-section-title">Email Details</div>
                 {editMode ? (
                   <>
                     <div className="field-row-edit"><label>Email Address</label><input className="inp" type="email" value={D.emailAddress||""} onChange={e=>setD({emailAddress:e.target.value})}/></div>
@@ -1827,7 +1882,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
             {/* ── SCREENSHOTS ── */}
             <div className="case-section">
               <div className="edit-section-header">
-                <div className="case-section-title" style={{marginBottom:0}}>🖼️ Screenshots {editMode?"":`(${allImages.length})`}</div>
+                <div className="case-section-title" style={{marginBottom:0}}> Screenshots {editMode?"":`(${allImages.length})`}</div>
               </div>
               {editMode ? (
                 <>
@@ -1904,7 +1959,7 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
       )}
 
       {deleteConfirm&&(<div className="modal-bg"><div className="modal">
-        <div style={{fontSize:36,marginBottom:10}}>🗑</div><h3>Delete Case?</h3>
+        <div style={{marginBottom:14}}><Icon name="trash" size={40} color="var(--red)"/></div><h3>Delete Case?</h3>
         <p>Case <strong>#{c.caseNum}</strong> will be permanently deleted.</p>
         <div className="modal-btns">
           <button className="btn btn-ghost" onClick={()=>setDeleteConfirm(false)}>Cancel</button>
@@ -1951,7 +2006,7 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
 
       {filtered.length===0?(
         <div className="empty-history">
-          <div style={{fontSize:52,marginBottom:14}}>📭</div>
+          <div style={{marginBottom:14}}><Icon name="empty" size={52} color="var(--muted)"/></div>
           <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>{cases.length===0?"No cases yet":"No results"}</div>
           <div>{cases.length===0?"Complete and save a Post-Live Amend to see it here.":"Try adjusting your search or filters."}</div>
         </div>
@@ -2039,13 +2094,13 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
   return (
     <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
-        <div><div className="page-title">📢 Announcements</div><div className="page-sub">Team updates and notices</div></div>
+        <div><div className="page-title"> Announcements</div><div className="page-sub">Team updates and notices</div></div>
         <button className="btn btn-primary" onClick={()=>{setAdding(true);setConfirming(false);}}>＋ New Announcement</button>
       </div>
 
       {/* ── Write form ── */}
       {adding&&!confirming&&(<div className="modal-bg"><div className="edit-modal">
-        <h3 style={{marginBottom:16}}>📢 New Announcement</h3>
+        <h3 style={{marginBottom:16}}>New Announcement</h3>
         <div className="field"><label>Title <span className="req">*</span></label><input className="inp" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Announcement title" autoFocus/></div>
         <div className="field"><label>Message</label><textarea className="inp" rows={4} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} placeholder="Write your message..."/></div>
         <div className="field"><label>Type</label>{badgePicker(form.badge,v=>setForm(f=>({...f,badge:v})))}</div>
@@ -2054,7 +2109,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
 
       {/* ── Confirm before posting ── */}
       {confirming&&(<div className="modal-bg"><div className="modal">
-        <div style={{fontSize:36,marginBottom:10}}>📢</div>
+        <div style={{marginBottom:14}}><Icon name="announce" size={40} color="var(--accent)"/></div>
         <h3>Post Announcement?</h3>
         <p style={{color:"var(--muted)",fontSize:13,margin:"10px 0 4px"}}>Title: <strong style={{color:"var(--text)"}}>{form.title}</strong></p>
         {form.body&&<p style={{color:"var(--muted)",fontSize:12,marginBottom:4,maxHeight:80,overflow:"hidden"}}>{form.body}</p>}
@@ -2080,7 +2135,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
 
       {/* ── Delete confirm ── */}
       {deleteTarget&&(<div className="modal-bg"><div className="modal">
-        <div style={{fontSize:36,marginBottom:10}}>🗑️</div>
+        <div style={{marginBottom:14}}><Icon name="trash" size={40} color="var(--red)"/></div>
         <h3>Delete Announcement?</h3>
         <p style={{color:"var(--muted)",fontSize:13,marginBottom:16}}>This will be permanently removed.</p>
         <div className="modal-btns">
@@ -2089,7 +2144,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
         </div>
       </div></div>)}
 
-      {announcements.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>📭</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No announcements</div><div>Post one to inform your team!</div></div>)}
+      {announcements.length===0&&(<div className="empty-history"><div style={{marginBottom:14}}><Icon name="empty" size={52} color="var(--muted)"/></div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No announcements</div><div>Post one to inform your team!</div></div>)}
 
       {announcements.map(a=>(
         <div key={a.id} className="announcement-card">
@@ -2104,7 +2159,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
                 <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)",padding:"4px 10px",fontSize:11}} onClick={()=>startEdit(a)}>✏️ Edit</button>
               )}
               {isAuthor(a)&&(
-                <button className="entry-del" onClick={()=>setDeleteTarget(a.id)}>🗑</button>
+                <button className="entry-del" onClick={()=>setDeleteTarget(a.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
               )}
             </div>
           </div>
@@ -2185,7 +2240,7 @@ function LinksPage({ links, addLink, updateLink, removeLink }) {
           <div className="link-actions">
             <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" style={{textDecoration:"none"}}>↗ Open</a>
             <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>startEdit(l)}>✏️ Edit</button>
-            <button className="h-btn danger" onClick={()=>remove(l.id)}>🗑</button>
+            <button className="h-btn danger" onClick={()=>remove(l.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
           </div>
         </div>
       ))}
@@ -2322,7 +2377,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
   return (
     <div>
-      <div className="page-header"><div className="page-title">👤 My Profile</div><div className="page-sub">Manage your account details and file naming</div></div>
+      <div className="page-header"><div className="page-title">My Profile</div><div className="page-sub">Manage your account details and file naming</div></div>
       {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"var(--muted)"}}>Loading profile…</div>}
       {!loading&&<>
 
@@ -2331,7 +2386,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         <div style={{display:"flex",alignItems:"center",gap:20,marginBottom:20}}>
           <div className="profile-avatar-large" title="Click to change photo" onClick={()=>avatarInputRef.current?.click()}>
             {form.avatarUrl?<img src={form.avatarUrl} alt="Profile"/>:<span>{initials}</span>}
-            <div className="profile-avatar-overlay">📷</div>
+            <div className="profile-avatar-overlay"><Icon name="camera" size={18} color="#fff"/></div>
             <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{display:"none"}}/>
           </div>
           <div>
@@ -2339,7 +2394,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             <p style={{color:"var(--muted)",fontSize:13,marginTop:3}}>{user.email}</p>
             {form.role&&<p style={{fontSize:12,color:"var(--accent)",marginTop:3,fontWeight:600}}>{form.role}</p>}
           </div>
-          <div style={{marginLeft:"auto"}}><button className="btn btn-ghost" onClick={()=>setEditing(e=>!e)}>{editing?"Cancel":"✏️ Edit Profile"}</button></div>
+          <div style={{marginLeft:"auto"}}><button className="btn btn-ghost" onClick={()=>setEditing(e=>!e)}>{editing?"Cancel":"Edit Profile"}</button></div>
         </div>
         {editing&&(<div style={{borderTop:"1px solid var(--border)",paddingTop:20}}>
           <div className="field"><label>Full Name</label><input className="inp" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
@@ -2350,7 +2405,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
       {/* ── File naming card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>🖼️ Screenshot File Names</h3>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Screenshot File Names</h3>
         <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>These names are used when uploading screenshots in Post-Live Amends. Fully independent from your profile name.</p>
         <div className="field">
           <label>Before Screenshot Name</label>
@@ -2372,7 +2427,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
       {/* ── Password card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>🔒 Change Password</h3>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>Change Password</h3>
         <div className="field"><label>New Password</label><input className="inp" type="password" placeholder="Min. 6 characters" value={pwForm.next} onChange={e=>setPwForm(f=>({...f,next:e.target.value}))}/></div>
         <div className="field"><label>Confirm New Password</label><input className="inp" type="password" placeholder="••••••••" value={pwForm.confirm} onChange={e=>setPwForm(f=>({...f,confirm:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&changePw()}/></div>
         <button className="btn btn-primary" onClick={changePw} disabled={saving}>{saving?"Updating...":"Update Password"}</button>
@@ -2380,7 +2435,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
       {/* ── Timer settings card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏱ Case Timer Alert</h3>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Case Timer Alert</h3>
         <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes on a case. Default is 30 minutes.</p>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <input className="inp" type="number" min="1" max="240" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
@@ -2399,7 +2454,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
       {/* ── Timer settings card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏱ Case Timer Alert</h3>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Case Timer Alert</h3>
         <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set how many minutes before the alarm fires during a Post-Live case. Default is 30 minutes.</p>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <label style={{fontSize:13,fontWeight:600,minWidth:120}}>Alert after</label>
@@ -2412,9 +2467,9 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
       {/* ── Danger zone ── */}
       <div className="profile-card" style={{borderColor:"rgba(244,63,94,.3)"}}>
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8,color:"var(--red)"}}>⚠️ Danger Zone</h3>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:8,color:"var(--red)"}}>Danger Zone</h3>
         <p style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>Signing out will end your current session.</p>
-        <button className="btn btn-danger" onClick={onLogout}>🚪 Sign Out</button>
+        <button className="btn btn-danger" onClick={onLogout}>Sign Out</button>
       </div>
       </>}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -2843,7 +2898,7 @@ function App() {
       <>
         <style>{CSS}</style>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"var(--bg)",flexDirection:"column",gap:16}}>
-          <div style={{fontSize:52,animation:"float 1.5s ease-in-out infinite"}}>⚡</div>
+          <div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={52} color="var(--accent)"/></div>
           <div style={{color:"var(--muted)",fontSize:14,fontFamily:"Poppins,sans-serif"}}>Loading CaseHub...</div>
         </div>
       </>
@@ -2857,15 +2912,15 @@ function App() {
   }
 
   const coreNav=[
-    {id:"dashboard",label:"Dashboard",icon:"🏠"},
+    {id:"dashboard",label:"Dashboard",icon:"dashboard"},
     {group:"Work"},
-    {id:"build",label:"Build",icon:"🏗️"},
-    {id:"prelive",label:"Pre-Live Amends",icon:"🔧"},
-    {id:"postlive",label:"Post-Live Amends",icon:"🚀"},
-    {id:"history",label:"Case History",icon:"📂"},
+    {id:"build",label:"Build",icon:"casebox"},
+    {id:"prelive",label:"Pre-Live Amends",icon:"prelive"},
+    {id:"postlive",label:"Post-Live Amends",icon:"postlive"},
+    {id:"history",label:"Case History",icon:"history"},
     {group:"Tools"},
-    {id:"announcements",label:"Announcements",icon:"📢"},
-    {id:"links",label:"Quick Links",icon:"🔗"},
+    {id:"announcements",label:"Announcements",icon:"announce"},
+    {id:"links",label:"Quick Links",icon:"links"},
   ];
 
   const initials=user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -2891,7 +2946,13 @@ function App() {
             n.group
               ?<div key={i} className="nav-group">{n.group}</div>
               :<button key={n.id} className={cls("nav-item",page===n.id&&"active")} onClick={()=>handleNav(n.id)}>
-                <span>{n.icon}</span>{n.label}
+                <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
+                {n.label}
+                {n.id==="postlive"&&formActive&&page!=="postlive"&&(
+                  <span className="nav-inprogress" title="Form in progress">
+                    <Icon name="inprogress" size={11} color="var(--accent)"/>
+                  </span>
+                )}
                 {n.id==="history"&&allCases.length>0&&<span className="nav-badge">{allCases.length}</span>}
                 {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge">{announcements.length}</span>}
               </button>
@@ -2904,13 +2965,13 @@ function App() {
 
           <div style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
           {/* Break Timers */}
-          <div className="nav-group">☕ Breaks</div>
+          <div className="nav-group">Breaks</div>
           <div className="break-btns">
-            {[{label:"☕ 15 min break",mins:15},{label:"🧘 30 min break",mins:30},{label:"🍱 1 Hour Lunch",mins:60}].map(({label,mins})=>(
+            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch 1hr",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
               <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
-                <span>{label.split(" ")[0]}</span>
-                <span style={{flex:1}}>{label.split(" ").slice(1).join(" ")}</span>
-                {breakTimer?.mins===mins&&<span style={{fontSize:10,color:"var(--accent)"}}>▶</span>}
+                <Icon name={icon} size={14} color={breakTimer?.mins===mins?"var(--accent)":"var(--muted)"}/>
+                <span style={{flex:1}}>{label}</span>
+                {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
               </button>
             ))}
           </div>
@@ -2941,7 +3002,7 @@ function App() {
         </aside>
 
         <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
-          {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{fontSize:48,animation:"float 1.5s ease-in-out infinite"}}>⚡</div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
+          {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge">🏗️</div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
@@ -2983,7 +3044,7 @@ function App() {
       {activeAlarm&&(
         <div className="alarm-overlay">
           <div className="alarm-modal">
-            <span className="alarm-icon">{activeAlarm==="warn"?"⏰":activeAlarm==="case"?"⏱️":"🔔"}</span>
+            <span className="alarm-icon">{<Icon name={activeAlarm==="warn"?"timer":activeAlarm==="case"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
             <div className="alarm-title">
               {activeAlarm==="warn"?"5 Minutes Left!":activeAlarm==="case"?"30 Minutes on Case!":"Break Over!"}
             </div>
@@ -2993,7 +3054,7 @@ function App() {
                :"Your break has ended. Time to get back to work!"}
             </div>
             <div className="alarm-btns">
-              {activeAlarm!=="warn"&&<button className="alarm-snooze" onClick={snoozeAlarm}>😴 Snooze 5 min</button>}
+              {activeAlarm!=="warn"&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
               <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm==="warn"?"Got it!":"I'm Aware"}</button>
             </div>
           </div>
