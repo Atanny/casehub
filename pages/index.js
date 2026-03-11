@@ -741,13 +741,13 @@ function fmtElapsed(s) {
 async function checkGrammar(text) {
   if (!text.trim()) return text;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages",{
+    const r = await fetch("/api/grammar",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
-        messages:[{role:"user",content:`Fix grammar, spelling and clarity. Return ONLY the corrected text:\n\n${text}`}]})
+      body:JSON.stringify({text})
     });
+    if(!r.ok) return text;
     const d = await r.json();
-    return d.content?.map(b=>b.text||"").join("")||text;
+    return d.result || text;
   } catch { return text; }
 }
 
@@ -771,7 +771,7 @@ function CopyName({ name }) {
     <div className="copy-name">
       <span className="copy-name-text">{name}</span>
       <button className={cls("copy-btn",c&&"green")}
-        onClick={()=>copyToClipboard(name).then(()=>{setC(true);setTimeout(()=>setC(false),1800);})}>
+        onClick={()=>copyToClipboard(name).then(()=>{setC(true);onCopy&&onCopy();setTimeout(()=>setC(false),1800);})}>
         {c?"✓ Copied!":"Copy"}
       </button>
     </div>
@@ -1009,6 +1009,20 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         <CopyRow label="Account #" value={f.accountNum}/>
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
+        {f.caseNum&&(
+          <div style={{background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"10px 14px",margin:"2px 0",fontFamily:"'Poppins',sans-serif"}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5}}>Message</div>
+            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7}}>Hi po Ms. Tina, magpapacheck lang po (Case #{f.caseNum})</div>
+          </div>
+        )}
+        {f.amendType&&f.caseNum&&(
+          <div style={{background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"10px 14px",margin:"2px 0 2px",fontFamily:"'Poppins',sans-serif"}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5}}>Message Preview</div>
+            <div style={{fontSize:12,color:"var(--text)",lineHeight:1.7,fontStyle:"italic"}}>
+              Hi po Ms. Tina, magpapacheck lang po (Case #{f.caseNum})
+            </div>
+          </div>
+        )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
@@ -1111,6 +1125,9 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const startTimeRef = useRef(
     draftData ? Date.now() - (draftData._elapsedAtSave||0)*1000 : Date.now()
   );
+
+  // isDraft: true if this is a resumed draft with real content — unlock steps accordingly
+  const isDraft = !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
 
   const [openStep,setOpenStep] = useState(1);
   const [modal,setModal] = useState(null);
@@ -1224,13 +1241,20 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
         </StepCard>
 
-        <StepCard num={2} title="Before Screenshot Name" done={false} locked={!step1Done&&!draftData} {...stepProps}>
+        <StepCard num={2} title="Before Screenshot Name" done={form._beforeCopied} locked={!step1Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Save your before screenshot with this name.</p>
-          <CopyName name={beforeName}/>
+          <CopyName name={beforeName} onCopy={()=>setF({_beforeCopied:true})}/>
         </StepCard>
 
-        <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!draftData} {...stepProps}>
-          {form.entries.map((e,i)=>(<EntryCard key={e.id} entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>))}
+        <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
+          {form.entries.map((e,i)=>(
+            <div key={e.id} draggable onDragStart={()=>setDragEntryIdx(i)}
+              onDragOver={ev=>{ev.preventDefault();}} 
+              onDrop={()=>{if(dragEntryIdx!==null&&dragEntryIdx!==i){moveEntry(dragEntryIdx,i);}setDragEntryIdx(null);}}
+              style={{opacity:dragEntryIdx===i?.4:1,transition:"opacity .15s",cursor:"grab"}}>
+              <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
+            </div>
+          ))}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
@@ -1246,33 +1270,33 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           <button className={cls("copy-all-btn",copiedAll&&"copied")} onClick={handleCopyAll}>{copiedAll?"✓ Copied!":"📋 Copy All "+(isSC?"Site Comments":"Assumptions + Email")}</button>
         </StepCard>
 
-        <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!draftData} {...stepProps}>
+        <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step1Done&&!isDraft} {...stepProps}>
+          <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false} initialImages={form.backupImages||[]}/>
+        </StepCard>
+
+        <StepCard num={4} title="Device Check" done={step4Done} locked={!step3Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All three must be checked <span className="req">*</span></p>
           <div className="check-group">
             {[["mobile","📱 Mobile"],["tablet","💻 Tablet"],["desktop","🖥️ Desktop"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.devices[k]&&"checked")}><input type="checkbox" checked={form.devices[k]} onChange={e=>setF({devices:{...form.devices,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
-        <StepCard num={5} title="After Screenshot Name" done={false} locked={!step4Done&&!draftData} {...stepProps}>
+        <StepCard num={5} title="After Screenshot Name" done={form._afterCopied} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Save your after screenshot with this name.</p>
-          <CopyName name={afterName}/>
+          <CopyName name={afterName} onCopy={()=>setF({_afterCopied:true})}/>
         </StepCard>
 
-        <StepCard num={6} title="Before/After Backup" done={false} locked={!step4Done&&!draftData} {...stepProps}>
+        <StepCard num={6} title="Before/After Backup" done={form._screenshotCopied||(form.images&&form.images.length>0)} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
-          <CopyName name={screenshotName}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false} initialImages={form.images||[]}/></div>
+          <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs,checklist:{...formRef.current.checklist,backup:imgs.length>0}})} immediateUpload={false} initialImages={form.images||[]}/></div>
         </StepCard>
 
-        <StepCard num="6b" title="Additional Backup Screenshots" done={false} locked={!step4Done&&!draftData} {...stepProps}>
-          <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs})} immediateUpload={false} initialImages={form.backupImages||[]}/>
-        </StepCard>
-
-        <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done&&!draftData} {...stepProps}>
+        <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Tracker Checklist?"],["completeStatus","Complete Status Tracker?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -1508,7 +1532,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
         <div className="saved-dot"/>
         <div className="saved-info">
           <div className="saved-case">Case #{c.caseNum} — {c.accountNum}</div>
-          <div className="saved-meta">{c.amendType} · {c.savedAt}</div>
+          <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
@@ -1523,7 +1547,12 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
             </div>
           ))}
           {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}><Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>{c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
-          {allImages.length>0&&(<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>{allImages.map(img=>(<div key={img.id||img.name} style={{width:72,height:56,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div>)}
+          {allImages.length>0&&(<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>{allImages.map(img=>{
+            const isBlob=(img.url||"").startsWith("blob:")||!(img.url||"").startsWith("http");
+            return (<div key={img.id||img.name} style={{width:72,height:56,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)",background:"var(--entry-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {isBlob||!img.url?<div style={{fontSize:10,color:"var(--muted)",textAlign:"center",padding:4}}><Icon name="image" size={18} color="var(--muted)"/><div style={{marginTop:2}}>{img.name||"img"}</div></div>:<img src={img.url} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.parentNode.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:10px;color:var(--muted)">No preview</div>';}}/>}
+            </div>);})}
+          </div>)}
         </div>
       )}
     </div>
@@ -1558,7 +1587,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
           onSave={f=>{
-            const rec={...f,_mode:mode,savedAt:new Date().toLocaleString()};
+            const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             exitMode();
@@ -1649,7 +1678,7 @@ function InlineEdit({ value, onSave }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CASE HISTORY — fully editable
 // ─────────────────────────────────────────────────────────────────────────────
-const CHECKLIST_LABELS={backup:"Before/After Backup",caseComment:"Case Comment",combinedTracker:"Combined Tracker",qaChecklist:"QA Checklist",completeJob:"Complete Job",emailSales:"Email Sales",trackerChecklist:"Tracker Checklist",completeStatus:"Complete Status Tracker"};
+const CHECKLIST_LABELS={backup:"Before/After Backup",caseComment:"Case Comment",combinedTracker:"Combined Tracker",qaChecklist:"QA Checklist",completeJob:"Complete Job",emailSales:"Email Sales",trackerChecklist:"Complete Status Tracker",completeStatus:"Tracker Checklist"};
 const emptyEditEntry=()=>({id:Date.now()+Math.random(),number:"",note:"",clarification:""});
 
 // A single editable case card (extracted so it has its own state)
@@ -1737,8 +1766,8 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
           <div className="case-meta-main">{c.accountNum||"—"} &nbsp;·&nbsp; {c.amendType||"—"}</div>
           <div className="case-meta-sub">
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
-            {c.savedAt}
-            {allImages.length>0&&<span style={{marginLeft:8}}> {allImages.length}</span>}
+            {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:600}}> · Done {c.endedAt}</span>}
+            {allImages.length>0&&<span style={{marginLeft:8,opacity:.7}}>{allImages.length} img</span>}
             {c.checklist&&<span style={{marginLeft:8,color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
           </div>
         </div>
@@ -2175,6 +2204,7 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
 // LINKS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 function LinksPage({ links, addLink, updateLink, removeLink }) {
+  const dragLinkRef=useRef(null);
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null); // link object being edited
   const [form,setForm]=useState({title:"",url:"",icon:"🔗"});
@@ -2450,19 +2480,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
           </button>
         </div>
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
-      </div>
-
-      {/* ── Timer settings card ── */}
-      <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Case Timer Alert</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set how many minutes before the alarm fires during a Post-Live case. Default is 30 minutes.</p>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <label style={{fontSize:13,fontWeight:600,minWidth:120}}>Alert after</label>
-          <input className="inp" type="number" min="1" max="999" style={{width:80}}
-            defaultValue={typeof window!=="undefined"?(localStorage.getItem("ch_alarm_mins")||"30"):"30"}
-            onChange={e=>saveAlarmMins&&saveAlarmMins(e.target.value)}/>
-          <span style={{fontSize:12,color:"var(--muted)"}}>minutes</span>
-        </div>
       </div>
 
       {/* ── Danger zone ── */}
@@ -2967,8 +2984,8 @@ function App() {
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
-            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch 1hr",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
-              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
+            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
+              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} disabled={breakTimer&&breakTimer.mins!==mins} style={{opacity:breakTimer&&breakTimer.mins!==mins?.35:1,cursor:breakTimer&&breakTimer.mins!==mins?"not-allowed":"pointer"}} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
                 <Icon name={icon} size={14} color={breakTimer?.mins===mins?"var(--accent)":"var(--muted)"}/>
                 <span style={{flex:1}}>{label}</span>
                 {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
@@ -3003,6 +3020,38 @@ function App() {
 
         <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
+          {!dataLoading&&formActive&&page!=="postlive"&&(
+            <div onClick={()=>handleNav("postlive")} style={{
+              display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:18,
+              background:"linear-gradient(135deg,rgba(245,148,92,.12),rgba(212,114,74,.08))",
+              border:"1.5px solid var(--accent)",cursor:"pointer",transition:".15s",
+            }}>
+              <div style={{animation:"pulse-dot 1.4s ease-in-out infinite",flexShrink:0}}>
+                <Icon name="inprogress" size={22} color="var(--accent)"/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Form In Progress</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2,fontFamily:"'Poppins',sans-serif"}}>Your Post-Live form and timer are running. Click to resume.</div>
+              </div>
+              <Icon name="back" size={16} color="var(--accent)" style={{transform:"rotate(180deg)"}}/>
+            </div>
+          )}
+          {!dataLoading&&formActive&&page!=="postlive"&&(
+            <div onClick={()=>handleNav("postlive")} style={{
+              display:"flex",alignItems:"center",gap:14,padding:"14px 18px",marginBottom:18,
+              background:"linear-gradient(135deg,rgba(245,148,92,.12),rgba(212,114,74,.08))",
+              border:"1.5px solid var(--accent)",cursor:"pointer",
+            }}>
+              <div style={{animation:"pulse-dot 1.4s ease-in-out infinite",flexShrink:0}}>
+                <Icon name="inprogress" size={22} color="var(--accent)"/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Form In Progress</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2,fontFamily:"'Poppins',sans-serif"}}>Your Post-Live form and timer are running. Click to resume.</div>
+              </div>
+              <Icon name="back" size={16} color="var(--accent)" style={{transform:"rotate(180deg)"}}/>
+            </div>
+          )}
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge">🏗️</div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge">🔧</div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
