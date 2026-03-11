@@ -143,7 +143,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .toc-num{font-size:9px;opacity:.5;font-variant-numeric:tabular-nums;flex-shrink:0;width:14px;}
 .form-progress-pill{
   position:fixed;bottom:24px;right:24px;z-index:900;
-  display:flex;align-items:center;justify-content:center;gap:10px;
+  display:flex;align-items:center;justify-content:flex-start;gap:10px;
   padding:11px 16px;
   background:var(--accent);color:#fff;
   cursor:pointer;transition:.2s;
@@ -457,6 +457,34 @@ select.inp{cursor:pointer;}
 .entry-card{background:var(--entry-bg);border:1.5px solid var(--border);border-radius:0;padding:15px;margin-bottom:10px;transition:.2s;}
 .entry-card.saved{background:var(--card);border-color:var(--border);opacity:.92;}
 .entry-card.dragging{opacity:.35;border-style:dashed;}
+.drag-skeleton{
+  height:72px;border:2px dashed var(--accent);background:var(--entry-accent-bg);
+  border-radius:0;margin-bottom:10px;opacity:.6;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--accent);font-weight:600;font-family:'Poppins',sans-serif;
+  letter-spacing:.5px;gap:8px;pointer-events:none;
+}
+.link-drag-skeleton{
+  height:60px;border:2px dashed var(--accent);background:var(--entry-accent-bg);
+  border-radius:0;margin-bottom:10px;opacity:.6;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--accent);font-weight:600;font-family:'Poppins',sans-serif;
+  letter-spacing:.5px;gap:8px;pointer-events:none;
+}
+.drag-skeleton{
+  height:72px;border:2px dashed var(--accent);background:var(--entry-accent-bg);
+  border-radius:0;margin-bottom:10px;opacity:.5;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--accent);font-weight:600;font-family:'Poppins',sans-serif;
+  letter-spacing:.5px;gap:8px;
+}
+.link-drag-skeleton{
+  height:60px;border:2px dashed var(--accent);background:var(--entry-accent-bg);
+  border-radius:0;margin-bottom:10px;opacity:.5;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--accent);font-weight:600;font-family:'Poppins',sans-serif;
+  letter-spacing:.5px;gap:8px;
+}
 .entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:8px;}
 .entry-label{font-size:13px;font-weight:700;color:var(--accent);font-family:'Plus Jakarta Sans',sans-serif;}
 .drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 6px;cursor:grab;flex-shrink:0;opacity:.4;transition:.15s;}
@@ -1062,6 +1090,32 @@ function CopyRow({ label, value }) {
   );
 }
 
+// ── GreetingRow — dropdown type selector for check-in message ──
+function GreetingRow({ greetingMsg, caseNum, isSC }) {
+  const [type,setType]=useState(isSC?"Site Comment":"Inbound Email");
+  const [copied,setCopied]=useState(false);
+  const types=["Site Comment","Inbound Email"];
+  // Build message: replace (Case #) with actual number, no parentheses, append type
+  const msg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po (Case #)")
+    .replace("(Case #)",`Case #${caseNum}`)+" "+type;
+  const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
+  return (
+    <div className="copy-row-wrap">
+      <div className="copy-row-label">Message</div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <select value={type} onChange={e=>setType(e.target.value)}
+            style={{background:"var(--inp-bg)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:11,padding:"4px 8px",borderRadius:0,fontFamily:"'Poppins',sans-serif",cursor:"pointer",outline:"none"}}>
+            {types.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+          <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
+        </div>
+        <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,padding:"5px 8px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>{msg}</div>
+      </div>
+    </div>
+  );
+}
+
 function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailText, onTimerEnd, specialRequestors, timerLimitSecs, greetingMsg="Hi po Ms. Tina, magpapacheck lang po (Case #)" }) {
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
@@ -1102,7 +1156,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <CopyRow label="Message" value={greetingMsg.replace("(Case #)",`(Case #${f.caseNum})`)}/>
+          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} isSC={isSC}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
@@ -1375,20 +1429,19 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
           {form.entries.map((e,i)=>(
-            <div key={e.id}
-              draggable
-              onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);setDragOverIdx(i);}}
-              onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
-              onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
-              onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
-              style={{
-                userSelect:"none",
-                opacity:dragEntryIdx===i?0.3:1,
-                transition:"opacity .12s, transform .12s",
-                outline:dragOverIdx===i&&dragEntryIdx!==i?"2px solid var(--accent)":"none",
-                outlineOffset:2,
-              }}>
-              <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
+            <div key={e.id}>
+              {dragOverIdx===i&&dragEntryIdx!==i&&(
+                <div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+              )}
+              <div
+                draggable
+                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
+                onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
+                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+                style={{userSelect:"none",opacity:dragEntryIdx===i?0.25:1,transition:"opacity .12s"}}>
+                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
+              </div>
             </div>
           ))}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
@@ -1640,7 +1693,7 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
       {/* Recent */}
       {savedCases.length>0&&(<>
         <div className="section-title">Recent Cases</div>
-        {[...savedCases].reverse().slice(0,6).map((c,i)=>(
+        {[...savedCases].slice(0,6).map((c,i)=>(
           <div key={i} className="activity-row">
             <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
             <div className="act-info"><div className="act-title">Case #{c.caseNum} — {c.accountNum}</div><div className="act-sub">{c.amendType} · {c.savedAt}</div></div>
@@ -1757,7 +1810,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
     );
   }
 
-  const recentAll = [...allSavedCases].reverse().slice(0,6);
+  const recentAll = [...allSavedCases].slice(0,6);
 
   return (
     <div>
@@ -2166,7 +2219,7 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
   const [openCaseId,setOpenCaseId]=useState(null);
 
   // Filter
-  const filtered = [...cases].reverse().filter(c=>{
+  const filtered = [...cases].filter(c=>{
     const q=search.toLowerCase();
     const matchQ=!q||c.caseNum?.toLowerCase().includes(q)||c.accountNum?.toLowerCase().includes(q)||c.amendType?.toLowerCase().includes(q)||c.entries?.some(e=>e.note?.toLowerCase().includes(q)||e.clarification?.toLowerCase().includes(q));
     const matchMode=filterMode==="all"||(filterMode==="site"&&c._mode==="siteComment")||(filterMode==="inbound"&&c._mode==="inbound");
@@ -2363,6 +2416,8 @@ function AnnouncementsPage({ announcements, addAnnouncement, updateAnnouncement,
 // ─────────────────────────────────────────────────────────────────────────────
 function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
   const dragLinkRef=useRef(null);
+  const [dragLinkActive,setDragLinkActive]=useState(null);
+  const [dragLinkOver,setDragLinkOver]=useState(null);
   const [adding,setAdding]=useState(false);
   const [editing,setEditing]=useState(null); // link object being edited
   const [form,setForm]=useState({title:"",url:"",icon:"🔗"});
@@ -2422,19 +2477,22 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
       {links.length===0&&(<div className="empty-history"><div style={{fontSize:52,marginBottom:14}}>🔗</div><div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:18,fontWeight:800,marginBottom:6}}>No links yet</div><div>Add a link to have it appear in the sidebar.</div></div>)}
 
       {links.map((l,i)=>(
-        <div key={l.id} className="link-card"
-          draggable
-          onDragStart={()=>{dragLinkRef.current=i;}}
-          onDragOver={e=>e.preventDefault()}
-          onDrop={()=>{
-            const from=dragLinkRef.current;
-            if(from==null||from===i)return;
-            const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);
-            setLinks(arr);dragLinkRef.current=null;
-          }}
-          onDragEnd={()=>{dragLinkRef.current=null;}}
-          style={{cursor:"grab",userSelect:"none"}}
-        >
+        <div key={l.id}>
+          {dragLinkOver===i&&dragLinkActive!==i&&(
+            <div className="link-drag-skeleton"><Icon name="links" size={14} color="var(--accent)"/>Drop here</div>
+          )}
+          <div className="link-card"
+            draggable
+            onDragStart={()=>{dragLinkRef.current=i;setDragLinkActive(i);}}
+            onDragOver={e=>{e.preventDefault();if(dragLinkOver!==i)setDragLinkOver(i);}}
+            onDrop={()=>{
+              const from=dragLinkRef.current;
+              if(from!=null&&from!==i){const arr=[...links];const[m]=arr.splice(from,1);arr.splice(i,0,m);setLinks(arr);}
+              dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);
+            }}
+            onDragEnd={()=>{dragLinkRef.current=null;setDragLinkActive(null);setDragLinkOver(null);}}
+            style={{cursor:"grab",userSelect:"none",opacity:dragLinkActive===i?0.25:1,transition:"opacity .12s"}}
+          >
           <div className="drag-handle" title="Drag to reorder" style={{flexDirection:"row",gap:3,padding:"6px 4px"}}>
             <span style={{width:2,height:16,background:"var(--muted)",borderRadius:1,display:"block"}}/>
             <span style={{width:2,height:16,background:"var(--muted)",borderRadius:1,display:"block"}}/>
@@ -2446,6 +2504,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
             <a href={l.url} target="_blank" rel="noopener noreferrer" className="h-btn" style={{textDecoration:"none"}}>↗ Open</a>
             <button className="h-btn" style={{borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>startEdit(l)}>✏️ Edit</button>
             <button className="h-btn danger" onClick={()=>remove(l.id)}><Icon name="trash" size={13} color="var(--red)"/></button>
+          </div>
           </div>
         </div>
       ))}
@@ -2965,7 +3024,7 @@ function App() {
       fetch(`/api/drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
       fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
     ]).then(([cases,anns,lnks,reqs,draftList,profile])=>{
-      setAllCases(Array.isArray(cases)?cases:[]);
+      setAllCases(Array.isArray(cases)?[...cases].reverse():[]);
       setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
       setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
@@ -3311,9 +3370,9 @@ function App() {
           transition:"opacity .25s, transform .25s",
         }}>
         <div className="form-progress-pill-dot"/>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-          <div style={{fontSize:12,fontWeight:700,lineHeight:1,textAlign:"center"}}>Form In Progress</div>
-          <div style={{fontSize:10,opacity:.85,lineHeight:1,textAlign:"center"}}>Click to resume</div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
+          <div style={{fontSize:12,fontWeight:700,lineHeight:1}}>Form In Progress</div>
+          <div style={{fontSize:10,opacity:.85,lineHeight:1}}>Click to resume</div>
         </div>
         <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:2,flexShrink:0}}/>
       </div>
