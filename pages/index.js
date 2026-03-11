@@ -1024,7 +1024,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   );
 }
 
-function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
+function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onHandleMouseDown }) {
   const [checking,setChecking]=useState(null);
   // New entries start in edit mode; saved entries start locked
   const [saved,setSaved]=useState(!!entry._saved);
@@ -1036,7 +1036,9 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
     <div className={cls("entry-card",saved&&"saved")}>
       <div className="entry-header">
         {/* Drag handle */}
-        <div className="drag-handle" title="Drag to reorder">
+        <div className="drag-handle" title="Drag to reorder"
+          style={{cursor:"grab"}}
+          onMouseDown={ev=>{ ev.stopPropagation(); onHandleMouseDown&&onHandleMouseDown(); }}>
           <span/><span/><span/>
         </div>
         <span className="entry-label" style={{flex:1}}>{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
@@ -1082,25 +1084,27 @@ function CopyRow({ label, value }) {
 }
 
 // ── GreetingRow — dropdown type selector for check-in message ──
-function GreetingRow({ greetingMsg, caseNum, accountNum, isSC, entries, greetingRefType }) {
+function GreetingRow({ greetingMsg, caseNum, accountNum, inboundNum, isSC, entries, greetingRefType }) {
   const [copied,setCopied]=useState(false);
-  // Build reference value from the type saved in profile
   const refType = greetingRefType || (isSC?"Site Comment #":"Case #");
-  const refVal = refType==="Site Comment #"
+  // For "Inbound #" ref only works in inbound email mode
+  const effectiveRef = (refType==="Inbound #"&&isSC) ? "Case #" : refType;
+  const refVal = effectiveRef==="Site Comment #"
     ? (entries&&entries.length>0&&entries[0].number ? `Site Comment #${entries[0].number}` : "Site Comment #")
-    : refType==="Acc#"
-    ? `Acc# ${accountNum||""}`
+    : effectiveRef==="Acc#"
+    ? `Account #${accountNum||""}`
+    : effectiveRef==="Inbound #"
+    ? `Inbound #${inboundNum||""}`
     : `Case #${caseNum||""}`;
-  const typeLabel = isSC?"Site Comment":"Inbound Email";
   const baseMsg=(greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd();
-  const msg=baseMsg+" "+refVal+" "+typeLabel;
+  const msg=baseMsg+" "+refVal;
   const copy=()=>{ copyToClipboard(msg).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1800);}); };
   return (
     <div className="copy-row-wrap">
       <div className="copy-row-label">Message</div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:10,color:"var(--muted)",fontStyle:"italic",flex:1}}>ref: <strong style={{color:"var(--accent)"}}>{refType}</strong></span>
+          <span style={{fontSize:10,color:"var(--muted)",fontStyle:"italic",flex:1}}>ref: <strong style={{color:"var(--accent)"}}>{effectiveRef}</strong></span>
           <button className={copied?"copy-row-btn done":"copy-row-btn"} onClick={copy} style={{flexShrink:0}}>{copied?"✓":"📋"}</button>
         </div>
         <div style={{fontSize:12,color:"var(--text)",lineHeight:1.5,padding:"5px 8px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>{msg}</div>
@@ -1149,28 +1153,13 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Inbound #" value={f.inboundNum}/>}
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.caseNum&&(
-          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} isSC={isSC} entries={f.entries} greetingRefType={greetingRefType}/>
+          <GreetingRow greetingMsg={greetingMsg} caseNum={f.caseNum} accountNum={f.accountNum} inboundNum={f.inboundNum} isSC={isSC} entries={f.entries} greetingRefType={greetingRefType}/>
         )}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
-      {specialRequestors&&specialRequestors.length>0&&(
-        <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {specialRequestors.map((name,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                </span>
-                {name}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1275,16 +1264,18 @@ function TocPanel({ openStep, setOpenStep, isSC, page, specialRequestors }) {
         </button>
       ))}
       {specialRequestors&&specialRequestors.length>0&&(
-        <div style={{borderTop:"1px solid var(--border)",marginTop:4,paddingTop:8,paddingBottom:4}}>
-          <div style={{padding:"4px 12px 6px",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>Requestors</div>
+        <div style={{borderTop:"1px solid var(--border)",marginTop:4,padding:"10px 10px 8px"}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,paddingLeft:2,fontFamily:"'Poppins',sans-serif"}}>Requestors</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
           {specialRequestors.map((name,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 12px"}}>
-              <span style={{width:18,height:18,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:8,fontWeight:700,flexShrink:0}}>
+            <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 8px",fontSize:11,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+              <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:8,fontWeight:700,flexShrink:0}}>
                 {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
               </span>
-              <span style={{fontSize:11,color:"var(--text)",fontWeight:600,fontFamily:"'Poppins',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>
@@ -1321,6 +1312,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
   const [dragOverPos,setDragOverPos] = useState(null); // "before" | "after"
+  const dragHandlePressed = useRef(false); // only allow drag from handle
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1363,9 +1355,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const step7Done = Object.values(form.checklist).every(Boolean);
 
   const addEntry    = ()=>setF(f=>{
-    // Auto-save last entry if unsaved
-    const last=f.entries[f.entries.length-1];
-    const saved=last&&!last._saved?(f.entries.map((e,i)=>i===f.entries.length-1?{...e,_saved:true}:e)):f.entries;
+    // Auto-save all unsaved entries before adding a new one
+    const saved=f.entries.map(e=>e._saved?e:{...e,_saved:true});
     return{entries:[...saved,emptyEntry()]};
   });
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
@@ -1440,47 +1431,59 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         </StepCard>
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
-          {form.entries.map((e,i)=>(
-            <div key={e.id}
-              style={{position:"relative"}}
-              onDragOver={ev=>{
-                ev.preventDefault();ev.dataTransfer.dropEffect="move";
-                const rect=ev.currentTarget.getBoundingClientRect();
-                const pos=ev.clientY<rect.top+rect.height/2?"before":"after";
-                if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}
-                setDragOverPos(pos);
-              }}
-              onDrop={ev=>{
-                ev.preventDefault();
-                const from=dragEntryIdxRef.current;
-                if(from!==-1&&from!==i){
-                  const to=dragOverPos==="before"?i:(i+1>from?i:i);
-                  moveEntry(from,to);
-                }
-                dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;
-                setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
-              }}
-              onDragLeave={ev=>{
-                if(!ev.currentTarget.contains(ev.relatedTarget)){
-                  dragOverIdxRef.current=-1;setDragOverIdx(-1);setDragOverPos(null);
-                }
-              }}
-            >
-              {dragOverIdx===i&&dragEntryIdx!==i&&dragOverPos==="before"&&(
-                <div className="drag-skeleton" style={{margin:"0 0 4px"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
-              )}
-              <div
-                draggable
-                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";ev.dataTransfer.setData("text/plain",String(i));dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
-                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);}}
-                style={{userSelect:"none",opacity:dragEntryIdx===i?0.22:1,transition:"opacity .1s"}}>
-                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
+          {form.entries.map((e,i)=>{
+            const isDragging=dragEntryIdx===i;
+            const isOver=dragOverIdx===i&&!isDragging;
+            return (
+              <div key={e.id} style={{position:"relative"}}
+                onDragOver={ev=>{
+                  ev.preventDefault();ev.dataTransfer.dropEffect="move";
+                  const rect=ev.currentTarget.getBoundingClientRect();
+                  const pos=ev.clientY<rect.top+rect.height/2?"before":"after";
+                  if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}
+                  setDragOverPos(pos);
+                }}
+                onDrop={ev=>{
+                  ev.preventDefault();
+                  const from=dragEntryIdxRef.current!==-1?dragEntryIdxRef.current:parseInt(ev.dataTransfer.getData("text/plain")||"-1");
+                  if(!isNaN(from)&&from>=0&&from!==i) moveEntry(from,i);
+                  dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;dragHandlePressed.current=false;
+                  setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
+                }}
+                onDragLeave={ev=>{
+                  if(!ev.currentTarget.contains(ev.relatedTarget)){
+                    dragOverIdxRef.current=-1;setDragOverIdx(-1);setDragOverPos(null);
+                  }
+                }}
+              >
+                {isOver&&dragOverPos==="before"&&(
+                  <div className="drag-skeleton" style={{margin:"0 0 4px"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+                )}
+                <div
+                  draggable
+                  onDragStart={ev=>{
+                    if(!dragHandlePressed.current){ev.preventDefault();return;}
+                    ev.dataTransfer.effectAllowed="move";
+                    ev.dataTransfer.setData("text/plain",String(i));
+                    dragEntryIdxRef.current=i;setDragEntryIdx(i);
+                  }}
+                  onDragEnd={()=>{
+                    dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;dragHandlePressed.current=false;
+                    setDragEntryIdx(-1);setDragOverIdx(-1);setDragOverPos(null);
+                  }}
+                  style={{opacity:isDragging?0.22:1,transition:"opacity .1s"}}>
+                  <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC}
+                    onChange={val=>updateEntry(e.id,val)}
+                    onDelete={()=>deleteEntry(e.id)}
+                    onHandleMouseDown={()=>{dragHandlePressed.current=true;}}
+                  />
+                </div>
+                {isOver&&dragOverPos==="after"&&(
+                  <div className="drag-skeleton" style={{margin:"4px 0 0"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
+                )}
               </div>
-              {dragOverIdx===i&&dragEntryIdx!==i&&dragOverPos==="after"&&(
-                <div className="drag-skeleton" style={{margin:"4px 0 0"}}><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
-              )}
-            </div>
-          ))}
+            );
+          })}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
@@ -1529,23 +1532,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
             {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
-
-        {/* Special Requestors anchor - scrolled to from TocPanel */}
-        {specialRequestors&&specialRequestors.length>0&&(
-          <div id="step-req" style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"16px 18px",marginBottom:12}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {specialRequestors.map((name,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                  </span>
-                  {name}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="action-bar">
           <button className="btn btn-cancel" onClick={()=>setModal("cancel")}>✕ Cancel</button>
@@ -1750,14 +1736,35 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
 
       {/* Recent */}
       {savedCases.length>0&&(<>
-        <div className="section-title">Recent Cases</div>
-        {[...savedCases].slice(0,6).map((c,i)=>(
-          <div key={i} className="activity-row">
-            <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
-            <div className="act-info"><div className="act-title">Case #{c.caseNum} — {c.accountNum}</div><div className="act-sub">{c.amendType} · {c.savedAt}</div></div>
-            <span className={cls("act-badge",c._mode==="siteComment"?"site":"email")}>{c._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
+        <div className="section-title">Recently Saved Cases</div>
+        {[...savedCases].slice(0,6).map((c,i)=>{
+          const imgs=[...(c.images||[]),...(c.backupImages||[])].filter(img=>(img.url||"").startsWith("https://"));
+          return (
+          <div key={i} className="activity-row" style={{flexDirection:"column",alignItems:"stretch",gap:0,padding:"12px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
+              <div className="act-info" style={{flex:1}}>
+                <div className="act-title">Case #{c.caseNum} — {c.accountNum}</div>
+                <div className="act-sub">
+                  {c.amendType} · 📅 {c.savedAt}
+                  {c.endedAt&&<span style={{marginLeft:6,color:"var(--green)",fontWeight:600}}>✓ {c.endedAt}</span>}
+                </div>
+              </div>
+              <span className={cls("act-badge",c._mode==="siteComment"?"site":"email")} style={{flexShrink:0}}>{c._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
+            </div>
+            {imgs.length>0&&(
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap",paddingLeft:18}}>
+                {imgs.slice(0,5).map(img=>(
+                  <div key={img.id||img.name} style={{width:56,height:42,overflow:"hidden",border:"1.5px solid var(--border)",borderRadius:0,flexShrink:0}}>
+                    <img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                  </div>
+                ))}
+                {imgs.length>5&&<div style={{width:56,height:42,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"var(--muted)",border:"1.5px solid var(--border)",flexShrink:0}}>+{imgs.length-5}</div>}
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </>)}
       {savedCases.length===0&&(<div style={{textAlign:"center",color:"var(--muted)",padding:"40px 0",fontSize:14}}><div style={{marginBottom:16}}><Icon name="empty" size={52} color="var(--muted)"/></div>No cases saved yet. Start by creating a Post-Live Amend!</div>)}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -1779,7 +1786,10 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
         <div className="saved-dot"/>
         <div className="saved-info">
           <div className="saved-case">Case #{c.caseNum} — {c.accountNum}</div>
-          <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
+          <div className="saved-meta">
+            {c.amendType} · <span title="Saved at">📅 {c.savedAt}</span>
+            {c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ Done {c.endedAt}</span>}
+          </div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
@@ -1881,7 +1891,7 @@ function PostLivePage({ onSaveCase, onFormActive, allSavedCases, dbDrafts, onSav
         <button className="choice-btn" onClick={()=>enterMode("inbound")}><span className="choice-icon"><Icon name="inbound" size={28} color="var(--accent)"/></span><div><div className="choice-btn-title">Inbound Email</div><div className="choice-btn-sub">Assumption-based format</div></div></button>
       </div>
 
-      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{dbDrafts.map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · Saved {d.draftAt}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
+      {dbDrafts&&dbDrafts.length>0&&(<div style={{marginBottom:22}}><div className="section-title">Drafts <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved to database)</span></div>{[...dbDrafts].reverse().map((d,i)=>(<div key={d._id||i} className="draft-row"><div className="draft-dot"/><div className="saved-info"><div className="saved-case">Case #{d.caseNum||"—"} — Account {d.accountNum||"—"}</div><div className="saved-meta">{d.amendType||"No amend type"} · 📝 Draft saved {d.draftAt||d.saved_at||""}</div></div><span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span><button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Resume</button><button className="entry-del" title="Delete draft" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button></div>))}</div>)}
 
       <div>
         <div className="section-title">Recently Saved Cases</div>
@@ -2035,7 +2045,8 @@ function EditableCaseCard({ c, onUpdate, onDelete, onLightbox, openId, setOpenId
           <div className="case-meta-main">{c.accountNum||"—"} &nbsp;·&nbsp; {c.amendType||"—"}</div>
           <div className="case-meta-sub">
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
-            {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:600}}> · Done {c.endedAt}</span>}
+            📅 {c.savedAt}
+            {c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ Done {c.endedAt}</span>}
             {allImages.length>0&&<span style={{marginLeft:8,opacity:.7}}>{allImages.length} img</span>}
             {c.checklist&&<span style={{marginLeft:8,color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
           </div>
@@ -2281,8 +2292,9 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
     const q=search.toLowerCase();
     const matchQ=!q||c.caseNum?.toLowerCase().includes(q)||c.accountNum?.toLowerCase().includes(q)||c.amendType?.toLowerCase().includes(q)||c.entries?.some(e=>e.note?.toLowerCase().includes(q)||e.clarification?.toLowerCase().includes(q));
     const matchMode=filterMode==="all"||(filterMode==="site"&&c._mode==="siteComment")||(filterMode==="inbound"&&c._mode==="inbound");
-    const matchDate=!filterDate||c.savedAt?.includes(filterDate);
+    const matchDate=!filterDate||(()=>{try{const d=new Date(c.savedAt);return!isNaN(d)&&d.toLocaleDateString("en-CA")===filterDate;}catch{return false;}})();
     return matchQ&&matchMode&&matchDate;
+  // already reversed on load, keep newest first
   });
 
   return (
@@ -2628,7 +2640,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
             afterName:  data.after_name  || user.afterName||defNames(user.name).afterName,
             screenshotName: data.screenshot_name || user.screenshotName||defNames(user.name).screenshotName,
             greetingMsg: data.greeting_msg || user.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po",
-            greetingRefType: data.greeting_ref_type || user.greetingRefType||"Case #",
           };
           setForm(f=>({...f,
             name:merged.name,role:merged.role,avatarUrl:merged.avatarUrl,
@@ -2659,7 +2670,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         screenshot_name:form.screenshotName,
         avatar_url:form.avatarUrl||null,
         greeting_msg:form.greetingMsg,
-        greeting_ref_type:form.greetingRefType||"Case #",
       };
       const res=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await res.json();
@@ -2760,7 +2770,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         <div className="field" style={{marginBottom:0}}>
           <label>Reference Number Type</label>
           <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
-            {["Site Comment #","Case #","Acc#"].map(opt=>(
+            {["Site Comment #","Case #","Acc#","Inbound #"].map(opt=>(
               <button key={opt} onClick={()=>setForm(f=>({...f,greetingRefType:opt}))}
                 style={{padding:"6px 14px",fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",
                   border:"1.5px solid "+(form.greetingRefType===opt||(!form.greetingRefType&&opt==="Case #")?"var(--accent)":"var(--border)"),
@@ -2776,7 +2786,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
         <div style={{fontSize:11,color:"var(--muted)",marginTop:14,padding:"8px 12px",background:"var(--entry-bg)",border:"1px solid var(--border)"}}>
           Preview: <span style={{color:"var(--accent)",fontWeight:600}}>
             {(form.greetingMsg||"Hi po Ms. Tina, magpapacheck lang po").replace(/\(Case #\)/g,"").trimEnd()}
-            {" "}{form.greetingRefType==="Site Comment #"?"Site Comment #3":form.greetingRefType==="Acc#"?"Acc# 123456":"Case #12345"}{" "}Site Comment
+            {" "}{form.greetingRefType==="Site Comment #"?"Site Comment #3":form.greetingRefType==="Acc#"?"Account #123456":form.greetingRefType==="Inbound #"?"Inbound #7890":"Case #12345"}
           </span>
         </div>
         <button className="btn btn-primary" style={{marginTop:14}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"Save Message"}</button>
