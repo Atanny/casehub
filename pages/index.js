@@ -119,32 +119,34 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 }
 
 .toc-panel{
-  position:fixed;left:220px;top:50%;transform:translateY(-50%);
-  z-index:800;width:14px;transition:.25s;
+  position:fixed;left:240px;top:50%;transform:translateY(-50%);
+  z-index:800;width:12px;transition:.3s cubic-bezier(.4,0,.2,1);
 }
-.toc-panel:hover{width:230px;}
+.toc-panel:hover{width:240px;}
 .toc-trigger{
   position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:14px;height:60px;background:var(--accent);opacity:.35;
-  cursor:pointer;transition:.2s;border-radius:0 4px 4px 0;
+  width:12px;height:80px;background:var(--accent);opacity:.4;
+  cursor:pointer;transition:.2s;border-radius:0 6px 6px 0;
+  display:flex;align-items:center;justify-content:center;
 }
-.toc-panel:hover .toc-trigger{opacity:0;pointer-events:none;}
+.toc-trigger::after{content:"";display:block;width:2px;height:32px;background:#fff;border-radius:2px;opacity:.7;}
+.toc-panel:hover .toc-trigger{opacity:0;width:0;overflow:hidden;}
 .toc-content{
   position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:220px;opacity:0;pointer-events:none;transition:.2s;
+  width:230px;opacity:0;pointer-events:none;transition:.25s;
   background:var(--glass-bg);border:1px solid var(--glass-border);
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);padding:14px 0;max-height:80vh;overflow-y:auto;
+  box-shadow:var(--glass-shadow);padding:14px 0;max-height:75vh;overflow-y:auto;
 }
 .toc-panel:hover .toc-content{opacity:1;pointer-events:all;}
 .toc-item{
-  display:block;width:100%;text-align:left;background:none;border:none;
-  padding:5px 16px;font-size:11px;color:var(--muted);cursor:pointer;
-  font-family:'Poppins',sans-serif;transition:.12s;line-height:1.5;
+  display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;
+  padding:6px 16px;font-size:11px;color:var(--muted);cursor:pointer;
+  font-family:'Poppins',sans-serif;transition:.12s;line-height:1.4;border-left:2px solid transparent;
 }
-.toc-item:hover{color:var(--accent);background:var(--entry-accent-bg);}
-.toc-item.active{color:var(--accent);font-weight:700;border-left:2px solid var(--accent);padding-left:14px;}
-.toc-group{padding:8px 16px 3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-family:'Poppins',sans-serif;}
+.toc-item:hover{color:var(--text);background:var(--card2);}
+.toc-item.active{color:var(--accent);font-weight:700;border-left-color:var(--accent);background:var(--entry-accent-bg);}
+.toc-group{padding:8px 16px 4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-family:'Poppins',sans-serif;}
 .form-progress-pill{
   position:fixed;bottom:24px;right:24px;z-index:900;
   display:flex;align-items:center;gap:10px;
@@ -432,9 +434,16 @@ select.inp{cursor:pointer;}
 .copy-btn.green{background:var(--green) !important;}
 
 /* Entry cards */
-.entry-card{background:var(--entry-bg);border:1.5px solid var(--border);border-radius:0;padding:15px;margin-bottom:10px;}
-.entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.entry-card{background:var(--entry-bg);border:1.5px solid var(--border);border-radius:0;padding:15px;margin-bottom:10px;transition:.2s;}
+.entry-card.saved{background:var(--card);border-color:var(--border);opacity:.92;}
+.entry-card.dragging{opacity:.35;border-style:dashed;}
+.entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:8px;}
 .entry-label{font-size:13px;font-weight:700;color:var(--accent);font-family:'Plus Jakarta Sans',sans-serif;}
+.drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 6px;cursor:grab;flex-shrink:0;opacity:.4;transition:.15s;}
+.drag-handle:hover{opacity:1;}
+.drag-handle span{display:block;width:16px;height:2px;background:var(--muted);border-radius:1px;}
+.entry-saved-preview{font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;word-break:break-word;padding:6px 0 2px;}
+.entry-saved-preview em{color:var(--muted);font-style:italic;}
 .entry-del{background:none;border:1px solid transparent;color:var(--muted);font-size:15px;padding:4px 7px;border-radius:0;transition:.15s;}
 .entry-del:hover{color:var(--red);background:var(--btn-cancel-bg);border-color:var(--btn-cancel-border);}
 .ai-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
@@ -978,16 +987,39 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
 
 function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
   const [checking,setChecking]=useState(null);
+  // New entries start in edit mode; saved entries start locked
+  const [saved,setSaved]=useState(!!entry._saved);
   const ai=async(field)=>{ if(!entry[field]?.trim())return; setChecking(field); const {result,changes}=await checkGrammar(entry[field]); onChange({...entry,[field]:result}); setChecking(changes>0?`fixed-${field}`:null); setTimeout(()=>setChecking(null),2000); };
+  const handleSave=()=>{ setSaved(true); onChange({...entry,_saved:true}); };
+  const handleEdit=()=>{ setSaved(false); onChange({...entry,_saved:false}); };
+
   return (
-    <div className="entry-card">
+    <div className={cls("entry-card",saved&&"saved")}>
       <div className="entry-header">
-        <span className="entry-label">{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
+        {/* Drag handle */}
+        <div className="drag-handle" title="Drag to reorder">
+          <span/><span/><span/>
+        </div>
+        <span className="entry-label" style={{flex:1}}>{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
+        {saved
+          ? <button className="h-btn" style={{fontSize:11,padding:"3px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={handleEdit}><Icon name="edit" size={11} style={{marginRight:4}}/>Edit</button>
+          : <button className="btn btn-primary" style={{fontSize:11,padding:"4px 12px"}} onClick={handleSave}><Icon name="save" size={11} style={{marginRight:4}}/>Save</button>
+        }
         {(showNumber||(index>0))&&<button className="entry-del" onClick={onDelete}><Icon name="trash" size={13} color="var(--red)"/></button>}
       </div>
-      {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
-      <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"Checking...":(checking===`fixed-note`?"✓ Fixed!":"Grammar Check")}</button></div></div>
-      <div className="field"><label>Clarification (optional)</label><textarea className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"Checking...":(checking===`fixed-clarification`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+      {saved ? (
+        <div className="entry-saved-preview">
+          {entry.number&&<div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>#{entry.number}</div>}
+          {entry.note ? <div>{entry.note}</div> : <em>No note</em>}
+          {entry.clarification&&<div style={{marginTop:6,paddingTop:6,borderTop:"1px solid var(--border)",color:"var(--muted)",fontSize:12}}>{entry.clarification}</div>}
+        </div>
+      ) : (
+        <>
+          {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
+          <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"Checking...":(checking===`fixed-note`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+          <div className="field"><label>Clarification (optional)</label><textarea className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"Checking...":(checking===`fixed-clarification`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+        </>
+      )}
     </div>
   );
 }
@@ -1323,7 +1355,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
                 dragEntryIdxRef.current=-1;setDragEntryIdx(-1);
               }}
               onDragEnd={()=>{dragEntryIdxRef.current=-1;setDragEntryIdx(-1);}}
-              style={{opacity:dragEntryIdx===i?0.4:1,transition:"opacity .15s",cursor:"grab",userSelect:"none"}}>
+              style={{userSelect:"none",transition:"opacity .15s",opacity:dragEntryIdx===i?0.35:1}}>
               <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
             </div>
           ))}
@@ -1619,12 +1651,34 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0 }) {
             </div>
           ))}
           {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}><Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>{c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
-          {allImages.length>0&&(<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>{allImages.map(img=>{
-            const isBlob=(img.url||"").startsWith("blob:")||!(img.url||"").startsWith("http");
-            return (<div key={img.id||img.name} style={{width:72,height:56,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)",background:"var(--entry-bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              {isBlob||!img.url?<div style={{fontSize:10,color:"var(--muted)",textAlign:"center",padding:4}}><Icon name="image" size={18} color="var(--muted)"/><div style={{marginTop:2}}>{img.name||"img"}</div></div>:<img src={img.url} alt={img.name} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.parentNode.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:10px;color:var(--muted)">No preview</div>';}}/>}
-            </div>);})}
-          </div>)}
+          {allImages.length>0&&(
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8}}>Screenshots ({allImages.length})</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+                {allImages.map(img=>{
+                  const isValidUrl=(img.url||"").startsWith("https://");
+                  return (
+                    <div key={img.id||img.name} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,maxWidth:80}}>
+                      <div style={{width:80,height:60,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)",background:"var(--entry-bg)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {isValidUrl
+                          ? <img src={img.url} alt={img.name||""} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                              onError={e=>{e.currentTarget.style.display="none";e.currentTarget.parentNode.querySelector(".img-fallback").style.display="flex";}}
+                            />
+                          : null
+                        }
+                        <div className="img-fallback" style={{display:isValidUrl?"none":"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",width:"100%",height:"100%",gap:3}}>
+                          <Icon name="image" size={20} color="var(--muted)"/>
+                        </div>
+                      </div>
+                      <div style={{fontSize:9,color:"var(--muted)",textAlign:"center",wordBreak:"break-all",lineHeight:1.3,maxWidth:80,fontFamily:"'Poppins',sans-serif"}}>
+                        {(img.name||"screenshot").replace(/\.[^.]+$/,"").slice(0,22)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2349,8 +2403,10 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
           onDragEnd={()=>{dragLinkRef.current=null;}}
           style={{cursor:"grab",userSelect:"none"}}
         >
-          <div style={{display:"flex",alignItems:"center",gap:6,opacity:.35,flexShrink:0,paddingRight:2}}>
-            <Icon name="draft" size={13} color="var(--muted)"/>
+          <div className="drag-handle" title="Drag to reorder" style={{flexDirection:"row",gap:3,padding:"6px 4px"}}>
+            <span style={{width:2,height:16,background:"var(--muted)",borderRadius:1,display:"block"}}/>
+            <span style={{width:2,height:16,background:"var(--muted)",borderRadius:1,display:"block"}}/>
+            <span style={{width:2,height:16,background:"var(--muted)",borderRadius:1,display:"block"}}/>
           </div>
           <div className="link-icon">{l.icon}</div>
           <div className="link-info"><div className="link-title">{l.title}</div><div className="link-url">{l.url}</div></div>
@@ -2714,6 +2770,31 @@ function App() {
   const [allCases,setAllCases]=useState([]);
   const [drafts,setDrafts]=useState([]);
   const [formActive,setFormActive]=useState(false);
+  // Persist formActive so pill shows even after page switch
+  const setFormActivePersist=(v)=>{
+    setFormActive(v);
+    if(typeof window!=="undefined"){
+      if(v) localStorage.setItem("ch_form_active","1");
+      else localStorage.removeItem("ch_form_active");
+    }
+  };
+  useEffect(()=>{
+    if(typeof window!=="undefined"&&localStorage.getItem("ch_form_active")==="1") setFormActive(true);
+  },[]);
+  // Wrap setFormActive to also persist to localStorage
+  const setFormActivePersist=(v)=>{
+    setFormActive(v);
+    if(typeof window!=="undefined"){
+      if(v) localStorage.setItem("ch_form_active","1");
+      else localStorage.removeItem("ch_form_active");
+    }
+  };
+  // On mount, restore formActive from localStorage
+  useEffect(()=>{
+    if(typeof window!=="undefined"&&localStorage.getItem("ch_form_active")==="1"){
+      setFormActive(true);
+    }
+  },[]);
   const [lightMode,setLightMode]=useState(()=>{
     if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
     return false;
@@ -3010,6 +3091,7 @@ function App() {
     localStorage.removeItem("ch_token");
     localStorage.removeItem("ch_refresh");
     localStorage.removeItem("ch_user");
+    localStorage.removeItem("ch_form_active");
     setUser(null);setAuthPage("login");setPage("dashboard");
     setAllCases([]);setDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
   };
@@ -3145,7 +3227,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onFormActive={setFormActive} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins}/>
+            <PostLivePage onSaveCase={addCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
@@ -3202,16 +3284,21 @@ function App() {
       {/* Nav no longer shows discard warning — form state preserved on page switch */}
 
       {/* ── Floating in-progress pill (fixed, sitewide, bottom-right) ── */}
-      {formActive&&page!=="postlive"&&(
-        <div className="form-progress-pill" onClick={()=>handleNav("postlive")}>
-          <div className="form-progress-pill-dot"/>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,lineHeight:1}}>Form In Progress</div>
-            <div style={{fontSize:10,opacity:.85,marginTop:2}}>Click to resume</div>
-          </div>
-          <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:4}}/>
+      <div className="form-progress-pill"
+        onClick={()=>handleNav("postlive")}
+        style={{
+          opacity:formActive&&page!=="postlive"?1:0,
+          pointerEvents:formActive&&page!=="postlive"?"auto":"none",
+          transform:formActive&&page!=="postlive"?"translateY(0)":"translateY(16px)",
+          transition:"opacity .25s, transform .25s",
+        }}>
+        <div className="form-progress-pill-dot"/>
+        <div>
+          <div style={{fontSize:12,fontWeight:700,lineHeight:1}}>Form In Progress</div>
+          <div style={{fontSize:10,opacity:.85,marginTop:2}}>Click to resume</div>
         </div>
-      )}
+        <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:4}}/>
+      </div>
     </>
   );
 }
