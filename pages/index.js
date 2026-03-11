@@ -2781,20 +2781,6 @@ function App() {
   useEffect(()=>{
     if(typeof window!=="undefined"&&localStorage.getItem("ch_form_active")==="1") setFormActive(true);
   },[]);
-  // Wrap setFormActive to also persist to localStorage
-  const setFormActivePersist=(v)=>{
-    setFormActive(v);
-    if(typeof window!=="undefined"){
-      if(v) localStorage.setItem("ch_form_active","1");
-      else localStorage.removeItem("ch_form_active");
-    }
-  };
-  // On mount, restore formActive from localStorage
-  useEffect(()=>{
-    if(typeof window!=="undefined"&&localStorage.getItem("ch_form_active")==="1"){
-      setFormActive(true);
-    }
-  },[]);
   const [lightMode,setLightMode]=useState(()=>{
     if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
     return false;
