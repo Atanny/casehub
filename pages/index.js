@@ -109,17 +109,15 @@ html,body{overflow-x:hidden;max-width:100vw;}
 .sidebar.collapsed .break-btn{justify-content:center;padding:8px 0;border-radius:6px;}
 .sidebar.collapsed .break-btn .nav-item-label{display:none;}
 /* Profile: show only avatar, centered */
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;border:none;background:none;width:100%;}
+.sidebar.collapsed .sidebar-profile{justify-content:center;padding:6px 0;border:none;background:none;width:100%;}
 .sidebar.collapsed .sidebar-profile .profile-name,.sidebar.collapsed .sidebar-profile .profile-role{display:none;}
-.sidebar.collapsed .profile-avatar{width:40px;height:40px;font-size:16px;flex-shrink:0;}
+.sidebar.collapsed .profile-avatar{width:32px;height:32px;font-size:13px;flex-shrink:0;margin:0 auto;}
 /* Theme toggle: show only icon */
 .sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;border:none;background:none;width:100%;}
 .sidebar.collapsed .theme-toggle .theme-label,.sidebar.collapsed .theme-toggle .toggle-track{display:none;}
 .sidebar.collapsed .theme-toggle span:first-child{font-size:18px;}
 /* DB status: show only dot, centered */
-.sidebar.collapsed .db-status{justify-content:center;padding:8px 0;border-top:1px solid var(--border);}
-.sidebar.collapsed .db-status .db-status-text{display:none;}
-.sidebar.collapsed .db-dot{width:10px;height:10px;}
+
 /* Custom links */
 .sidebar.collapsed .nav-custom-link .link-label{display:none;}
 .sidebar.collapsed .nav-custom-link{justify-content:center;padding:9px 0;width:100%;}
@@ -849,18 +847,7 @@ select.inp{cursor:pointer;}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
 
 /* DB status bar */
-.db-status{
-  display:flex;align-items:center;gap:8px;padding:8px 12px;
-  font-size:11px;font-weight:600;font-family:'Poppins',sans-serif;
-  border-top:1px solid var(--border);margin-top:4px;
-  color:var(--muted);transition:.3s;
-}
-.db-dot{
-  width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:.3s;
-}
-.db-dot.connected{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.6);}
-.db-dot.connecting{background:#f59e0b;animation:pulse-dot 1s ease-in-out infinite;}
-.db-dot.error{background:#f43f5e;box-shadow:0 0 6px rgba(244,63,94,.5);}
+
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .db-status.connected{color:var(--green);}
 .db-status.error{color:var(--red);}
@@ -3541,17 +3528,6 @@ function App() {
             <div className={cls("toggle-track",!lightMode&&"on")}><div className="toggle-thumb"/></div>
           </button>
 
-          {/* ── DB Status ── */}
-          <div className={cls("db-status", dbStatus.status)} title={dbStatus.latency?`${dbStatus.latency}ms`:undefined} onClick={dbStatus.recheck} style={{cursor:"pointer"}}>
-            <div className={cls("db-dot", dbStatus.status)}/>
-            <div style={{flex:1,minWidth:0}}>
-              {dbStatus.status==="connected"&&<span>DB Connected{dbStatus.latency?` · ${dbStatus.latency}ms`:""}</span>}
-              {dbStatus.status==="connecting"&&<span>Connecting…</span>}
-              {dbStatus.status==="error"&&<span>DB Offline ⚠</span>}
-              {dbStatus.lastSaved&&<div style={{fontSize:9,opacity:.7,marginTop:1}}>Saved {dbStatus.lastSaved.toLocaleTimeString()}</div>}
-            </div>
-            {dbStatus.status==="error"&&<span style={{fontSize:9,opacity:.7}}>tap to retry</span>}
-          </div>
         </aside>
 
         {/* Collapse button — fixed, vertically centered on sidebar edge */}
