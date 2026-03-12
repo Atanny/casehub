@@ -3411,14 +3411,6 @@ function App() {
               </div>
             </div>
           </div>
-              <div style={{lineHeight:1.05}}>
-                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap"}}>
-                  <span style={{color:"#eef2ff"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
-                </div>
-                <div style={{fontFamily:"'Poppins',sans-serif",fontSize:8,fontWeight:500,letterSpacing:2,color:"rgba(24,119,242,0.65)",textTransform:"uppercase",marginTop:2,whiteSpace:"nowrap"}}>Amends System Cases</div>
-              </div>
-            </div>
-          </div>
           <button className="collapse-btn" title={sidebarCollapsed?"Expand sidebar":"Collapse sidebar"}
             onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem("ch_sidebar_collapsed",v?"1":"0");}}>
             {sidebarCollapsed?"▶":"◀"}
