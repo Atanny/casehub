@@ -109,9 +109,9 @@ html,body{overflow-x:hidden;max-width:100vw;}
 .sidebar.collapsed .break-btn{justify-content:center;padding:8px 0;border-radius:6px;}
 .sidebar.collapsed .break-btn .nav-item-label{display:none;}
 /* Profile: show only avatar, centered */
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:6px 0;border:none;background:none;width:100%;}
-.sidebar.collapsed .sidebar-profile .profile-name,.sidebar.collapsed .sidebar-profile .profile-role{display:none;}
-.sidebar.collapsed .profile-avatar{width:32px;height:32px;font-size:13px;flex-shrink:0;margin:0 auto;}
+.sidebar.collapsed .sidebar-profile{display:flex;justify-content:center;align-items:center;padding:8px 0;border:none;background:none;width:100%;gap:0;}
+.sidebar.collapsed .sidebar-profile > div:last-child{display:none;}
+.sidebar.collapsed .profile-avatar{width:34px;height:34px;font-size:13px;flex-shrink:0;margin:0;}
 /* Theme toggle: show only icon */
 .sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;border:none;background:none;width:100%;}
 .sidebar.collapsed .theme-toggle .theme-label,.sidebar.collapsed .theme-toggle .toggle-track{display:none;}
