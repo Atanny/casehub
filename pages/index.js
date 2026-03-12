@@ -30,6 +30,12 @@ ${FONTS}
   --entry-accent-bg:rgba(245,148,92,.1);
   --glass-bg:rgba(20,27,40,.55);--glass-border:rgba(255,255,255,.07);--glass-blur:blur(18px);
   --glass-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
+  --logo-icon-bg:linear-gradient(145deg,#0c1d3d,#112248);
+  --logo-icon-border:rgba(24,119,242,0.4);
+  --logo-icon-shadow:0 2px 10px rgba(24,119,242,0.18);
+  --logo-icon-glow:0 0 24px rgba(24,119,242,0.2),inset 0 1px 0 rgba(255,255,255,0.05);
+  --logo-easy-color:#eef2ff;
+  --logo-tag-color:rgba(24,119,242,0.65);
 }
 /* ══════════════════════ LIGHT THEME ══════════════════════ */
 body.light,:root.light{
@@ -43,6 +49,12 @@ body.light,:root.light{
   --btn-ghost-bg:#fef0e6;--btn-ghost-border:#f0d5c0;--btn-ghost-text:#6b4e38;
   --nav-active-bg:linear-gradient(135deg,rgba(245,148,92,.18),rgba(212,114,74,.12));
   --nav-active-border:rgba(245,148,92,.5);
+  --logo-icon-bg:linear-gradient(145deg,#e8f0fe,#dbeafe);
+  --logo-icon-border:rgba(24,119,242,0.35);
+  --logo-icon-shadow:0 2px 10px rgba(24,119,242,0.15);
+  --logo-icon-glow:0 0 16px rgba(24,119,242,0.12),inset 0 1px 0 rgba(255,255,255,0.8);
+  --logo-easy-color:#1a0f08;
+  --logo-tag-color:rgba(24,100,200,0.6);
   --h-badge-site-bg:rgba(245,148,92,.15);--h-badge-email-bg:rgba(212,114,74,.12);
   --quick-hover:rgba(245,148,92,.08);--choice-hover:rgba(245,148,92,.06);
   --entry-accent-bg:rgba(245,148,92,.1);
@@ -2916,17 +2928,17 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
 function AuthLogo() {
   return (
     <div className="auth-logo" style={{justifyContent:"center",marginBottom:24,flexDirection:"column",alignItems:"center",gap:14}}>
-      <div style={{width:68,height:68,borderRadius:16,background:"linear-gradient(145deg,#0c1d3d,#112248)",border:"1.5px solid rgba(24,119,242,0.4)",boxShadow:"0 0 24px rgba(24,119,242,0.2),inset 0 1px 0 rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{width:68,height:68,borderRadius:16,background:"var(--logo-icon-bg)",border:"1.5px solid var(--logo-icon-border)",boxShadow:"var(--logo-icon-glow)",display:"flex",alignItems:"center",justifyContent:"center"}}>
         <svg width="36" height="40" viewBox="0 0 36 40" fill="none">
-          <defs><linearGradient id="boltgrad" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1055c6"/></linearGradient></defs>
+          <defs><linearGradient id="boltgrad" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1877F2"/></linearGradient></defs>
           <path d="M22 2L4 22H16L14 38L32 18H20L22 2Z" fill="url(#boltgrad)"/>
         </svg>
       </div>
       <div style={{textAlign:"center"}}>
         <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:28,fontWeight:800,letterSpacing:5,lineHeight:1.1,whiteSpace:"nowrap"}}>
-          <span style={{color:"#f0f4ff"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
+          <span style={{color:"var(--logo-easy-color)"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
         </div>
-        <div style={{fontFamily:"'Poppins',sans-serif",fontSize:10,fontWeight:500,letterSpacing:2.5,color:"rgba(24,119,242,0.65)",textTransform:"uppercase",marginTop:6}}>Amends System Cases</div>
+        <div style={{fontFamily:"'Poppins',sans-serif",fontSize:10,fontWeight:500,letterSpacing:2.5,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:6}}>Amends System Cases</div>
       </div>
     </div>
   );
@@ -3385,12 +3397,20 @@ function App() {
         <aside className={cls("sidebar",sidebarCollapsed&&"collapsed")} style={{position:"relative"}}>
           <div className="logo-wrap" style={{padding:"4px 10px 14px"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:34,height:34,borderRadius:8,background:"linear-gradient(145deg,#0c1d3d,#112248)",border:"1px solid rgba(24,119,242,0.4)",boxShadow:"0 2px 10px rgba(24,119,242,0.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{width:34,height:34,borderRadius:8,background:"var(--logo-icon-bg)",border:"1px solid var(--logo-icon-border)",boxShadow:"var(--logo-icon-shadow)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 <svg width="18" height="20" viewBox="0 0 36 40" fill="none">
-                  <defs><linearGradient id="sg" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1055c6"/></linearGradient></defs>
+                  <defs><linearGradient id="sg" x1="4" y1="2" x2="32" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#4da3ff"/><stop offset="100%" stopColor="#1877F2"/></linearGradient></defs>
                   <path d="M22 2L4 22H16L14 38L32 18H20L22 2Z" fill="url(#sg)"/>
                 </svg>
               </div>
+              <div style={{lineHeight:1.05}}>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap"}}>
+                  <span style={{color:"var(--logo-easy-color)"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
+                </div>
+                <div style={{fontFamily:"'Poppins',sans-serif",fontSize:8,fontWeight:500,letterSpacing:2,color:"var(--logo-tag-color)",textTransform:"uppercase",marginTop:2,whiteSpace:"nowrap"}}>Amends System Cases</div>
+              </div>
+            </div>
+          </div>
               <div style={{lineHeight:1.05}}>
                 <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:800,letterSpacing:2,whiteSpace:"nowrap"}}>
                   <span style={{color:"#eef2ff"}}>EASY</span><span style={{color:"#F07820"}}> WORK</span>
