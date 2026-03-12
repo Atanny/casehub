@@ -118,14 +118,51 @@ html,body{overflow-x:hidden;max-width:100vw;}
 .sidebar.collapsed .logo-wrap > div > div:last-child{display:none;}
 .sidebar.collapsed .logo-wrap > div{justify-content:center;}
 .sidebar.collapsed .logo-wrap{padding:4px 0 14px!important;justify-content:center;}
-.collapse-btn{
-  position:absolute;top:18px;right:-12px;width:24px;height:24px;
-  background:var(--card);border:1px solid var(--border);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:10;font-size:11px;color:var(--muted);
-  transition:.18s;box-shadow:var(--shadow-sm);
+
+/* ── Responsive / Mobile ── */
+@media (max-width:768px){
+  .shell{position:relative;}
+  .sidebar{
+    position:fixed;top:0;left:0;z-index:200;
+    height:100vh;transform:translateX(0);
+    transition:transform .25s cubic-bezier(.4,0,.2,1),width .22s cubic-bezier(.4,0,.2,1);
+  }
+  .sidebar.mobile-hidden{transform:translateX(-100%);}
+  .main-area{padding:16px;width:100%;min-width:0;}
+  .mobile-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;
+  }
+  .mobile-overlay.visible{display:block;}
+  .mobile-menu-btn{
+    display:flex;align-items:center;justify-content:center;
+    position:fixed;top:12px;left:12px;z-index:198;
+    width:38px;height:38px;border-radius:8px;
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    backdrop-filter:var(--glass-blur);box-shadow:var(--shadow-sm);
+    cursor:pointer;color:var(--text);font-size:16px;
+  }
+  .main-area{padding-top:56px;}
+  .form-right{display:none;}
+  .form-layout{flex-direction:column;}
 }
-.collapse-btn:hover{color:var(--accent);border-color:var(--accent);}
+@media (min-width:769px){
+  .mobile-menu-btn{display:none;}
+  .mobile-overlay{display:none!important;}
+  .sidebar.mobile-hidden{transform:none!important;}
+}
+.collapse-btn{
+  position:fixed;top:50%;transform:translateY(-50%);
+  width:20px;height:48px;
+  background:var(--card);border:1px solid var(--border);
+  border-left:none;
+  border-radius:0 8px 8px 0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:300;font-size:10px;color:var(--muted);
+  transition:left .22s cubic-bezier(.4,0,.2,1), background .18s, color .18s;
+  box-shadow:3px 0 12px rgba(0,0,0,.25);
+}
+.collapse-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--card2);}
+@media(max-width:768px){.collapse-btn{display:none;}}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -3063,6 +3100,9 @@ function App() {
     if(typeof window!=="undefined"){return localStorage.getItem("ch_sidebar_collapsed")==="1";}
     return false;
   });
+  const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined"&&window.innerWidth<=768);
+  const [mobileOpen,setMobileOpen]=useState(false);
+  const sidebarWidth=sidebarCollapsed?56:240;
   const [specialRequestors,setSpecialRequestors]=useState([]);
   const [timerLimit,setTimerLimit]=useState(()=>{
     if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timer_limit"));return isNaN(v)?30:v;}
@@ -3082,6 +3122,11 @@ function App() {
   const saveAlarmMins = saveTimerLimit;
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
+  useEffect(()=>{
+    const onResize=()=>setIsMobile(window.innerWidth<=768);
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
 
   // ── Alarm state: null | "warn" | "end" | "case" ──
   const [activeAlarm,setActiveAlarm]=useState(null);
@@ -3346,7 +3391,7 @@ function App() {
     setSpecialRequestors(s=>s.filter(x=>x!==name));
   };
 
-  const handleNav=(id)=>{
+  const handleNav=(id)=>{setMobileOpen(false);
     if(id===page)return;
     setPage(id); // always just navigate — form state is preserved in PostLivePage
   };
@@ -3397,7 +3442,7 @@ function App() {
     <>
       <style>{CSS}</style>
       <div className="shell">
-        <aside className={cls("sidebar",sidebarCollapsed&&"collapsed")} style={{position:"relative"}}>
+        <aside className={cls("sidebar",sidebarCollapsed&&"collapsed",isMobile&&!mobileOpen&&"mobile-hidden")}>
           <div className="logo-wrap" style={{padding:"4px 10px 14px"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:34,height:34,borderRadius:8,background:"var(--logo-icon-bg)",border:"1px solid var(--logo-icon-border)",boxShadow:"var(--logo-icon-shadow)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -3414,10 +3459,7 @@ function App() {
               </div>
             </div>
           </div>
-          <button className="collapse-btn" title={sidebarCollapsed?"Expand sidebar":"Collapse sidebar"}
-            onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem("ch_sidebar_collapsed",v?"1":"0");}}>
-            {sidebarCollapsed?"▶":"◀"}
-          </button>
+
 
           {coreNav.map((n,i)=>
             n.group
@@ -3492,6 +3534,23 @@ function App() {
             {dbStatus.status==="error"&&<span style={{fontSize:9,opacity:.7}}>tap to retry</span>}
           </div>
         </aside>
+
+        {/* Collapse button — fixed, vertically centered on sidebar edge */}
+        <button
+          className="collapse-btn"
+          style={{left:sidebarWidth}}
+          title={sidebarCollapsed?"Expand":"Collapse"}
+          onClick={()=>{const v=!sidebarCollapsed;setSidebarCollapsed(v);localStorage.setItem("ch_sidebar_collapsed",v?"1":"0");}}>
+          {sidebarCollapsed?"›":"‹"}
+        </button>
+
+        {/* Mobile hamburger */}
+        <button className="mobile-menu-btn" onClick={()=>setMobileOpen(o=>!o)}>
+          {mobileOpen?"✕":"☰"}
+        </button>
+
+        {/* Mobile overlay backdrop */}
+        {mobileOpen&&<div className="mobile-overlay visible" onClick={()=>setMobileOpen(false)}/>}
 
         <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
