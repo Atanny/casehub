@@ -184,6 +184,14 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 }
 .toc-item:hover{color:var(--text);background:var(--card2);}
 .toc-item.active{color:var(--accent);font-weight:700;border-left-color:var(--accent);background:var(--entry-accent-bg);}
+.toc-item.done{background:rgba(16,185,129,.10);color:var(--green);border-left-color:var(--green);}
+.toc-item.done.active{background:rgba(16,185,129,.18);border-left-color:var(--green);color:var(--green);}
+.toc-item .toc-check{margin-left:auto;font-size:10px;opacity:.8;}
+.toc-card{display:flex;flex-direction:column;}
+.toc-requestors{padding:10px 12px;border-top:1px solid var(--border);margin-top:auto;}
+.toc-req-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;font-family:'Poppins',sans-serif;}
+.toc-req-chip{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px;font-weight:600;color:var(--accent);}
+.toc-req-avatar{width:18px;height:18px;border-radius:50%;background:var(--btn-save-bg);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;flex-shrink:0;}
 .toc-num{font-size:9px;opacity:.5;font-variant-numeric:tabular-nums;flex-shrink:0;width:14px;}
 .form-progress-pill{
   position:fixed;bottom:24px;right:24px;z-index:900;
@@ -1300,7 +1308,7 @@ const emptyBase  = ()=>({
 
 
 // ── Table of Contents / Outline Panel — sticky card column ──────────────────
-function TocPanel({ openStep, setOpenStep, isSC, page }) {
+function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialRequestors=[] }) {
   if(page!=="postlive") return null;
   const steps=[
     {num:1,label:"Case Info"},
@@ -1317,19 +1325,34 @@ function TocPanel({ openStep, setOpenStep, isSC, page }) {
       <div className="toc-card-header">
         <Icon name="dashboard" size={10} color="var(--muted)"/>Steps
       </div>
-      {steps.map(s=>(
-        <button key={s.num} className={cls("toc-item",openStep===s.num&&"active")}
-          onClick={()=>{
-            setOpenStep(s.num);
-            setTimeout(()=>{
-              const el=document.getElementById(`step-${s.num}`);
-              if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
-            },50);
-          }}>
-          <span className="toc-num">{s.num}</span>
-          <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
-        </button>
-      ))}
+      {steps.map(s=>{
+        const done=!!doneMap[s.num];
+        return (
+          <button key={s.num} className={cls("toc-item",done&&"done",openStep===s.num&&"active")}
+            onClick={()=>{
+              setOpenStep(s.num);
+              setTimeout(()=>{
+                const el=document.getElementById(`step-${s.num}`);
+                if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
+              },50);
+            }}>
+            <span className="toc-num">{s.num}</span>
+            <span style={{flex:1,textAlign:"left"}}>{s.label}</span>
+            {done&&<span className="toc-check">✓</span>}
+          </button>
+        );
+      })}
+      {specialRequestors.length>0&&(
+        <div className="toc-requestors">
+          <div className="toc-req-title">Requestors</div>
+          {specialRequestors.map((name,i)=>(
+            <div key={i} className="toc-req-chip">
+              <span className="toc-req-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</span>
+              {name}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1468,7 +1491,19 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
 
   return (
     <div className="form-cols">
-      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"/>
+      <TocPanel openStep={openStep} setOpenStep={setOpenStep} isSC={isSC} page="postlive"
+        specialRequestors={specialRequestors}
+        doneMap={{
+          1:step1Done,
+          2:form._beforeCopied,
+          3:step3Done,
+          "6b":form.backupImages&&form.backupImages.length>0,
+          4:step4Done,
+          5:form._afterCopied,
+          6:form._screenshotCopied||(form.images&&form.images.length>0),
+          7:step7Done,
+        }}
+      />
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
@@ -1648,21 +1683,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         </div></div>)}
         <Toast msg={toast.msg} type={toast.type}/>
 
-        {specialRequestors&&specialRequestors.length>0&&(
-          <div style={{marginTop:16,padding:"14px 16px",background:"var(--entry-bg)",border:"1.5px solid var(--border)"}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {specialRequestors.map((name,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                  </span>
-                  {name}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
       <div className="form-right">
         <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
