@@ -488,7 +488,9 @@ select.inp{cursor:pointer;}
 }
 .entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:8px;}
 .entry-label{font-size:13px;font-weight:700;color:var(--accent);font-family:'Plus Jakarta Sans',sans-serif;}
-.drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 6px;cursor:grab;flex-shrink:0;opacity:.4;transition:.15s;}
+.drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 8px;cursor:grab;flex-shrink:0;opacity:.5;transition:.15s;touch-action:none;}
+.drag-handle:hover{opacity:1;}
+.drag-handle:active{cursor:grabbing;opacity:1;}
 .drag-handle:hover{opacity:1;}
 .drag-handle span{display:block;width:16px;height:2px;background:var(--muted);border-radius:1px;}
 .entry-saved-preview{font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;word-break:break-word;padding:6px 0 2px;}
@@ -1034,7 +1036,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   );
 }
 
-function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDragHandleMouseDown, onDragHandleMouseUp }) {
+function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDragHandlePointerDown }) {
   const [checking,setChecking]=useState(null);
   // New entries start in edit mode; saved entries start locked
   const [saved,setSaved]=useState(!!entry._saved);
@@ -1043,13 +1045,11 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDrag
   const handleEdit=()=>{ setSaved(false); onChange({...entry,_saved:false}); };
 
   return (
-    <div className={cls("entry-card",saved&&"saved")}>
+    <div className={cls("entry-card entry-card-wrap",saved&&"saved")}>
       <div className="entry-header">
-        {/* Drag handle — only this triggers drag */}
+        {/* Drag handle — pointer down here starts drag */}
         <div className="drag-handle" title="Drag to reorder"
-          onMouseDown={e=>{e.stopPropagation();onDragHandleMouseDown&&onDragHandleMouseDown();}}
-          onMouseUp={()=>onDragHandleMouseUp&&onDragHandleMouseUp()}
-          onTouchStart={()=>onDragHandleMouseDown&&onDragHandleMouseDown()}>
+          onPointerDown={ev=>{ev.stopPropagation();onDragHandlePointerDown&&onDragHandlePointerDown(ev);}}>
           <span/><span/><span/>
         </div>
         <span className="entry-label" style={{flex:1}}>{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
@@ -1332,7 +1332,45 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [dragEntryIdx,setDragEntryIdx] = useState(-1);
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
+  const [dragOverPos,setDragOverPos] = useState("bottom"); // "top"|"bottom"
   const dragHandleActiveRef = useRef(false);
+
+  // ── Pointer-based drag for entries ──
+  useEffect(()=>{
+    const onMove=(ev)=>{
+      if(dragEntryIdxRef.current===-1) return;
+      const y = ev.clientY ?? ev.touches?.[0]?.clientY;
+      if(!y) return;
+      // Find which entry card the pointer is over
+      const cards = document.querySelectorAll(".entry-card-wrap");
+      let found=-1, pos="bottom";
+      cards.forEach((el,idx)=>{
+        const r=el.getBoundingClientRect();
+        if(y>=r.top && y<=r.bottom){
+          found=idx;
+          pos = y < r.top + r.height/2 ? "top" : "bottom";
+        }
+      });
+      if(found!==-1 && found!==dragEntryIdxRef.current){
+        if(dragOverIdxRef.current!==found){dragOverIdxRef.current=found;setDragOverIdx(found);}
+        setDragOverPos(pos);
+      } else {
+        dragOverIdxRef.current=-1;setDragOverIdx(-1);
+      }
+    };
+    const onUp=()=>{
+      if(dragEntryIdxRef.current===-1) return;
+      const from=dragEntryIdxRef.current;
+      const to=dragOverIdxRef.current;
+      if(to!==-1 && to!==from) moveEntryRef.current(from,to);
+      dragEntryIdxRef.current=-1; dragOverIdxRef.current=-1;
+      setDragEntryIdx(-1); setDragOverIdx(-1);
+      dragHandleActiveRef.current=false;
+    };
+    window.addEventListener("pointermove",onMove);
+    window.addEventListener("pointerup",onUp);
+    return()=>{window.removeEventListener("pointermove",onMove);window.removeEventListener("pointerup",onUp);};
+  },[]);
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1378,6 +1416,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
   const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
+  const moveEntryRef = useRef(moveEntry);
+  useEffect(()=>{moveEntryRef.current=moveEntry;});
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
@@ -1447,27 +1487,29 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         </StepCard>
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
-          {form.entries.map((e,i)=>(
-            <div key={e.id}>
-              {dragOverIdx===i&&dragEntryIdx!==i&&(
-                <div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>
-              )}
-              <div
-                draggable
-                onDragStart={ev=>{
-                  // Only allow drag if mousedown was on the drag-handle
-                  if(!dragHandleActiveRef.current){ev.preventDefault();return;}
-                  ev.dataTransfer.effectAllowed="move";
-                  dragEntryIdxRef.current=i;setDragEntryIdx(i);
-                }}
-                onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
-                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);dragHandleActiveRef.current=false;}}
-                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);dragHandleActiveRef.current=false;}}
-                style={{userSelect:"none",opacity:dragEntryIdx===i?0.25:1,transition:"opacity .12s"}}>
-                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)} onDragHandleMouseDown={()=>{dragHandleActiveRef.current=true;}} onDragHandleMouseUp={()=>{dragHandleActiveRef.current=false;}}/>
+          {form.entries.map((e,i)=>{
+            const isDragging = dragEntryIdx===i;
+            const isOver    = dragOverIdx===i && dragEntryIdx!==i;
+            return (
+              <div key={e.id} style={{position:"relative"}}>
+                {isOver&&dragOverPos==="top"&&<div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>}
+                <div style={{opacity:isDragging?0.25:1,transition:"opacity .12s",userSelect:"none"}}>
+                  <EntryCard
+                    entry={e} label={entryLabel} index={i} showNumber={isSC}
+                    onChange={val=>updateEntry(e.id,val)}
+                    onDelete={()=>deleteEntry(e.id)}
+                    onDragHandlePointerDown={(ev)=>{
+                      ev.preventDefault();
+                      dragEntryIdxRef.current=i;
+                      setDragEntryIdx(i);
+                      dragHandleActiveRef.current=true;
+                    }}
+                  />
+                </div>
+                {isOver&&dragOverPos==="bottom"&&<div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>}
               </div>
-            </div>
-          ))}
+            );
+          })}
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
