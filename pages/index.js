@@ -491,6 +491,8 @@ select.inp{cursor:pointer;}
 .drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 8px;cursor:grab;flex-shrink:0;opacity:.5;transition:.15s;touch-action:none;}
 .drag-handle:hover{opacity:1;}
 .drag-handle:active{cursor:grabbing;opacity:1;}
+.entry-drag-row{position:relative;}
+.drop-line{height:3px;background:var(--accent);border-radius:2px;margin:2px 0;pointer-events:none;}
 .drag-handle:hover{opacity:1;}
 .drag-handle span{display:block;width:16px;height:2px;background:var(--muted);border-radius:1px;}
 .entry-saved-preview{font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;word-break:break-word;padding:6px 0 2px;}
@@ -1328,49 +1330,11 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [copiedAll,setCopiedAll] = useState(false);
   const [autoSaved,setAutoSaved] = useState(null);
   const [draftSaving,setDraftSaving] = useState(false);
-  const dragEntryIdxRef = useRef(-1);
-  const [dragEntryIdx,setDragEntryIdx] = useState(-1);
-  const dragOverIdxRef = useRef(-1);
-  const [dragOverIdx,setDragOverIdx] = useState(-1);
-  const [dragOverPos,setDragOverPos] = useState("bottom"); // "top"|"bottom"
-  const dragHandleActiveRef = useRef(false);
-
-  // ── Pointer-based drag for entries ──
-  useEffect(()=>{
-    const onMove=(ev)=>{
-      if(dragEntryIdxRef.current===-1) return;
-      const y = ev.clientY ?? ev.touches?.[0]?.clientY;
-      if(!y) return;
-      // Find which entry card the pointer is over
-      const cards = document.querySelectorAll(".entry-card-wrap");
-      let found=-1, pos="bottom";
-      cards.forEach((el,idx)=>{
-        const r=el.getBoundingClientRect();
-        if(y>=r.top && y<=r.bottom){
-          found=idx;
-          pos = y < r.top + r.height/2 ? "top" : "bottom";
-        }
-      });
-      if(found!==-1 && found!==dragEntryIdxRef.current){
-        if(dragOverIdxRef.current!==found){dragOverIdxRef.current=found;setDragOverIdx(found);}
-        setDragOverPos(pos);
-      } else {
-        dragOverIdxRef.current=-1;setDragOverIdx(-1);
-      }
-    };
-    const onUp=()=>{
-      if(dragEntryIdxRef.current===-1) return;
-      const from=dragEntryIdxRef.current;
-      const to=dragOverIdxRef.current;
-      if(to!==-1 && to!==from) moveEntryRef.current(from,to);
-      dragEntryIdxRef.current=-1; dragOverIdxRef.current=-1;
-      setDragEntryIdx(-1); setDragOverIdx(-1);
-      dragHandleActiveRef.current=false;
-    };
-    window.addEventListener("pointermove",onMove);
-    window.addEventListener("pointerup",onUp);
-    return()=>{window.removeEventListener("pointermove",onMove);window.removeEventListener("pointerup",onUp);};
-  },[]);
+  // ── Drag state — all refs, NO state to prevent glitch re-renders ──
+  const dragFromRef   = useRef(-1);
+  const dragToRef     = useRef(-1);
+  const dragLineRef   = useRef(null); // the visible drop-line div
+  const [dragActive, setDragActive] = useState(false); // only used to show ghost opacity
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1416,7 +1380,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
   const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
-  const moveEntryRef = useRef(moveEntry);
+  const moveEntryRef = useRef(null);
   useEffect(()=>{moveEntryRef.current=moveEntry;});
 
   const buildEntriesText = ()=>{
@@ -1487,29 +1451,81 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         </StepCard>
 
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
-          {form.entries.map((e,i)=>{
-            const isDragging = dragEntryIdx===i;
-            const isOver    = dragOverIdx===i && dragEntryIdx!==i;
-            return (
-              <div key={e.id} style={{position:"relative"}}>
-                {isOver&&dragOverPos==="top"&&<div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>}
-                <div style={{opacity:isDragging?0.25:1,transition:"opacity .12s",userSelect:"none"}}>
-                  <EntryCard
-                    entry={e} label={entryLabel} index={i} showNumber={isSC}
-                    onChange={val=>updateEntry(e.id,val)}
-                    onDelete={()=>deleteEntry(e.id)}
-                    onDragHandlePointerDown={(ev)=>{
-                      ev.preventDefault();
-                      dragEntryIdxRef.current=i;
-                      setDragEntryIdx(i);
-                      dragHandleActiveRef.current=true;
-                    }}
-                  />
-                </div>
-                {isOver&&dragOverPos==="bottom"&&<div className="drag-skeleton"><Icon name="draft" size={14} color="var(--accent)"/>Drop here</div>}
-              </div>
-            );
-          })}
+          <div id="entries-list">
+          {form.entries.map((e,i)=>(
+            <div key={e.id} className="entry-drag-row" data-idx={i}>
+              <EntryCard
+                entry={e} label={entryLabel} index={i} showNumber={isSC}
+                onChange={val=>updateEntry(e.id,val)}
+                onDelete={()=>deleteEntry(e.id)}
+                onDragHandlePointerDown={(ev)=>{
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  dragFromRef.current=i;
+                  dragToRef.current=i;
+                  setDragActive(true);
+                  // show ghost cursor
+                  document.body.style.cursor="grabbing";
+                  document.body.style.userSelect="none";
+
+                  const onMove=(mv)=>{
+                    const y=mv.clientY;
+                    const rows=document.querySelectorAll(".entry-drag-row");
+                    let newTo=dragFromRef.current;
+                    rows.forEach((row)=>{
+                      const ri=parseInt(row.dataset.idx);
+                      const r=row.getBoundingClientRect();
+                      const mid=r.top+r.height/2;
+                      if(ri!==dragFromRef.current){
+                        // remove old line
+                        row.querySelectorAll(".drop-line").forEach(l=>l.remove());
+                        if(y>=r.top && y<mid){
+                          newTo=ri;
+                          const line=document.createElement("div");
+                          line.className="drop-line";
+                          row.prepend(line);
+                        } else if(y>=mid && y<=r.bottom){
+                          newTo=ri+1>rows.length-1?ri:ri;
+                          const line=document.createElement("div");
+                          line.className="drop-line";
+                          row.append(line);
+                        }
+                      }
+                    });
+                    dragToRef.current=newTo;
+                    // fade dragging card
+                    rows.forEach((row)=>{
+                      const ri=parseInt(row.dataset.idx);
+                      row.style.opacity=ri===dragFromRef.current?"0.3":"1";
+                    });
+                  };
+
+                  const onUp=()=>{
+                    document.body.style.cursor="";
+                    document.body.style.userSelect="";
+                    // remove all drop lines
+                    document.querySelectorAll(".drop-line").forEach(l=>l.remove());
+                    // reset opacity
+                    document.querySelectorAll(".entry-drag-row").forEach(r=>{r.style.opacity="1";});
+                    const from=dragFromRef.current;
+                    const to=dragToRef.current;
+                    setDragActive(false);
+                    dragFromRef.current=-1;
+                    dragToRef.current=-1;
+                    if(from!==-1 && to!==-1 && from!==to){
+                      moveEntryRef.current(from,to);
+                    }
+                    window.removeEventListener("pointermove",onMove);
+                    window.removeEventListener("pointerup",onUp);
+                  };
+
+                  window.addEventListener("pointermove",onMove);
+                  window.addEventListener("pointerup",onUp);
+                }}
+              />
+            </div>
+          ))}
+          </div>
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:0,border:"1.5px solid var(--border)"}}>
