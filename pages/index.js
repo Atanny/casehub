@@ -1333,7 +1333,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
   const dragHandleActiveRef = useRef(false);
-  const dragHandleActiveRef = useRef(false);
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -2520,14 +2519,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
   const [saving,setSaving]=useState(false);
   const [toast,showToast]=useToast();
   const avatarInputRef=useRef();
-  const [newReq,setNewReq]=useState("");
-  const [addingReq,setAddingReq]=useState(false);
-  const handleAddRequestor=()=>{
-    const name=newReq.trim();
-    if(!name)return showToast("Name required","error");
-    if(specialRequestors.includes(name)){showToast("Already exists","error");return;}
-    addRequestor(name);setNewReq("");setAddingReq(false);showToast(`Added ${name}!`);
-  };
   const [newReq,setNewReq]=useState("");
   const [addingReq,setAddingReq]=useState(false);
   const handleAddRequestor=()=>{
