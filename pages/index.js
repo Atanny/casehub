@@ -1067,9 +1067,9 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDrag
         </div>
       ) : (
         <>
-          {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
-          <div className="field"><label>Note (optional)</label><textarea className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"Checking...":(checking===`fixed-note`?"✓ Fixed!":"Grammar Check")}</button></div></div>
-          <div className="field"><label>Clarification (optional)</label><textarea className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"Checking...":(checking===`fixed-clarification`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+          {showNumber&&(<div className="field"><label>Number <span className="req">*</span></label><input draggable={false} className="inp" placeholder="e.g. 25" value={entry.number} onChange={e=>onChange({...entry,number:e.target.value})}/></div>)}
+          <div className="field"><label>Note (optional)</label><textarea draggable={false} className="inp" rows={3} value={entry.note} onChange={e=>onChange({...entry,note:e.target.value})} placeholder="Describe what was done or assumed..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.note?.trim()||checking==="note"} onClick={()=>ai("note")}>{checking==="note"?"Checking...":(checking===`fixed-note`?"✓ Fixed!":"Grammar Check")}</button></div></div>
+          <div className="field"><label>Clarification (optional)</label><textarea draggable={false} className="inp" rows={3} value={entry.clarification} onChange={e=>onChange({...entry,clarification:e.target.value})} placeholder="Confirmation or extra details..."/><div className="ai-row"><button className="ai-btn" disabled={!entry.clarification?.trim()||checking==="clarification"} onClick={()=>ai("clarification")}>{checking==="clarification"?"Checking...":(checking===`fixed-clarification`?"✓ Fixed!":"Grammar Check")}</button></div></div>
         </>
       )}
     </div>
@@ -1103,9 +1103,9 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   // Build the filled message — radio picks which number(s) to insert
   const buildMsg=(m)=>{
     const b=(m.base||m.template||"Hi po Ms. Tina, magpapacheck lang po").trim();
+    if(m.fillType==="siteComment") return `${b} Site Comment #${caseNum||"—"}`;
     if(m.fillType==="caseNum")     return `${b} Case #${caseNum||"—"}`;
-    if(m.fillType==="siteComment") return `${b} Case #${caseNum||"—"}`;
-    if(m.fillType==="inbound")     return `${b} Case #${caseNum||"—"} Inbound #${inboundNum||"—"}`;
+    if(m.fillType==="inbound")     return `${b} Inbound #${inboundNum||"—"}`;
     return `${b} Case #${caseNum||"—"}`;
   };
 
@@ -1474,8 +1474,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
               <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value})}/></div>
               <div className="field" style={{marginBottom:0}}><label>Email Type <span className="req">*</span></label>
                 <div className="radio-group">
-                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})}/>Clarification</label>
-                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})}/>Completed</label>
+                  <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})} style={{display:"none"}}/>Clarification</label>
+                  <label className={cls("radio-label",form.emailType==="completed"&&"selected-complete")}><input type="radio" name="emailType" value="completed" checked={form.emailType==="completed"} onChange={()=>setF({emailType:"completed"})} style={{display:"none"}}/>Completed</label>
                 </div>
               </div>
             </div>
@@ -2696,9 +2696,9 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
           // Auto-build preview from base + fillType
           const buildPreview=(base,ft)=>{
             const b=base||"Hi po Ms. Tina, magpapacheck lang po";
+            if(ft==="siteComment") return `${b} Site Comment #12345`;
             if(ft==="caseNum")     return `${b} Case #12345`;
-            if(ft==="siteComment") return `${b} Case #12345`;
-            if(ft==="inbound")     return `${b} Case #12345 Inbound #67890`;
+            if(ft==="inbound")     return `${b} Inbound #67890`;
             return b;
           };
           const updateMsg=(patch)=>{
@@ -2718,15 +2718,15 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
               <input className="inp" value={m.base||""} onChange={e=>updateMsg({base:e.target.value})} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
             </div>
             <div className="field" style={{marginBottom:8}}>
-              <label style={{marginBottom:6,display:"block"}}>Which number to insert</label>
+              <label style={{marginBottom:6,display:"block"}}>Which number to use</label>
               <div className="radio-group">
                 {[
-                  {v:"caseNum",    l:"Case # only",         cls:"selected-clarif"},
-                  {v:"siteComment",l:"Case # (Site Comment)",cls:"selected-clarif"},
-                  {v:"inbound",    l:"Case # + Inbound #",   cls:"selected-complete"},
+                  {v:"siteComment", l:"Site Comment #", cls:"selected-complete"},
+                  {v:"caseNum",     l:"Case #",          cls:"selected-clarif"},
+                  {v:"inbound",     l:"Inbound #",        cls:"selected-complete"},
                 ].map(({v,l,cls:sc})=>(
                   <label key={v} className={cls("radio-label",m.fillType===v&&sc)}>
-                    <input type="radio" name={`fillType-${m.id}`} checked={m.fillType===v} onChange={()=>updateMsg({fillType:v})}/>
+                    <input type="radio" name={`fillType-${m.id}`} checked={m.fillType===v} onChange={()=>updateMsg({fillType:v})} style={{display:"none"}}/>
                     {l}
                   </label>
                 ))}
@@ -2740,37 +2740,6 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, spec
           );
         })}
         <button className="btn btn-primary" style={{marginTop:4}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"💾 Save Messages"}</button>
-      </div>
-
-      {/* ── Special Requestors card ── */}
-      <div className="profile-card">
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <h3 style={{fontSize:16,fontWeight:700,margin:0}}>Special Requestors</h3>
-          <button className="btn btn-primary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
-        </div>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Names shown in the Live Summary panel as a reminder during active cases.</p>
-        <div className="requestor-grid">
-          {specialRequestors.map((name,i)=>(
-            <div key={i} className="requestor-chip">
-              <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
-              <span>{name}</span>
-              <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
-            </div>
-          ))}
-          {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
-        </div>
-        {addingReq&&(<div className="modal-bg"><div className="modal">
-          <div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div>
-          <h3>Add Special Requestor</h3>
-          <div className="field" style={{textAlign:"left",marginBottom:16}}>
-            <label>Full Name</label>
-            <input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/>
-          </div>
-          <div className="modal-btns">
-            <button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleAddRequestor}>Add</button>
-          </div>
-        </div></div>)}
       </div>
 
       {/* ── Special Requestors card ── */}
