@@ -406,31 +406,32 @@ textarea.inp{resize:vertical;min-height:80px;line-height:1.6;}
 select.inp{cursor:pointer;}
 
 /* Radio */
-.radio-group{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;}
+.radio-group{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
 .radio-label{
-  display:inline-flex;align-items:center;gap:9px;
+  display:inline-flex;align-items:center;gap:8px;
   background:var(--inp-bg);border:1.5px solid var(--border);
-  padding:9px 16px;border-radius:0;font-size:13px;cursor:pointer;
+  padding:8px 14px;border-radius:0;font-size:12px;cursor:pointer;
   transition:.15s;font-family:'Poppins',sans-serif;
-  line-height:1;user-select:none;
+  line-height:1;user-select:none;white-space:nowrap;
 }
 .radio-label:hover{border-color:var(--accent);}
 .radio-label input[type="radio"]{
   appearance:none;-webkit-appearance:none;
-  width:15px;height:15px;min-width:15px;
+  width:14px;height:14px;min-width:14px;min-height:14px;
   border:2px solid var(--border);border-radius:50%;
   background:var(--inp-bg);
-  display:inline-flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:.15s;margin:0;padding:0;vertical-align:middle;
-  position:relative;flex-shrink:0;
+  cursor:pointer;transition:.15s;
+  margin:0;padding:0;flex-shrink:0;
+  position:relative;top:0;
+  box-sizing:border-box;
 }
 .radio-label input[type="radio"]::after{
-  content:"";display:block;width:7px;height:7px;
-  border-radius:50%;background:transparent;
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  transition:.15s;
+  content:"";display:block;
+  width:6px;height:6px;border-radius:50%;
+  background:transparent;transition:.15s;
+  position:absolute;top:2px;left:2px;
 }
-.radio-label input[type="radio"]:checked{border-color:var(--accent);background:var(--inp-bg);}
+.radio-label input[type="radio"]:checked{border-color:var(--accent);}
 .radio-label input[type="radio"]:checked::after{background:var(--accent);}
 .radio-label.selected-clarif{border-color:var(--amber);color:var(--amber);background:var(--btn-draft-bg);}
 .radio-label.selected-clarif input[type="radio"]{border-color:var(--amber);}
@@ -1033,7 +1034,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   );
 }
 
-function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
+function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDragHandleMouseDown, onDragHandleMouseUp }) {
   const [checking,setChecking]=useState(null);
   // New entries start in edit mode; saved entries start locked
   const [saved,setSaved]=useState(!!entry._saved);
@@ -1044,8 +1045,11 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber }) {
   return (
     <div className={cls("entry-card",saved&&"saved")}>
       <div className="entry-header">
-        {/* Drag handle */}
-        <div className="drag-handle" title="Drag to reorder">
+        {/* Drag handle — only this triggers drag */}
+        <div className="drag-handle" title="Drag to reorder"
+          onMouseDown={e=>{e.stopPropagation();onDragHandleMouseDown&&onDragHandleMouseDown();}}
+          onMouseUp={()=>onDragHandleMouseUp&&onDragHandleMouseUp()}
+          onTouchStart={()=>onDragHandleMouseDown&&onDragHandleMouseDown()}>
           <span/><span/><span/>
         </div>
         <span className="entry-label" style={{flex:1}}>{showNumber?`${label} #${entry.number||(index+1)}`:label}</span>
@@ -1096,12 +1100,12 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   const msgs = (greetingMessages&&greetingMessages.length>0) ? greetingMessages : DEFAULT_MSGS;
   const [copiedId,setCopiedId]=useState(null);
 
-  // Build the filled message from base text + fillType + actual values
+  // Build the filled message — radio picks which number(s) to insert
   const buildMsg=(m)=>{
     const b=(m.base||m.template||"Hi po Ms. Tina, magpapacheck lang po").trim();
     if(m.fillType==="caseNum")     return `${b} Case #${caseNum||"—"}`;
-    if(m.fillType==="siteComment") return `${b} Case #${caseNum||"—"} Site Comment`;
-    if(m.fillType==="inbound")     return `${b} Case #${caseNum||"—"} Inbound Email`;
+    if(m.fillType==="siteComment") return `${b} Case #${caseNum||"—"}`;
+    if(m.fillType==="inbound")     return `${b} Case #${caseNum||"—"} Inbound #${inboundNum||"—"}`;
     return `${b} Case #${caseNum||"—"}`;
   };
 
@@ -1176,22 +1180,22 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Email Type" value={emailTypeLabel}/>}
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
-      </div>
-      {specialRequestors&&specialRequestors.length>0&&(
-        <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {specialRequestors.map((name,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                </span>
-                {name}
-              </div>
-            ))}
+        {specialRequestors&&specialRequestors.length>0&&(
+          <div style={{borderTop:"1px solid var(--border)",paddingTop:14,marginTop:6}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {specialRequestors.map((name,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                  </span>
+                  {name}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -1328,6 +1332,8 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [dragEntryIdx,setDragEntryIdx] = useState(-1);
   const dragOverIdxRef = useRef(-1);
   const [dragOverIdx,setDragOverIdx] = useState(-1);
+  const dragHandleActiveRef = useRef(false);
+  const dragHandleActiveRef = useRef(false);
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1449,12 +1455,17 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
               )}
               <div
                 draggable
-                onDragStart={ev=>{ev.dataTransfer.effectAllowed="move";dragEntryIdxRef.current=i;setDragEntryIdx(i);}}
+                onDragStart={ev=>{
+                  // Only allow drag if mousedown was on the drag-handle
+                  if(!dragHandleActiveRef.current){ev.preventDefault();return;}
+                  ev.dataTransfer.effectAllowed="move";
+                  dragEntryIdxRef.current=i;setDragEntryIdx(i);
+                }}
                 onDragOver={ev=>{ev.preventDefault();ev.dataTransfer.dropEffect="move";if(dragOverIdxRef.current!==i){dragOverIdxRef.current=i;setDragOverIdx(i);}}}
-                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
-                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);}}
+                onDrop={ev=>{ev.preventDefault();const from=dragEntryIdxRef.current;if(from!==-1&&from!==i)moveEntry(from,i);dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);dragHandleActiveRef.current=false;}}
+                onDragEnd={()=>{dragEntryIdxRef.current=-1;dragOverIdxRef.current=-1;setDragEntryIdx(-1);setDragOverIdx(-1);dragHandleActiveRef.current=false;}}
                 style={{userSelect:"none",opacity:dragEntryIdx===i?0.25:1,transition:"opacity .12s"}}>
-                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)}/>
+                <EntryCard entry={e} label={entryLabel} index={i} showNumber={isSC} onChange={val=>updateEntry(e.id,val)} onDelete={()=>deleteEntry(e.id)} onDragHandleMouseDown={()=>{dragHandleActiveRef.current=true;}} onDragHandleMouseUp={()=>{dragHandleActiveRef.current=false;}}/>
               </div>
             </div>
           ))}
@@ -1599,8 +1610,6 @@ function SparkLine({ data, color="#f5945c", height=40, width=200 }) {
 // DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
 function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, removeRequestor, user }) {
-  const [addingReq,setAddingReq] = useState(false);
-  const [newReq,setNewReq] = useState("");
   const [toast,showToast] = useToast();
   const now = new Date();
   const total    = savedCases.length;
@@ -1624,14 +1633,6 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
   const greetHour=now.getHours();
   const greeting=greetHour<12?"Good morning 🌅":greetHour<17?"Good afternoon ☀️":"Good evening 🌙";
 
-  const handleAddRequestor=()=>{
-    const name=newReq.trim();
-    if(!name)return;
-    if(specialRequestors.includes(name)){showToast("Name already exists","error");return;}
-    addRequestor(name);
-    setNewReq(""); setAddingReq(false);
-    showToast(`Added ${name}!`);
-  };
 
   return (
     <div>
@@ -1677,23 +1678,6 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
           {total>0?<DonutChart data={[{label:"Complete",val:completed},{label:"Incomplete",val:total-completed}]}/>:<div className="empty-analytics">No data yet</div>}
         </div>
       </div>
-
-      {/* Special Requestors */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-        <div className="section-title" style={{marginBottom:0}}>Special Requestors</div>
-        <button className="btn btn-primary" style={{padding:"7px 14px",fontSize:12}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
-      </div>
-      <div className="requestor-grid">
-        {specialRequestors.map((name,i)=>(
-          <div key={i} className="requestor-chip">
-            <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
-            <span>{name}</span>
-            <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
-          </div>
-        ))}
-        {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
-      </div>
-      {addingReq&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div><h3>Add Special Requestor</h3><div className="field" style={{textAlign:"left",marginBottom:16}}><label>Full Name</label><input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button><button className="btn btn-primary" onClick={handleAddRequestor}>Add</button></div></div></div>)}
 
       {/* Quick Actions */}
       <div className="section-title" style={{marginTop:4}}>Quick Actions</div>
@@ -2530,12 +2514,28 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [toast,showToast]=useToast();
   const avatarInputRef=useRef();
+  const [newReq,setNewReq]=useState("");
+  const [addingReq,setAddingReq]=useState(false);
+  const handleAddRequestor=()=>{
+    const name=newReq.trim();
+    if(!name)return showToast("Name required","error");
+    if(specialRequestors.includes(name)){showToast("Already exists","error");return;}
+    addRequestor(name);setNewReq("");setAddingReq(false);showToast(`Added ${name}!`);
+  };
+  const [newReq,setNewReq]=useState("");
+  const [addingReq,setAddingReq]=useState(false);
+  const handleAddRequestor=()=>{
+    const name=newReq.trim();
+    if(!name)return showToast("Name required","error");
+    if(specialRequestors.includes(name)){showToast("Already exists","error");return;}
+    addRequestor(name);setNewReq("");setAddingReq(false);showToast(`Added ${name}!`);
+  };
 
   const defNames=(name)=>{
     const n=(name||"User").trim().replace(/\s+/g,"_");
@@ -2662,7 +2662,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
 
   return (
     <div>
-      <div className="page-header"><div className="page-title">My Profile</div><div className="page-sub">Manage your account details and file naming</div></div>
+      <div className="page-header"><div className="page-title">Profile & Settings</div><div className="page-sub">Manage your account, requestors, and preferences</div></div>
       {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"var(--muted)"}}>Loading profile…</div>}
       {!loading&&<>
 
@@ -2706,8 +2706,8 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
           const buildPreview=(base,ft)=>{
             const b=base||"Hi po Ms. Tina, magpapacheck lang po";
             if(ft==="caseNum")     return `${b} Case #12345`;
-            if(ft==="siteComment") return `${b} Case #12345 Site Comment`;
-            if(ft==="inbound")     return `${b} Case #12345 Inbound Email`;
+            if(ft==="siteComment") return `${b} Case #12345`;
+            if(ft==="inbound")     return `${b} Case #12345 Inbound #67890`;
             return b;
           };
           const updateMsg=(patch)=>{
@@ -2727,10 +2727,14 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
               <input className="inp" value={m.base||""} onChange={e=>updateMsg({base:e.target.value})} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
             </div>
             <div className="field" style={{marginBottom:8}}>
-              <label style={{marginBottom:6,display:"block"}}>Append to message</label>
+              <label style={{marginBottom:6,display:"block"}}>Which number to insert</label>
               <div className="radio-group">
-                {[{v:"caseNum",l:"Case Number"},{v:"siteComment",l:"Site Comment"},{v:"inbound",l:"Inbound Email"}].map(({v,l})=>(
-                  <label key={v} className={cls("radio-label",m.fillType===v&&(v==="siteComment"?"selected-clarif":v==="inbound"?"selected-complete":"selected-clarif"))}>
+                {[
+                  {v:"caseNum",    l:"Case # only",         cls:"selected-clarif"},
+                  {v:"siteComment",l:"Case # (Site Comment)",cls:"selected-clarif"},
+                  {v:"inbound",    l:"Case # + Inbound #",   cls:"selected-complete"},
+                ].map(({v,l,cls:sc})=>(
+                  <label key={v} className={cls("radio-label",m.fillType===v&&sc)}>
                     <input type="radio" name={`fillType-${m.id}`} checked={m.fillType===v} onChange={()=>updateMsg({fillType:v})}/>
                     {l}
                   </label>
@@ -2745,6 +2749,68 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit }) {
           );
         })}
         <button className="btn btn-primary" style={{marginTop:4}} onClick={saveProfile} disabled={saving}>{saving?"Saving...":"💾 Save Messages"}</button>
+      </div>
+
+      {/* ── Special Requestors card ── */}
+      <div className="profile-card">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <h3 style={{fontSize:16,fontWeight:700,margin:0}}>Special Requestors</h3>
+          <button className="btn btn-primary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
+        </div>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Names shown in the Live Summary panel as a reminder during active cases.</p>
+        <div className="requestor-grid">
+          {specialRequestors.map((name,i)=>(
+            <div key={i} className="requestor-chip">
+              <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+              <span>{name}</span>
+              <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
+            </div>
+          ))}
+          {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
+        </div>
+        {addingReq&&(<div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div>
+          <h3>Add Special Requestor</h3>
+          <div className="field" style={{textAlign:"left",marginBottom:16}}>
+            <label>Full Name</label>
+            <input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/>
+          </div>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddRequestor}>Add</button>
+          </div>
+        </div></div>)}
+      </div>
+
+      {/* ── Special Requestors card ── */}
+      <div className="profile-card">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <h3 style={{fontSize:16,fontWeight:700,margin:0}}>Special Requestors</h3>
+          <button className="btn btn-primary" style={{fontSize:11,padding:"5px 12px"}} onClick={()=>setAddingReq(true)}>＋ Add Requestor</button>
+        </div>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>Names shown in the Live Summary panel as a reminder during active cases.</p>
+        <div className="requestor-grid">
+          {specialRequestors.map((name,i)=>(
+            <div key={i} className="requestor-chip">
+              <div className="requestor-avatar">{name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+              <span>{name}</span>
+              <button className="requestor-del" onClick={()=>removeRequestor(name)}>✕</button>
+            </div>
+          ))}
+          {specialRequestors.length===0&&<div style={{color:"var(--muted)",fontSize:13}}>No special requestors yet.</div>}
+        </div>
+        {addingReq&&(<div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14}}><Icon name="requestors" size={40} color="var(--amber)"/></div>
+          <h3>Add Special Requestor</h3>
+          <div className="field" style={{textAlign:"left",marginBottom:16}}>
+            <label>Full Name</label>
+            <input className="inp" placeholder="e.g. John Smith" value={newReq} onChange={e=>setNewReq(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleAddRequestor()} autoFocus/>
+          </div>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>{setAddingReq(false);setNewReq("");}}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddRequestor}>Add</button>
+          </div>
+        </div></div>)}
       </div>
 
       {/* ── File naming card ── */}
@@ -2916,7 +2982,13 @@ function App() {
   const [authPage,setAuthPage]=useState("login");
   const [user,setUser]=useState(null);
   const [sessionChecked,setSessionChecked]=useState(false); // prevents flash of login screen
-  const [page,setPage]=useState("dashboard");
+  const [page,setPage]=useState(()=>{
+    if(typeof window!=="undefined"){
+      const saved=localStorage.getItem("ch_page");
+      if(saved&&["dashboard","postlive","history","announcements","links","profile","build","prelive"].includes(saved)) return saved;
+    }
+    return "dashboard";
+  });
   const sidebarDragRef=useRef(null);
   const [pendingPage,setPendingPage]=useState(null);
   const [navConfirm,setNavConfirm]=useState(false);
@@ -3224,7 +3296,8 @@ function App() {
 
   const handleNav=(id)=>{
     if(id===page)return;
-    setPage(id); // always just navigate — form state is preserved in PostLivePage
+    setPage(id);
+    if(typeof window!=="undefined") localStorage.setItem("ch_page",id);
   };
 
   const logout=()=>{
@@ -3232,6 +3305,7 @@ function App() {
     localStorage.removeItem("ch_refresh");
     localStorage.removeItem("ch_user");
     localStorage.removeItem("ch_form_active");
+    localStorage.removeItem("ch_page");
     setUser(null);setAuthPage("login");setPage("dashboard");
     setAllCases([]);setDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
   };
@@ -3372,7 +3446,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
         </main>
       </div>
 
