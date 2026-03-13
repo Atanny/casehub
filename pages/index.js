@@ -81,8 +81,32 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   display:flex;flex-direction:column;padding:20px 14px;gap:2px;
   position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);
+  box-shadow:var(--glass-shadow);transition:width .22s ease;
 }
+.sidebar.collapsed{width:64px;padding:20px 8px;overflow:hidden;}
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-group,
+.sidebar.collapsed .nav-item span:not(.nav-badge):not(.nav-inprogress),
+.sidebar.collapsed .profile-name,
+.sidebar.collapsed .profile-role,
+.sidebar.collapsed .theme-toggle span:not(:first-child),
+.sidebar.collapsed .toggle-track,
+.sidebar.collapsed .db-status span,
+.sidebar.collapsed .break-btns,
+.sidebar.collapsed .nav-custom-link span{display:none;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;}
+.sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
+.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;}
+.sidebar-collapse-btn{
+  position:absolute;top:50%;right:-14px;transform:translateY(-50%);
+  width:28px;height:28px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25);
+  transition:.18s;flex-shrink:0;
+}
+.sidebar-collapse-btn:hover{background:var(--accent2);}
+.sidebar-wrap{position:relative;flex-shrink:0;}
 .logo{
   font-size:18px;font-weight:800;color:var(--text);
   padding:4px 10px 20px;letter-spacing:-.5px;
@@ -1038,7 +1062,7 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
   );
 }
 
-function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDragHandlePointerDown }) {
+function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDragHandlePointerDown, isDragging }) {
   const [checking,setChecking]=useState(null);
   // New entries start in edit mode; saved entries start locked
   const [saved,setSaved]=useState(!!entry._saved);
@@ -1047,7 +1071,7 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDrag
   const handleEdit=()=>{ setSaved(false); onChange({...entry,_saved:false}); };
 
   return (
-    <div className={cls("entry-card entry-card-wrap",saved&&"saved")}>
+    <div className={cls("entry-card entry-card-wrap",saved&&"saved")} style={{opacity:isDragging?0.3:1,transition:"opacity .1s"}}>
       <div className="entry-header">
         {/* Drag handle — pointer down here starts drag */}
         <div className="drag-handle" title="Drag to reorder"
@@ -1119,9 +1143,9 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   if(!caseNum) return null;
 
   return (
-    <div className="copy-row-wrap" style={{paddingBottom:0}}>
+    <div className="copy-row-wrap" style={{paddingBottom:12}}>
       <div className="copy-row-label">Messages</div>
-      <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4,marginBottom:4}}>
         {msgs.map(m=>(
           <div key={m.id} style={{background:"var(--entry-bg)",border:"1.5px solid var(--border)",padding:"8px 10px",display:"flex",flexDirection:"column",gap:4}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
@@ -1330,11 +1354,10 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const [copiedAll,setCopiedAll] = useState(false);
   const [autoSaved,setAutoSaved] = useState(null);
   const [draftSaving,setDraftSaving] = useState(false);
-  // ── Drag state — all refs, NO state to prevent glitch re-renders ──
-  const dragFromRef   = useRef(-1);
-  const dragToRef     = useRef(-1);
-  const dragLineRef   = useRef(null); // the visible drop-line div
-  const [dragActive, setDragActive] = useState(false); // only used to show ghost opacity
+  // ── Drag: track by entry ID not index ──
+  const dragFromId  = useRef(null);
+  const dragToId    = useRef(null);
+  const [dragActiveId, setDragActiveId] = useState(null);
 
   // ── Auto-save every 30s ──
   useEffect(()=>{
@@ -1379,9 +1402,15 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
   const deleteEntry = (id)=>setF({entries:form.entries.filter(e=>e.id!==id)});
-  const moveEntry   = (from,to)=>setF(f=>{const arr=[...f.entries];const[m]=arr.splice(from,1);arr.splice(to,0,m);return{...f,entries:arr};});
-  const moveEntryRef = useRef(null);
-  useEffect(()=>{moveEntryRef.current=moveEntry;});
+  const moveEntry = (fromId,toId)=>setF(f=>{
+    const arr=[...f.entries];
+    const fi=arr.findIndex(e=>e.id===fromId);
+    const ti=arr.findIndex(e=>e.id===toId);
+    if(fi===-1||ti===-1||fi===ti) return f;
+    const [moved]=arr.splice(fi,1);
+    arr.splice(ti,0,moved);
+    return{...f,entries:arr};
+  });
 
   const buildEntriesText = ()=>{
     const es=formRef.current.entries;
@@ -1453,67 +1482,82 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <StepCard num={3} title={isSC?"Post-Live Amends Notepad":"Assumptions Notepad"} done={step3Done} locked={!step1Done&&!isDraft} {...stepProps}>
           <div id="entries-list">
           {form.entries.map((e,i)=>(
-            <div key={e.id} className="entry-drag-row" data-idx={i}>
+            <div key={e.id} className="entry-drag-row" data-entryid={e.id}>
               <EntryCard
                 entry={e} label={entryLabel} index={i} showNumber={isSC}
                 onChange={val=>updateEntry(e.id,val)}
                 onDelete={()=>deleteEntry(e.id)}
+                isDragging={dragActiveId===e.id}
                 onDragHandlePointerDown={(ev)=>{
                   ev.preventDefault();
                   ev.stopPropagation();
-                  dragFromRef.current=i;
-                  dragToRef.current=i;
-                  setDragActive(true);
-                  // show ghost cursor
+                  const fromId=e.id;
+                  dragFromId.current=fromId;
+                  dragToId.current=fromId;
+                  setDragActiveId(fromId);
                   document.body.style.cursor="grabbing";
                   document.body.style.userSelect="none";
 
+                  const getRows=()=>document.querySelectorAll(".entry-drag-row");
+
                   const onMove=(mv)=>{
                     const y=mv.clientY;
-                    const rows=document.querySelectorAll(".entry-drag-row");
-                    let newTo=dragFromRef.current;
-                    rows.forEach((row)=>{
-                      const ri=parseInt(row.dataset.idx);
-                      const r=row.getBoundingClientRect();
-                      const mid=r.top+r.height/2;
-                      if(ri!==dragFromRef.current){
-                        // remove old line
-                        row.querySelectorAll(".drop-line").forEach(l=>l.remove());
-                        if(y>=r.top && y<mid){
-                          newTo=ri;
-                          const line=document.createElement("div");
-                          line.className="drop-line";
-                          row.prepend(line);
-                        } else if(y>=mid && y<=r.bottom){
-                          newTo=ri+1>rows.length-1?ri:ri;
-                          const line=document.createElement("div");
-                          line.className="drop-line";
-                          row.append(line);
-                        }
+                    // clear old lines
+                    getRows().forEach(r=>r.querySelectorAll(".drop-line").forEach(l=>l.remove()));
+                    let bestId=null, bestPos="after";
+                    getRows().forEach(row=>{
+                      const rid=row.dataset.entryid;
+                      if(rid===fromId) return;
+                      const rect=row.getBoundingClientRect();
+                      if(y>=rect.top && y<=rect.bottom){
+                        bestId=rid;
+                        bestPos=y<rect.top+rect.height/2?"before":"after";
                       }
                     });
-                    dragToRef.current=newTo;
-                    // fade dragging card
-                    rows.forEach((row)=>{
-                      const ri=parseInt(row.dataset.idx);
-                      row.style.opacity=ri===dragFromRef.current?"0.3":"1";
+                    if(bestId){
+                      dragToId.current=bestId+"::"+bestPos;
+                      const targetRow=document.querySelector(`.entry-drag-row[data-entryid="${bestId}"]`);
+                      if(targetRow){
+                        const line=document.createElement("div");
+                        line.className="drop-line";
+                        if(bestPos==="before") targetRow.prepend(line);
+                        else targetRow.appendChild(line);
+                      }
+                    } else {
+                      dragToId.current=null;
+                    }
+                    // fade source row
+                    getRows().forEach(row=>{
+                      row.style.opacity=row.dataset.entryid===fromId?"0.3":"1";
                     });
                   };
 
                   const onUp=()=>{
                     document.body.style.cursor="";
                     document.body.style.userSelect="";
-                    // remove all drop lines
-                    document.querySelectorAll(".drop-line").forEach(l=>l.remove());
-                    // reset opacity
-                    document.querySelectorAll(".entry-drag-row").forEach(r=>{r.style.opacity="1";});
-                    const from=dragFromRef.current;
-                    const to=dragToRef.current;
-                    setDragActive(false);
-                    dragFromRef.current=-1;
-                    dragToRef.current=-1;
-                    if(from!==-1 && to!==-1 && from!==to){
-                      moveEntryRef.current(from,to);
+                    getRows().forEach(row=>{
+                      row.querySelectorAll(".drop-line").forEach(l=>l.remove());
+                      row.style.opacity="1";
+                    });
+                    const rawTo=dragToId.current;
+                    setDragActiveId(null);
+                    dragFromId.current=null;
+                    dragToId.current=null;
+                    if(rawTo && rawTo.includes("::")){
+                      const [toId,pos]=rawTo.split("::");
+                      // moveEntry now needs: fromId, toId, pos
+                      setF(f=>{
+                        const arr=[...f.entries];
+                        const fi=arr.findIndex(e=>e.id===fromId);
+                        let ti=arr.findIndex(e=>e.id===toId);
+                        if(fi===-1||ti===-1||fi===ti) return f;
+                        const [moved]=arr.splice(fi,1);
+                        // recalc ti after splice
+                        ti=arr.findIndex(e=>e.id===toId);
+                        const insertAt=pos==="after"?ti+1:ti;
+                        arr.splice(insertAt,0,moved);
+                        return{...f,entries:arr};
+                      });
                     }
                     window.removeEventListener("pointermove",onMove);
                     window.removeEventListener("pointerup",onUp);
@@ -3025,6 +3069,15 @@ function App() {
   useEffect(()=>{
     if(typeof window!=="undefined"&&localStorage.getItem("ch_form_active")==="1") setFormActive(true);
   },[]);
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_sidebar")==="1";
+    return false;
+  });
+  const toggleSidebar=()=>setSidebarCollapsed(c=>{
+    const next=!c;
+    if(typeof window!=="undefined") localStorage.setItem("ch_sidebar",next?"1":"0");
+    return next;
+  });
   const [lightMode,setLightMode]=useState(()=>{
     if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
     return false;
@@ -3365,7 +3418,16 @@ function App() {
     <>
       <style>{CSS}</style>
       <div className="shell">
-        <aside className="sidebar">
+        <div className="sidebar-wrap">
+        <button className="sidebar-collapse-btn" onClick={toggleSidebar} title={sidebarCollapsed?"Expand sidebar":"Collapse sidebar"}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            {sidebarCollapsed
+              ? <path d="M4 2l4 4-4 4" stroke="#fff" strokeWidth="2" strokeLinecap="square"/>
+              : <path d="M8 2L4 6l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="square"/>
+            }
+          </svg>
+        </button>
+        <aside className={cls("sidebar",sidebarCollapsed&&"collapsed")}>
           <div className="logo">
             <div className="logo-icon">
               <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
