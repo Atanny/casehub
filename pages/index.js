@@ -1227,21 +1227,6 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {!isSC&&<CopyRow label="Email Address" value={f.emailAddress}/>}
         {allImages.length>0&&(<div className="copy-row-wrap"><div className="copy-row-label">Screenshots ({allImages.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{allImages.map(img=>(<div key={img.id} style={{width:68,height:52,borderRadius:0,overflow:"hidden",border:"1.5px solid var(--border)"}}><img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>))}</div></div>)}
       </div>
-      {specialRequestors&&specialRequestors.length>0&&(
-        <div style={{padding:"14px 16px 0"}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {specialRequestors.map((name,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
-                <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
-                  {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-                </span>
-                {name}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1662,6 +1647,22 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
           </div>
         </div></div>)}
         <Toast msg={toast.msg} type={toast.type}/>
+
+        {specialRequestors&&specialRequestors.length>0&&(
+          <div style={{marginTop:16,padding:"14px 16px",background:"var(--entry-bg)",border:"1.5px solid var(--border)"}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:10,fontFamily:"'Poppins',sans-serif"}}>Special Requestors</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {specialRequestors.map((name,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:"var(--entry-accent-bg)",border:"1px solid rgba(245,148,92,.25)",padding:"5px 10px",fontSize:12,fontWeight:600,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>
+                  <span style={{width:20,height:20,borderRadius:"50%",background:"var(--btn-save-bg)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:9,fontWeight:700,flexShrink:0}}>
+                    {name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                  </span>
+                  {name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <div className="form-right">
         <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
