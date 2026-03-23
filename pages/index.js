@@ -1359,8 +1359,6 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
   useEffect(()=>{formRef.current=form;},[form]);
 
   const startTimeRef = useRef(globalTimeIn || (draftData?._startTime) || Date.now());
-    draftData ? Date.now() - (draftData._elapsedAtSave||0)*1000 : Date.now()
-  );
 
   // isDraft: true if this is a resumed draft with real content — unlock steps accordingly
   const isDraft = !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
