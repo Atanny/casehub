@@ -3254,19 +3254,6 @@ function App() {
     setGlobalTimeIn(null);
     if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
   };
-  const [globalTimeIn,setGlobalTimeIn]=useState(()=>{
-    if(typeof window!=="undefined"){const v=localStorage.getItem("ch_timein");return v?parseInt(v):null;}
-    return null;
-  });
-  const doTimeIn=()=>{
-    const now=Date.now();
-    setGlobalTimeIn(now);
-    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
-  };
-  const doTimeOut=()=>{
-    setGlobalTimeIn(null);
-    if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
-  };
   // Persist formActive so pill shows even after page switch
   const setFormActivePersist=(v)=>{
     setFormActive(v);
