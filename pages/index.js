@@ -1630,7 +1630,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, draftData, user
         <StepCard num={6} title="Before/After Backup" done={!!form._screenshotCopied} locked={!step4Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs,checklist:{...formRef.current.checklist,backup:imgs.length>0}})} immediateUpload={false} initialImages={form.images||[]}/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>setF({images:imgs})} immediateUpload={false} initialImages={form.images||[]}/></div>
         </StepCard>
 
         <StepCard num={7} title="Final Checklist" done={step7Done} locked={!step4Done&&!isDraft} {...stepProps}>
@@ -1899,7 +1899,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -1939,12 +1939,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
-            onTimerReset&&onTimerReset(); // reset case timer, keep session active
+            onTimerReset&&onTimerReset();
             exitMode();
+            if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:'saved'})}).catch(()=>{});
           }}
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
-            onTimerReset&&onTimerReset(); // reset case timer, keep session active
+            onTimerReset&&onTimerReset();
+            if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={exitMode}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
@@ -1962,19 +1964,19 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
         {/* TIME IN / OUT card */}
         <div style={{background:"var(--card)",border:"1.5px solid var(--border)",padding:"14px 18px",display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
           {timedIn?(
-            <>
-              <div>
-                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>Timed In</div>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{globalTimeIn?new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):""}</div>
-                <div style={{fontSize:18,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px",marginTop:2}}>{fmtElapsed(elapsed)}</div>
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:11,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>In:</span>
+                <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{globalTimeIn?new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):""}</span>
+                <span style={{fontSize:15,fontWeight:800,color:"var(--accent)",fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:"-.5px"}}>{fmtElapsed(elapsed)}</span>
               </div>
-              <button className="btn btn-danger" style={{fontSize:12,padding:"8px 14px"}} onClick={()=>onTimeOut&&onTimeOut()}>
-                <Icon name="close" size={12} style={{marginRight:4}}/>Time Out
+              <button className="btn btn-danger" style={{fontSize:11,padding:"6px 12px"}} onClick={()=>onTimeOut&&onTimeOut()}>
+                Time Out
               </button>
-            </>
+            </div>
           ):(
-            <button className="btn btn-save" style={{fontSize:13,padding:"11px 22px"}} onClick={()=>onTimeIn&&onTimeIn()}>
-              <Icon name="play" size={14} style={{marginRight:6}}/>Time In
+            <button className="btn btn-save" style={{fontSize:13,padding:"10px 20px"}} onClick={()=>onTimeIn&&onTimeIn()}>
+              <Icon name="play" size={13} style={{marginRight:6}}/>Time In
             </button>
           )}
         </div>
@@ -3286,7 +3288,7 @@ function App() {
   const [page,setPage]=useState(()=>{
     if(typeof window!=="undefined"){
       const saved=localStorage.getItem("ch_page");
-      if(saved&&["dashboard","postlive","history","announcements","links","profile","build","prelive"].includes(saved)) return saved;
+      if(saved&&["dashboard","postlive","history","announcements","links","profile","build","prelive","sessions","filenames"].includes(saved)) return saved;
     }
     return "dashboard";
   });
@@ -3301,16 +3303,51 @@ function App() {
     if(typeof window!=="undefined"){const v=localStorage.getItem("ch_timein");return v?parseInt(v):null;}
     return null;
   });
+  const [timedIn,setTimedIn]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_timed_in")==="1";
+    return false;
+  });
+  const [sessionDbId,setSessionDbId]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_session_db_id")||null;
+    return null;
+  });
   const doTimeIn=()=>{
+    const now=Date.now();
+    setTimedIn(true);
+    setGlobalTimeIn(now);
+    if(typeof window!=="undefined"){
+      localStorage.setItem("ch_timed_in","1");
+      localStorage.setItem("ch_timein",String(now));
+    }
+    addSessionLog("Time In","Session started");
+    // Write to DB
+    fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'time_in',email:user?.email})
+    }).then(r=>r.json()).then(d=>{
+      if(d.id){setSessionDbId(d.id);if(typeof window!=="undefined")localStorage.setItem("ch_session_db_id",d.id);}
+    }).catch(()=>{});
+  };
+  const doTimerReset=()=>{
     const now=Date.now();
     setGlobalTimeIn(now);
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
-    addSessionLog("Time In","Session started");
   };
   const doTimeOut=()=>{
     addSessionLog("Time Out","Manual time-out");
+    setTimedIn(false);
     setGlobalTimeIn(null);
-    if(typeof window!=="undefined") localStorage.removeItem("ch_timein");
+    if(typeof window!=="undefined"){
+      localStorage.removeItem("ch_timed_in");
+      localStorage.removeItem("ch_timein");
+    }
+    // Write to DB
+    if(sessionDbId){
+      fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'time_out',session_id:sessionDbId,email:user?.email})
+      }).catch(()=>{});
+      setSessionDbId(null);
+      if(typeof window!=="undefined") localStorage.removeItem("ch_session_db_id");
+    }
   };
 
   // ── Session Log ──
@@ -3458,6 +3495,8 @@ function App() {
     return()=>clearInterval(tick);
   },[breakTimer]);
 
+  const [breakPending,setBreakPending]=useState(null); // {label,mins} waiting confirm
+  const [cancelBreakConfirm,setCancelBreakConfirm]=useState(false);
   function startBreak(label,mins){
     const now=Date.now();
     const endsAt=now+mins*60*1000;
@@ -3468,6 +3507,7 @@ function App() {
   function stopBreak(){
     closeSessionLog("Break ended");
     setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+    setCancelBreakConfirm(false);
   }
 
   // ── Case 30-min alarm (passed as prop to PostLiveForm) ──
@@ -3693,9 +3733,11 @@ function App() {
     {id:"prelive",label:"Pre-Live Amends",icon:"prelive"},
     {id:"postlive",label:"Post-Live Amends",icon:"postlive"},
     {id:"history",label:"Case History",icon:"history"},
+    {id:"sessions",label:"Session Log",icon:"history"},
     {group:"Tools"},
     {id:"announcements",label:"Announcements",icon:"announce"},
     {id:"links",label:"Quick Links",icon:"links"},
+    {id:"filenames",label:"File Name Generator",icon:"draft"},
   ];
 
   const initials=user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -3772,13 +3814,34 @@ function App() {
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
             {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
-              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} disabled={breakTimer&&breakTimer.mins!==mins} style={{opacity:breakTimer&&breakTimer.mins!==mins?.35:1,cursor:breakTimer&&breakTimer.mins!==mins?"not-allowed":"pointer"}} onClick={()=>breakTimer?.mins===mins?stopBreak():startBreak(label,mins)}>
+              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} disabled={breakTimer&&breakTimer.mins!==mins} style={{opacity:breakTimer&&breakTimer.mins!==mins?.35:1,cursor:breakTimer&&breakTimer.mins!==mins?"not-allowed":"pointer"}}
+                onClick={()=>breakTimer?.mins===mins?setCancelBreakConfirm(true):setBreakPending({label,mins})}>
                 <Icon name={icon} size={14} color={breakTimer?.mins===mins?"var(--accent)":"var(--muted)"}/>
                 <span style={{flex:1}}>{label}</span>
                 {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
               </button>
             ))}
           </div>
+          {/* Break start confirmation */}
+          {breakPending&&(<div className="modal-bg"><div className="modal">
+            <div style={{marginBottom:14}}><Icon name="coffee" size={40} color="var(--accent)"/></div>
+            <h3>Start {breakPending.label} Break?</h3>
+            <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Your session timer will reset when the break starts and again when it ends.</p>
+            <div className="modal-btns">
+              <button className="btn btn-ghost" onClick={()=>setBreakPending(null)}>Cancel</button>
+              <button className="btn btn-save" onClick={()=>{startBreak(breakPending.label,breakPending.mins);setBreakPending(null);}}>Start Break</button>
+            </div>
+          </div></div>)}
+          {/* Break cancel confirmation */}
+          {cancelBreakConfirm&&(<div className="modal-bg"><div className="modal">
+            <div style={{marginBottom:14}}><Icon name="close" size={40} color="var(--red)"/></div>
+            <h3>End Break Early?</h3>
+            <p style={{color:"var(--muted)",fontSize:13,marginBottom:20}}>Are you sure you want to end your break now?</p>
+            <div className="modal-btns">
+              <button className="btn btn-ghost" onClick={()=>setCancelBreakConfirm(false)}>Keep Break</button>
+              <button className="btn btn-danger" onClick={stopBreak}>End Break</button>
+            </div>
+          </div></div>)}
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"4px 0 10px"}}/>
           <div className="sidebar-profile" onClick={()=>handleNav("profile")}>
             <div className="profile-avatar" style={{overflow:"hidden",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -3813,12 +3876,16 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user}/>}
+          {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
+          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user}/>}
+          {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
       </div>
 
@@ -3841,7 +3908,7 @@ function App() {
             <div className="break-progress" style={{flex:1}}>
               <div className="break-progress-fill" style={{width:pct+"%"}}/>
             </div>
-            <button className="break-stop" onClick={stopBreak}>✕ End</button>
+            <button className="break-stop" onClick={()=>setCancelBreakConfirm(true)}>✕ End</button>
           </div>
         );
       })()}
@@ -3886,6 +3953,403 @@ function App() {
         <Icon name="back" size={14} color="#fff" style={{transform:"rotate(180deg)",marginLeft:2,flexShrink:0}}/>
       </div>
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION LOG PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function SessionLogPage({ user }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+  const [openId, setOpenId] = useState(null);
+  const [toast, showToast] = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const q = `?email=${encodeURIComponent(user.email)}&date=${date}`;
+      const res = await fetch(`/api/sessions${q}`);
+      const data = await res.json();
+      setSessions(Array.isArray(data) ? data : []);
+    } catch { setSessions([]); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [date]);
+
+  const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—';
+  const fmtDur = (start, end) => {
+    if (!start) return '—';
+    const ms = (end ? new Date(end) : new Date()) - new Date(start);
+    const m = Math.floor(ms/60000), h = Math.floor(m/60);
+    return h > 0 ? `${h}h ${m%60}m` : `${m}m`;
+  };
+
+  const totalCases = sessions.reduce((a,s) => a + (s.session_cases?.length||0), 0);
+  const totalBreakMins = sessions.reduce((a,s) => {
+    return a + (s.session_breaks||[]).reduce((b,br) => {
+      if (!br.started_at || !br.ended_at) return b;
+      return b + Math.round((new Date(br.ended_at)-new Date(br.started_at))/60000);
+    }, 0);
+  }, 0);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-title">Session Log</div>
+        <div className="page-sub">Time in/out records and case activity by day.</div>
+      </div>
+
+      {/* Date picker + summary */}
+      <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:24,flexWrap:'wrap'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <label style={{fontSize:12,color:'var(--muted)',fontFamily:"'Poppins',sans-serif"}}>Date</label>
+          <input type="date" className="inp" style={{width:160,fontSize:13}} value={date} onChange={e=>setDate(e.target.value)}/>
+        </div>
+        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+          {[
+            {label:'Sessions', val: sessions.length},
+            {label:'Cases Worked', val: totalCases},
+            {label:'Break Time', val: `${totalBreakMins}m`},
+          ].map(({label,val})=>(
+            <div key={label} style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'8px 16px',minWidth:100,textAlign:'center'}}>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--accent)',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{val}</div>
+              <div style={{fontSize:10,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {loading && <div style={{color:'var(--muted)',fontSize:13,padding:'20px 0'}}>Loading...</div>}
+      {!loading && sessions.length === 0 && <div style={{color:'var(--muted)',fontSize:13,padding:'20px 0'}}>No sessions found for this date.</div>}
+
+      {sessions.map(s => {
+        const isOpen = openId === s.id;
+        const cases = s.session_cases || [];
+        const breaks = s.session_breaks || [];
+        return (
+          <div key={s.id} style={{background:'var(--card)',border:'1.5px solid var(--border)',marginBottom:12,overflow:'hidden'}}>
+            {/* Session header */}
+            <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',userSelect:'none'}} onClick={()=>setOpenId(isOpen?null:s.id)}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:s.status==='active'?'var(--green)':'var(--muted)',flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+                  <span style={{fontSize:13,fontWeight:700}}>In: {fmtTime(s.time_in)}</span>
+                  <span style={{fontSize:13,color:'var(--muted)'}}>Out: {fmtTime(s.time_out)}</span>
+                  <span style={{fontSize:12,color:'var(--accent)',fontWeight:600}}>Duration: {fmtDur(s.time_in, s.time_out)}</span>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                {cases.length>0 && <span style={{fontSize:10,padding:'2px 8px',background:'var(--entry-accent-bg)',border:'1px solid var(--border)',color:'var(--accent)',fontWeight:700}}>{cases.length} case{cases.length!==1?'s':''}</span>}
+                {breaks.length>0 && <span style={{fontSize:10,padding:'2px 8px',background:'var(--entry-bg)',border:'1px solid var(--border)',color:'var(--muted)',fontWeight:700}}>{breaks.length} break{breaks.length!==1?'s':''}</span>}
+                <span style={{color:'var(--muted)',fontSize:12,transform:isOpen?'rotate(180deg)':'none',display:'inline-block',transition:'.2s'}}>▼</span>
+              </div>
+            </div>
+
+            {isOpen && (
+              <div style={{borderTop:'1px solid var(--border)',padding:'12px 16px',background:'var(--entry-bg)'}}>
+                {cases.length > 0 && (
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Cases</div>
+                    {cases.map((c,i)=>(
+                      <div key={c.id||i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--border)',marginBottom:6}}>
+                        <div style={{width:6,height:6,borderRadius:'50%',background:c.case_type==='siteComment'?'var(--accent)':'var(--green)',flexShrink:0}}/>
+                        <div style={{flex:1}}>
+                          <span style={{fontWeight:700,fontSize:13}}>Case #{c.case_num||'—'}</span>
+                          <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>{c.case_type==='siteComment'?'Site Comment':'Inbound Email'}</span>
+                          {c.note && <span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>· {c.note}</span>}
+                        </div>
+                        <span style={{fontSize:11,color:'var(--muted)'}}>{fmtTime(c.started_at)} → {fmtTime(c.ended_at)}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:'var(--accent)'}}>{fmtDur(c.started_at,c.ended_at)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {breaks.length > 0 && (
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>Breaks</div>
+                    {breaks.map((b,i)=>(
+                      <div key={b.id||i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--border)',marginBottom:6}}>
+                        <Icon name="coffee" size={13} color="var(--amber)"/>
+                        <span style={{flex:1,fontSize:12,fontWeight:600}}>{b.break_type}</span>
+                        <span style={{fontSize:11,color:'var(--muted)'}}>{fmtTime(b.started_at)} → {fmtTime(b.ended_at)}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:'var(--amber)'}}>{fmtDur(b.started_at,b.ended_at)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cases.length===0 && breaks.length===0 && <div style={{fontSize:12,color:'var(--muted)'}}>No activity recorded for this session.</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <Toast msg={toast.msg} type={toast.type}/>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE NAME GENERATOR PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function FileNameGeneratorPage() {
+  const EMPTY = {
+    bizFilename:'', bizAlt:'', accountNum:'',
+    pages:Array(10).fill(''), badges:Array(10).fill(''),
+    teamMembers:Array(6).fill(''), menuNames:Array(6).fill(''),
+    pdfNames:Array(6).fill(''), serviceGallery:'',
+  };
+  const [form, setForm] = useState(EMPTY);
+  const [tab, setTab] = useState('logo');
+  const [copied, setCopied] = useState(null);
+  const [uploadKey, setUploadKey] = useState(0);
+
+  // Sanitize: lowercase, replace spaces with dashes, strip special chars
+  const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
+
+  // Core name of business (sanitized)
+  const nob = san(form.bizFilename);
+
+  const copy = (val, key) => {
+    if (!val) return;
+    navigator.clipboard?.writeText(val).then(()=>{setCopied(key);setTimeout(()=>setCopied(null),1800);});
+  };
+
+  const CopyCell = ({val, id}) => (
+    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34}}>
+      <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
+      {val&&<button style={{padding:'2px 8px',fontSize:10,background:'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
+    </div>
+  );
+
+  const Section = ({title, children}) => (
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif",borderBottom:'1px solid var(--border)',paddingBottom:6}}>{title}</div>
+      {children}
+    </div>
+  );
+
+  const tabs = [
+    {id:'logo',label:'Logo & Misc'},
+    {id:'hero',label:'Hero'},
+    {id:'gallery',label:'Gallery'},
+    {id:'pages',label:'Pages / Content'},
+    {id:'team',label:'Team'},
+    {id:'badges',label:'Badges'},
+    {id:'menu',label:'Menu'},
+    {id:'pdf',label:'PDF'},
+  ];
+
+  // Handle xlsx upload to pre-fill
+  const handleXlsx = async (file) => {
+    // Load SheetJS from CDN via dynamic import isn't available server-side
+    // Instead parse with a simple approach — show instructions
+    showToast && showToast('Upload processed — fill inputs manually for now', 'info');
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-title">File Name Generator</div>
+        <div className="page-sub">Generate standardized image filenames and alt text for web projects.</div>
+      </div>
+
+      {/* Inputs card */}
+      <div style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'20px',marginBottom:24}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:16}}>Business Information</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for filename)</span></label>
+            <input className="inp" placeholder="e.g. Acme Plumbing LLC" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
+            <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Remove LLC, Corp, Inc etc.</div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for alt text)</span></label>
+            <input className="inp" placeholder="e.g. Acme Plumbing LLC" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
+            <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Keep full name as-is.</div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Account Number</label>
+            <input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/>
+          </div>
+        </div>
+
+        {/* Page names row */}
+        <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Page Names (for Content Images)</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:12}}>
+          {form.pages.map((p,i)=>(
+            <div key={i} className="field" style={{marginBottom:0}}>
+              <label style={{fontSize:10}}>Page {i+1}</label>
+              <input className="inp" style={{fontSize:12}} placeholder={`Page ${i+1}`} value={p} onChange={e=>{const arr=[...form.pages];arr[i]=e.target.value;setForm(f=>({...f,pages:arr}));}}/>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+          {/* Badge names */}
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Badge Names</div>
+            {form.badges.slice(0,6).map((b,i)=>(
+              <div key={i} className="field" style={{marginBottom:6}}>
+                <input className="inp" style={{fontSize:12}} placeholder={`Badge ${i+1}`} value={b} onChange={e=>{const arr=[...form.badges];arr[i]=e.target.value;setForm(f=>({...f,badges:arr}));}}/>
+              </div>
+            ))}
+          </div>
+          {/* Team members */}
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Team Members</div>
+            {form.teamMembers.map((t,i)=>(
+              <div key={i} className="field" style={{marginBottom:6}}>
+                <input className="inp" style={{fontSize:12}} placeholder={`Staff ${i+1}`} value={t} onChange={e=>{const arr=[...form.teamMembers];arr[i]=e.target.value;setForm(f=>({...f,teamMembers:arr}));}}/>
+              </div>
+            ))}
+          </div>
+          {/* Menu + PDF */}
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Menu Names</div>
+            {form.menuNames.map((m,i)=>(
+              <div key={i} className="field" style={{marginBottom:6}}>
+                <input className="inp" style={{fontSize:12}} placeholder={`Menu ${i+1}`} value={m} onChange={e=>{const arr=[...form.menuNames];arr[i]=e.target.value;setForm(f=>({...f,menuNames:arr}));}}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:'flex',gap:12,marginTop:12}}>
+          <button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>setForm(EMPTY)}>Clear All</button>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{display:'flex',gap:4,marginBottom:16,flexWrap:'wrap',borderBottom:'1px solid var(--border)',paddingBottom:0}}>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 14px',fontSize:12,fontWeight:tab===t.id?700:500,border:'none',borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent',background:'none',color:tab===t.id?'var(--accent)':'var(--muted)',cursor:'pointer',fontFamily:"'Poppins',sans-serif",transition:'.15s',marginBottom:-1}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Generated names */}
+      <div style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'20px'}}>
+        {tab==='logo'&&(
+          <>
+            <Section title="Logo">
+              <CopyCell val={nob?`${nob}-logo`:''} id="logo"/>
+            </Section>
+            <Section title="Favicon">
+              <CopyCell val={nob?`${nob}-favicon`:''} id="favicon"/>
+            </Section>
+            <Section title="Blog Logo">
+              <CopyCell val={nob?`${nob}-blog-logo`:''} id="blog-logo"/>
+            </Section>
+            <Section title="Intro / Why Choose">
+              <CopyCell val={nob?`${nob}-intro-why-choose`:''} id="intro"/>
+            </Section>
+            <Section title="Recent Reviews">
+              <CopyCell val={nob?`${nob}-recent-reviews`:''} id="reviews"/>
+            </Section>
+            <Section title="Video Splash">
+              <CopyCell val={nob?`${nob}-video`:''} id="video"/>
+            </Section>
+            <Section title="Wave Zip">
+              <CopyCell val={nob?`${nob}-wave`:''} id="wave"/>
+            </Section>
+          </>
+        )}
+        {tab==='hero'&&(
+          <Section title="Hero Images (Customer Supplied)">
+            {Array.from({length:10},(_,i)=>(
+              <CopyCell key={i} val={nob?`${nob}-hero-${String(i+1).padStart(2,'0')}`:''} id={`hero-${i}`}/>
+            ))}
+          </Section>
+        )}
+        {tab==='gallery'&&(
+          <>
+            <Section title="Gallery (Nondescript)">
+              {Array.from({length:10},(_,i)=>(
+                <CopyCell key={i} val={nob?`${nob}-gallery-${String(i+1).padStart(2,'0')}`:''} id={`gal-${i}`}/>
+              ))}
+            </Section>
+            <Section title="Before / After">
+              {Array.from({length:5},(_,i)=>(
+                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:4}}>
+                  <CopyCell val={nob?`${nob}-before-${String(i+1).padStart(2,'0')}`:''} id={`bef-${i}`}/>
+                  <CopyCell val={nob?`${nob}-after-${String(i+1).padStart(2,'0')}`:''} id={`aft-${i}`}/>
+                </div>
+              ))}
+            </Section>
+          </>
+        )}
+        {tab==='pages'&&(
+          <Section title="Content Images (by Page)">
+            {form.pages.map((p,pi)=>p&&(
+              <div key={pi} style={{marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4,fontFamily:"'Poppins',sans-serif"}}>{p}</div>
+                {Array.from({length:10},(_,i)=>(
+                  <CopyCell key={i} val={nob?`${nob}-${san(p)}-${String(i+1).padStart(2,'0')}`:''} id={`pg-${pi}-${i}`}/>
+                ))}
+              </div>
+            ))}
+            {form.pages.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names in the inputs above to generate filenames.</div>}
+          </Section>
+        )}
+        {tab==='team'&&(
+          <Section title="Team Member Photos">
+            {form.teamMembers.map((t,i)=>t&&(
+              <div key={i} style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{t}</div>
+                <CopyCell val={nob?`${nob}-${san(t)}`:''} id={`tm-${i}`}/>
+              </div>
+            ))}
+            {form.teamMembers.every(t=>!t)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter team member names above.</div>}
+          </Section>
+        )}
+        {tab==='badges'&&(
+          <Section title="Badge Images">
+            {form.badges.map((b,i)=>b&&(
+              <div key={i} style={{marginBottom:6}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{b}</div>
+                <CopyCell val={nob?`${nob}-badge-${san(b)}`:''} id={`badge-${i}`}/>
+              </div>
+            ))}
+            {form.badges.every(b=>!b)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter badge names above.</div>}
+          </Section>
+        )}
+        {tab==='menu'&&(
+          <Section title="Menu Images">
+            {form.menuNames.map((m,i)=>m&&(
+              <div key={i} style={{marginBottom:6}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{m}</div>
+                {Array.from({length:3},(_,j)=>(
+                  <CopyCell key={j} val={nob?`${nob}-menu-${san(m)}-${String(j+1).padStart(2,'0')}`:''} id={`menu-${i}-${j}`}/>
+                ))}
+              </div>
+            ))}
+            {form.menuNames.every(m=>!m)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter menu names above.</div>}
+          </Section>
+        )}
+        {tab==='pdf'&&(
+          <Section title="PDF Files">
+            {form.pdfNames.map((p,i)=>p&&(
+              <div key={i} style={{marginBottom:6}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{p}</div>
+                <CopyCell val={nob?`${nob}-${san(p)}-pdf`:''} id={`pdf-${i}`}/>
+              </div>
+            ))}
+            <div style={{marginTop:12}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>PDF Names</div>
+              {form.pdfNames.map((p,i)=>(
+                <div key={i} className="field" style={{marginBottom:6}}>
+                  <input className="inp" style={{fontSize:12}} placeholder={`PDF ${i+1}`} value={p} onChange={e=>{const arr=[...form.pdfNames];arr[i]=e.target.value;setForm(f=>({...f,pdfNames:arr}));}}/>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+      </div>
+    </div>
   );
 }
 
