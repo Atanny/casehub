@@ -2258,15 +2258,26 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             onTimerReset&&onTimerReset();
+            // Log "Case Saved" by renaming current open entry, then add fresh Ongoing
+            addSessionLog&&addSessionLog("Case Saved","Case #"+(f.caseNum||""),"renameOngoing");
+            // After rename, add fresh Ongoing for next case
+            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:'saved'})}).catch(()=>{});
           }}
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
             onTimerReset&&onTimerReset();
+            // Log "Draft Saved" by renaming current open entry, then add fresh Ongoing
+            addSessionLog&&addSessionLog("Draft Saved","Case #"+(fd.caseNum||""),"renameOngoing");
+            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
-          onBack={exitMode}/>
+          onBack={()=>{
+            // Cancelled — log it but don't reset timer, no new Ongoing
+            addSessionLog&&addSessionLog("Cancelled","Form closed","renameOngoing");
+            exitMode();
+          }}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
@@ -2363,7 +2374,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                   "Ongoing":"var(--accent)",
                   "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
                   "Break":"var(--amber)","Case Saved":"var(--green)",
-                  "Draft Saved":"var(--amber)",
+                  "Draft Saved":"var(--amber)","Cancelled":"var(--red)",
                 };
                 const col=statusColors[entry.status]||"var(--text)";
                 const isOngoing=!end;
@@ -3936,6 +3947,9 @@ function App() {
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
     });
+    // Reset the session timer
+    setGlobalTimeIn(now);
+    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
     setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
     setCancelBreakConfirm(false);
   }
@@ -4295,8 +4309,6 @@ function App() {
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
-          {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
-          {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
       </div>
 
@@ -4371,9 +4383,9 @@ function App() {
       <div className="form-progress-pill"
         onClick={()=>handleNav("postlive")}
         style={{
-          opacity:formActive&&page!=="postlive"?1:0,
-          pointerEvents:formActive&&page!=="postlive"?"auto":"none",
-          transform:formActive&&page!=="postlive"?"translateY(0)":"translateY(16px)",
+          opacity:formActive?1:0,
+          pointerEvents:formActive?"auto":"none",
+          transform:formActive?"translateY(0)":"translateY(16px)",
           transition:"opacity .25s, transform .25s",
         }}>
         <div className="form-progress-pill-dot"/>
@@ -4395,6 +4407,7 @@ function SessionLogPage({ user, refreshKey=0 }) {
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().slice(0,10));
   const [openId, setOpenId] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
   const [toast, showToast] = useToast();
 
   const load = async () => {
@@ -4406,6 +4419,15 @@ function SessionLogPage({ user, refreshKey=0 }) {
       setSessions(Array.isArray(data) ? data : []);
     } catch { setSessions([]); }
     setLoading(false);
+  };
+
+  const deleteSession = async (id) => {
+    try {
+      await fetch(`/api/sessions?id=${id}`,{method:'DELETE'});
+      setSessions(s=>s.filter(x=>x.id!==id));
+      showToast("Session deleted","success");
+    } catch { showToast("Failed to delete","error"); }
+    setDeleteId(null);
   };
 
   useEffect(() => { load(); }, [date, refreshKey]);
@@ -4478,6 +4500,7 @@ function SessionLogPage({ user, refreshKey=0 }) {
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 {cases.length>0 && <span style={{fontSize:10,padding:"3px 10px",background:"var(--entry-accent-bg)",border:"1px solid rgba(1,118,211,.25)",color:"var(--accent)",fontWeight:700,borderRadius:20}}>{cases.length} case{cases.length!==1?"s":""}</span>}
                 {breaks.length>0 && <span style={{fontSize:10,padding:"3px 10px",background:"var(--entry-bg)",border:"1px solid var(--border)",color:"var(--amber)",fontWeight:700,borderRadius:20}}>{breaks.length} break{breaks.length!==1?"s":""}</span>}
+                <button onClick={e=>{e.stopPropagation();setDeleteId(s.id);}} style={{background:"rgba(244,63,94,.1)",border:"1px solid rgba(244,63,94,.3)",color:"var(--red)",borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",transition:".15s",flexShrink:0}} title="Delete session">🗑 Delete</button>
                 <span style={{color:"var(--muted)",fontSize:12,transform:isOpen?"rotate(180deg)":"none",display:"inline-block",transition:".2s"}}>▼</span>
               </div>
             </div>
@@ -4520,6 +4543,17 @@ function SessionLogPage({ user, refreshKey=0 }) {
           </div>
         );
       })}
+      {deleteId&&(
+        <div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14,fontSize:36}}>🗑</div>
+          <h3>Delete Session?</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:24}}>This will permanently remove this session and all its case/break records. Cannot be undone.</p>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setDeleteId(null)}>Cancel</button>
+            <button className="btn btn-danger" onClick={()=>deleteSession(deleteId)}>Delete</button>
+          </div>
+        </div></div>
+      )}
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
@@ -4529,32 +4563,112 @@ function SessionLogPage({ user, refreshKey=0 }) {
 // FILE NAME GENERATOR PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 function FileNameGeneratorPage() {
+  const DEFAULT_FORMAT = {
+    logo:           '{nob}-logo',
+    favicon:        '{nob}-favicon',
+    blogLogo:       '{nob}-blog-logo',
+    introWhy:       '{nob}-intro-why-choose',
+    recentReviews:  '{nob}-recent-reviews',
+    videoSplash:    '{nob}-video',
+    waveZip:        '{nob}-wave',
+    hero:           '{nob}-hero-{nn}',
+    galleryNon:     '{nob}-gallery-{nn}',
+    before:         '{nob}-before-{nn}',
+    after:          '{nob}-after-{nn}',
+    pageContent:    '{nob}-{page}-{nn}',
+    team:           '{nob}-{member}',
+    badge:          '{nob}-badge-{badge}',
+    menu:           '{nob}-menu-{menu}-{nn}',
+    pdf:            '{nob}-{pdf}-pdf',
+  };
+
   const EMPTY = {
     bizFilename:'', bizAlt:'', accountNum:'',
     pages:Array(10).fill(''), badges:Array(10).fill(''),
     teamMembers:Array(6).fill(''), menuNames:Array(6).fill(''),
-    pdfNames:Array(6).fill(''), serviceGallery:'',
+    pdfNames:Array(6).fill(''),
   };
+
   const [form, setForm] = useState(EMPTY);
   const [tab, setTab] = useState('logo');
   const [copied, setCopied] = useState(null);
-  const [uploadKey, setUploadKey] = useState(0);
+  const [format, setFormat] = useState(DEFAULT_FORMAT);
+  const [editingFormat, setEditingFormat] = useState(false);
+  const [draftFormat, setDraftFormat] = useState(DEFAULT_FORMAT);
+  const [toast, showToast] = useToast();
 
   // Sanitize: lowercase, replace spaces with dashes, strip special chars
   const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
-
-  // Core name of business (sanitized)
   const nob = san(form.bizFilename);
+
+  // Apply format template
+  const applyFmt = (tpl, vars={}) => {
+    if (!nob) return '';
+    let s = tpl;
+    s = s.replace('{nob}', nob);
+    Object.entries(vars).forEach(([k,v]) => { s = s.replace(`{${k}}`, san(v)||k); });
+    return s;
+  };
 
   const copy = (val, key) => {
     if (!val) return;
     navigator.clipboard?.writeText(val).then(()=>{setCopied(key);setTimeout(()=>setCopied(null),1800);});
   };
 
+  // Excel upload — read first sheet and try to map columns
+  const handleXlsx = async (file) => {
+    try {
+      if (!window.XLSX) {
+        await new Promise((res,rej)=>{
+          const s=document.createElement('script');
+          s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          s.onload=res; s.onerror=rej;
+          document.head.appendChild(s);
+        });
+      }
+      const ab = await file.arrayBuffer();
+      const wb = window.XLSX.read(ab, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (!rows.length) { showToast('Empty spreadsheet','error'); return; }
+
+      // Try to find fields by header row
+      const headers = (rows[0]||[]).map(h=>(h||'').toString().toLowerCase().trim());
+      const colIdx = (names) => { for(const n of names){ const i=headers.indexOf(n); if(i>=0) return i; } return -1; };
+
+      const bizCol     = colIdx(['business name','biz name','business','company','name for filename','filename']);
+      const altCol     = colIdx(['alt text name','alt name','alt','display name','name for alt','full name']);
+      const accCol     = colIdx(['account','account number','account #','acc']);
+      const pagesCol   = colIdx(['pages','page names','page']);
+      const teamCol    = colIdx(['team','team members','staff','employees']);
+      const badgeCol   = colIdx(['badges','badge names','badge']);
+      const menuCol    = colIdx(['menu','menu names','menus']);
+      const pdfCol     = colIdx(['pdf','pdf names','pdfs']);
+
+      const getCol = (col, maxRows=10) => rows.slice(1, maxRows+1).map(r => (r[col]||'').toString().trim()).filter(Boolean);
+
+      const newForm = {...EMPTY};
+      if (bizCol>=0 && rows[1]) newForm.bizFilename = (rows[1][bizCol]||'').toString().trim();
+      if (altCol>=0 && rows[1])  newForm.bizAlt      = (rows[1][altCol]||'').toString().trim();
+      if (accCol>=0 && rows[1])  newForm.accountNum  = (rows[1][accCol]||'').toString().trim();
+      if (pagesCol>=0) { const vals=getCol(pagesCol,10); newForm.pages=vals.concat(Array(10).fill('')).slice(0,10); }
+      if (teamCol>=0)  { const vals=getCol(teamCol,6);  newForm.teamMembers=vals.concat(Array(6).fill('')).slice(0,6); }
+      if (badgeCol>=0) { const vals=getCol(badgeCol,10); newForm.badges=vals.concat(Array(10).fill('')).slice(0,10); }
+      if (menuCol>=0)  { const vals=getCol(menuCol,6);  newForm.menuNames=vals.concat(Array(6).fill('')).slice(0,6); }
+      if (pdfCol>=0)   { const vals=getCol(pdfCol,6);   newForm.pdfNames=vals.concat(Array(6).fill('')).slice(0,6); }
+
+      setForm(newForm);
+      showToast('Spreadsheet imported ✅','success');
+    } catch(e) {
+      console.error(e);
+      showToast('Failed to read spreadsheet','error');
+    }
+  };
+
   const CopyCell = ({val, id}) => (
-    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34}}>
+    <div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:36,borderRadius:7}}>
       <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
-      {val&&<button style={{padding:'2px 8px',fontSize:10,background:'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
+      {val&&<button style={{padding:'3px 10px',fontSize:10,background:'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓ Copied':'Copy'}</button>}
     </div>
   );
 
@@ -4569,50 +4683,82 @@ function FileNameGeneratorPage() {
     {id:'logo',label:'Logo & Misc'},
     {id:'hero',label:'Hero'},
     {id:'gallery',label:'Gallery'},
-    {id:'pages',label:'Pages / Content'},
+    {id:'pages',label:'Pages'},
     {id:'team',label:'Team'},
     {id:'badges',label:'Badges'},
     {id:'menu',label:'Menu'},
     {id:'pdf',label:'PDF'},
   ];
 
-  // Handle xlsx upload to pre-fill
-  const handleXlsx = async (file) => {
-    // Load SheetJS from CDN via dynamic import isn't available server-side
-    // Instead parse with a simple approach — show instructions
-    showToast && showToast('Upload processed — fill inputs manually for now', 'info');
-  };
+  const nn = (i) => String(i+1).padStart(2,'0');
 
   return (
     <div>
-      <div className="page-header">
-        <div className="page-title">File Name Generator</div>
-        <div className="page-sub">Generate standardized image filenames and alt text for web projects.</div>
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24,gap:16,flexWrap:'wrap'}}>
+        <div>
+          <div className="page-title" style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:22}}>📁</span> File Name Generator
+          </div>
+          <div className="page-sub">Generate standardized image filenames for web projects.</div>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {/* Excel Upload */}
+          <label style={{display:'inline-flex',alignItems:'center',gap:7,padding:'8px 14px',background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 10px rgba(16,185,129,.35)'}}>
+            <span>📊 Import Excel</span>
+            <input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handleXlsx(e.target.files[0]);e.target.value='';}}/>
+          </label>
+          <button onClick={()=>{setDraftFormat({...format});setEditingFormat(true);}} style={{padding:'8px 14px',background:'var(--btn-ghost-bg)',border:'1.5px solid var(--btn-ghost-border)',color:'var(--btn-ghost-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>✏️ Edit Format</button>
+          <button onClick={()=>setForm(EMPTY)} style={{padding:'8px 14px',background:'var(--btn-cancel-bg)',border:'1.5px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>Clear All</button>
+        </div>
       </div>
 
+      {/* Edit Format Modal */}
+      {editingFormat&&(
+        <div className="modal-bg">
+          <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',borderRadius:14,padding:28,width:'100%',maxWidth:560,maxHeight:'85vh',overflowY:'auto',boxShadow:'var(--glass-shadow)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+              <h3 style={{margin:0,fontSize:16}}>✏️ Edit Filename Format</h3>
+              <button onClick={()=>setEditingFormat(false)} style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer'}}>×</button>
+            </div>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,padding:'8px 12px',background:'var(--entry-bg)',borderRadius:8,border:'1px solid var(--border)'}}>
+              Use <code style={{color:'var(--accent)'}}>{'{nob}'}</code> for business name, <code style={{color:'var(--accent)'}}>{'{nn}'}</code> for number, <code style={{color:'var(--accent)'}}>{'{page}'}</code>, <code style={{color:'var(--accent)'}}>{'{member}'}</code>, <code style={{color:'var(--accent)'}}>{'{badge}'}</code>, <code style={{color:'var(--accent)'}}>{'{menu}'}</code>, <code style={{color:'var(--accent)'}}>{'{pdf}'}</code>
+            </div>
+            {Object.entries(draftFormat).map(([key,val])=>(
+              <div key={key} className="field" style={{marginBottom:10}}>
+                <label style={{textTransform:'uppercase',letterSpacing:'.6px',fontSize:10}}>{key.replace(/([A-Z])/g,' $1').trim()}</label>
+                <input className="inp" style={{fontFamily:'monospace',fontSize:12}} value={val}
+                  onChange={e=>setDraftFormat(f=>({...f,[key]:e.target.value}))}/>
+              </div>
+            ))}
+            <div style={{display:'flex',gap:10,marginTop:8}}>
+              <button onClick={()=>{setFormat(draftFormat);setEditingFormat(false);showToast('Format saved ✅','success');}} className="btn btn-save" style={{flex:1,justifyContent:'center'}}>Save Format</button>
+              <button onClick={()=>{setFormat(DEFAULT_FORMAT);setDraftFormat(DEFAULT_FORMAT);}} className="btn btn-ghost" style={{fontSize:12}}>Reset Default</button>
+              <button onClick={()=>setEditingFormat(false)} className="btn btn-cancel" style={{fontSize:12}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Inputs card */}
-      <div style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'20px',marginBottom:24}}>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:16}}>Business Information</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
+      <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',marginBottom:20,borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:14,display:'flex',alignItems:'center',gap:8}}>🏢 Business Information</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:14}}>
           <div className="field" style={{marginBottom:0}}>
             <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for filename)</span></label>
-            <input className="inp" placeholder="e.g. Acme Plumbing LLC" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
+            <input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
             <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Remove LLC, Corp, Inc etc.</div>
           </div>
           <div className="field" style={{marginBottom:0}}>
             <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for alt text)</span></label>
             <input className="inp" placeholder="e.g. Acme Plumbing LLC" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
-            <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Keep full name as-is.</div>
           </div>
           <div className="field" style={{marginBottom:0}}>
             <label>Account Number</label>
             <input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/>
           </div>
         </div>
-
-        {/* Page names row */}
-        <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Page Names (for Content Images)</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Page Names</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:14}}>
           {form.pages.map((p,i)=>(
             <div key={i} className="field" style={{marginBottom:0}}>
               <label style={{fontSize:10}}>Page {i+1}</label>
@@ -4620,29 +4766,25 @@ function FileNameGeneratorPage() {
             </div>
           ))}
         </div>
-
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
-          {/* Badge names */}
           <div>
-            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Badge Names</div>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Badge Names</div>
             {form.badges.slice(0,6).map((b,i)=>(
               <div key={i} className="field" style={{marginBottom:6}}>
                 <input className="inp" style={{fontSize:12}} placeholder={`Badge ${i+1}`} value={b} onChange={e=>{const arr=[...form.badges];arr[i]=e.target.value;setForm(f=>({...f,badges:arr}));}}/>
               </div>
             ))}
           </div>
-          {/* Team members */}
           <div>
-            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Team Members</div>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Team Members</div>
             {form.teamMembers.map((t,i)=>(
               <div key={i} className="field" style={{marginBottom:6}}>
                 <input className="inp" style={{fontSize:12}} placeholder={`Staff ${i+1}`} value={t} onChange={e=>{const arr=[...form.teamMembers];arr[i]=e.target.value;setForm(f=>({...f,teamMembers:arr}));}}/>
               </div>
             ))}
           </div>
-          {/* Menu + PDF */}
           <div>
-            <div style={{fontSize:12,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px',fontFamily:"'Poppins',sans-serif"}}>Menu Names</div>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Menu Names</div>
             {form.menuNames.map((m,i)=>(
               <div key={i} className="field" style={{marginBottom:6}}>
                 <input className="inp" style={{fontSize:12}} placeholder={`Menu ${i+1}`} value={m} onChange={e=>{const arr=[...form.menuNames];arr[i]=e.target.value;setForm(f=>({...f,menuNames:arr}));}}/>
@@ -4650,14 +4792,20 @@ function FileNameGeneratorPage() {
             ))}
           </div>
         </div>
-
-        <div style={{display:'flex',gap:12,marginTop:12}}>
-          <button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>setForm(EMPTY)}>Clear All</button>
+        <div style={{marginTop:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>PDF Names</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+            {form.pdfNames.map((p,i)=>(
+              <div key={i} className="field" style={{marginBottom:0}}>
+                <input className="inp" style={{fontSize:12}} placeholder={`PDF ${i+1}`} value={p} onChange={e=>{const arr=[...form.pdfNames];arr[i]=e.target.value;setForm(f=>({...f,pdfNames:arr}));}}/>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Tab bar */}
-      <div style={{display:'flex',gap:4,marginBottom:16,flexWrap:'wrap',borderBottom:'1px solid var(--border)',paddingBottom:0}}>
+      <div style={{display:'flex',gap:2,marginBottom:16,flexWrap:'wrap',borderBottom:'1px solid var(--border)',paddingBottom:0}}>
         {tabs.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 14px',fontSize:12,fontWeight:tab===t.id?700:500,border:'none',borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent',background:'none',color:tab===t.id?'var(--accent)':'var(--muted)',cursor:'pointer',fontFamily:"'Poppins',sans-serif",transition:'.15s',marginBottom:-1}}>
             {t.label}
@@ -4666,36 +4814,22 @@ function FileNameGeneratorPage() {
       </div>
 
       {/* Generated names */}
-      <div style={{background:'var(--card)',border:'1.5px solid var(--border)',padding:'20px'}}>
+      <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
         {tab==='logo'&&(
           <>
-            <Section title="Logo">
-              <CopyCell val={nob?`${nob}-logo`:''} id="logo"/>
-            </Section>
-            <Section title="Favicon">
-              <CopyCell val={nob?`${nob}-favicon`:''} id="favicon"/>
-            </Section>
-            <Section title="Blog Logo">
-              <CopyCell val={nob?`${nob}-blog-logo`:''} id="blog-logo"/>
-            </Section>
-            <Section title="Intro / Why Choose">
-              <CopyCell val={nob?`${nob}-intro-why-choose`:''} id="intro"/>
-            </Section>
-            <Section title="Recent Reviews">
-              <CopyCell val={nob?`${nob}-recent-reviews`:''} id="reviews"/>
-            </Section>
-            <Section title="Video Splash">
-              <CopyCell val={nob?`${nob}-video`:''} id="video"/>
-            </Section>
-            <Section title="Wave Zip">
-              <CopyCell val={nob?`${nob}-wave`:''} id="wave"/>
-            </Section>
+            <Section title="Logo"><CopyCell val={applyFmt(format.logo)} id="logo"/></Section>
+            <Section title="Favicon"><CopyCell val={applyFmt(format.favicon)} id="favicon"/></Section>
+            <Section title="Blog Logo"><CopyCell val={applyFmt(format.blogLogo)} id="blog-logo"/></Section>
+            <Section title="Intro / Why Choose"><CopyCell val={applyFmt(format.introWhy)} id="intro"/></Section>
+            <Section title="Recent Reviews"><CopyCell val={applyFmt(format.recentReviews)} id="reviews"/></Section>
+            <Section title="Video Splash"><CopyCell val={applyFmt(format.videoSplash)} id="video"/></Section>
+            <Section title="Wave Zip"><CopyCell val={applyFmt(format.waveZip)} id="wave"/></Section>
           </>
         )}
         {tab==='hero'&&(
-          <Section title="Hero Images (Customer Supplied)">
+          <Section title="Hero Images">
             {Array.from({length:10},(_,i)=>(
-              <CopyCell key={i} val={nob?`${nob}-hero-${String(i+1).padStart(2,'0')}`:''} id={`hero-${i}`}/>
+              <CopyCell key={i} val={applyFmt(format.hero,{nn:nn(i)})} id={`hero-${i}`}/>
             ))}
           </Section>
         )}
@@ -4703,14 +4837,14 @@ function FileNameGeneratorPage() {
           <>
             <Section title="Gallery (Nondescript)">
               {Array.from({length:10},(_,i)=>(
-                <CopyCell key={i} val={nob?`${nob}-gallery-${String(i+1).padStart(2,'0')}`:''} id={`gal-${i}`}/>
+                <CopyCell key={i} val={applyFmt(format.galleryNon,{nn:nn(i)})} id={`gal-${i}`}/>
               ))}
             </Section>
             <Section title="Before / After">
               {Array.from({length:5},(_,i)=>(
                 <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:4}}>
-                  <CopyCell val={nob?`${nob}-before-${String(i+1).padStart(2,'0')}`:''} id={`bef-${i}`}/>
-                  <CopyCell val={nob?`${nob}-after-${String(i+1).padStart(2,'0')}`:''} id={`aft-${i}`}/>
+                  <CopyCell val={applyFmt(format.before,{nn:nn(i)})} id={`bef-${i}`}/>
+                  <CopyCell val={applyFmt(format.after,{nn:nn(i)})} id={`aft-${i}`}/>
                 </div>
               ))}
             </Section>
@@ -4719,22 +4853,22 @@ function FileNameGeneratorPage() {
         {tab==='pages'&&(
           <Section title="Content Images (by Page)">
             {form.pages.map((p,pi)=>p&&(
-              <div key={pi} style={{marginBottom:12}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4,fontFamily:"'Poppins',sans-serif"}}>{p}</div>
+              <div key={pi} style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:6}}>{p}</div>
                 {Array.from({length:10},(_,i)=>(
-                  <CopyCell key={i} val={nob?`${nob}-${san(p)}-${String(i+1).padStart(2,'0')}`:''} id={`pg-${pi}-${i}`}/>
+                  <CopyCell key={i} val={applyFmt(format.pageContent,{page:san(p),nn:nn(i)})} id={`pg-${pi}-${i}`}/>
                 ))}
               </div>
             ))}
-            {form.pages.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names in the inputs above to generate filenames.</div>}
+            {form.pages.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above to generate filenames.</div>}
           </Section>
         )}
         {tab==='team'&&(
           <Section title="Team Member Photos">
             {form.teamMembers.map((t,i)=>t&&(
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{t}</div>
-                <CopyCell val={nob?`${nob}-${san(t)}`:''} id={`tm-${i}`}/>
+              <div key={i} style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{t}</div>
+                <CopyCell val={applyFmt(format.team,{member:san(t)})} id={`tm-${i}`}/>
               </div>
             ))}
             {form.teamMembers.every(t=>!t)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter team member names above.</div>}
@@ -4743,9 +4877,9 @@ function FileNameGeneratorPage() {
         {tab==='badges'&&(
           <Section title="Badge Images">
             {form.badges.map((b,i)=>b&&(
-              <div key={i} style={{marginBottom:6}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{b}</div>
-                <CopyCell val={nob?`${nob}-badge-${san(b)}`:''} id={`badge-${i}`}/>
+              <div key={i} style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{b}</div>
+                <CopyCell val={applyFmt(format.badge,{badge:san(b)})} id={`badge-${i}`}/>
               </div>
             ))}
             {form.badges.every(b=>!b)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter badge names above.</div>}
@@ -4754,10 +4888,10 @@ function FileNameGeneratorPage() {
         {tab==='menu'&&(
           <Section title="Menu Images">
             {form.menuNames.map((m,i)=>m&&(
-              <div key={i} style={{marginBottom:6}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{m}</div>
+              <div key={i} style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{m}</div>
                 {Array.from({length:3},(_,j)=>(
-                  <CopyCell key={j} val={nob?`${nob}-menu-${san(m)}-${String(j+1).padStart(2,'0')}`:''} id={`menu-${i}-${j}`}/>
+                  <CopyCell key={j} val={applyFmt(format.menu,{menu:san(m),nn:nn(j)})} id={`menu-${i}-${j}`}/>
                 ))}
               </div>
             ))}
@@ -4767,22 +4901,16 @@ function FileNameGeneratorPage() {
         {tab==='pdf'&&(
           <Section title="PDF Files">
             {form.pdfNames.map((p,i)=>p&&(
-              <div key={i} style={{marginBottom:6}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:2,fontFamily:"'Poppins',sans-serif"}}>{p}</div>
-                <CopyCell val={nob?`${nob}-${san(p)}-pdf`:''} id={`pdf-${i}`}/>
+              <div key={i} style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                <CopyCell val={applyFmt(format.pdf,{pdf:san(p)})} id={`pdf-${i}`}/>
               </div>
             ))}
-            <div style={{marginTop:12}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif"}}>PDF Names</div>
-              {form.pdfNames.map((p,i)=>(
-                <div key={i} className="field" style={{marginBottom:6}}>
-                  <input className="inp" style={{fontSize:12}} placeholder={`PDF ${i+1}`} value={p} onChange={e=>{const arr=[...form.pdfNames];arr[i]=e.target.value;setForm(f=>({...f,pdfNames:arr}));}}/>
-                </div>
-              ))}
-            </div>
+            {form.pdfNames.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter PDF names above.</div>}
           </Section>
         )}
       </div>
+      <Toast msg={toast.msg} type={toast.type}/>
     </div>
   );
 }

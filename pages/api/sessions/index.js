@@ -45,5 +45,15 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
   }
-  res.status(405).json({ error: 'Method not allowed' });
+  if (method === 'DELETE') {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    // Delete child records first
+    await sb.from('session_cases').delete().eq('session_id', id);
+    await sb.from('session_breaks').delete().eq('session_id', id);
+    const { error } = await sb.from('sessions').delete().eq('id', id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ deleted: true });
+  }
+
 }
