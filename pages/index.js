@@ -989,7 +989,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.06));
 }
 .session-log-table-head{
-  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
   background:rgba(1,118,211,.1);
   border-bottom:1px solid rgba(1,118,211,.15);
   padding:9px 16px;
@@ -997,7 +997,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   color:var(--muted);font-family:'Poppins',sans-serif;gap:8px;
 }
 .session-log-row{
-  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
   padding:10px 16px;gap:8px;
   border-bottom:1px solid var(--border);
   font-size:12px;align-items:center;
@@ -1017,7 +1017,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   font-size:10px;color:var(--muted);font-style:italic;
 }
 .session-log-total{
-  display:grid;grid-template-columns:140px 1fr 1fr 120px;
+  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
   padding:10px 16px;gap:8px;
   background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.05));
   border-top:2px solid rgba(1,118,211,.2);
@@ -2212,7 +2212,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeSessionLog, clearSessionLog }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -2258,9 +2258,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             onTimerReset&&onTimerReset();
-            // Log "Case Saved" by renaming current open entry, then add fresh Ongoing
-            addSessionLog&&addSessionLog("Case Saved","Case #"+(f.caseNum||""),"renameOngoing");
-            // After rename, add fresh Ongoing for next case
+            // Close the current open entry with outcome "Case Saved", then add fresh Ongoing
+            closeWithOutcome&&closeWithOutcome("Case Saved");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:'saved'})}).catch(()=>{});
@@ -2268,14 +2267,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
             onTimerReset&&onTimerReset();
-            // Log "Draft Saved" by renaming current open entry, then add fresh Ongoing
-            addSessionLog&&addSessionLog("Draft Saved","Case #"+(fd.caseNum||""),"renameOngoing");
+            // Close with "Draft Saved", then fresh Ongoing
+            closeWithOutcome&&closeWithOutcome("Draft Saved");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={()=>{
-            // Cancelled — log it but don't reset timer, no new Ongoing
-            addSessionLog&&addSessionLog("Cancelled","Form closed","renameOngoing");
+            // Cancelled — close with outcome "Cancelled", NO timer reset, NO new Ongoing
+            closeWithOutcome&&closeWithOutcome("Cancelled");
             exitMode();
           }}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
@@ -2361,7 +2360,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           {showLog&&(
             <>
               <div className="session-log-table-head">
-                <span>Status</span><span>Time Start</span><span>Time End</span><span>Duration</span>
+                <span>Status</span><span>Time Start</span><span>Time End</span><span>Duration</span><span>Outcome</span>
               </div>
               {sessionLog.map((entry,i)=>{
                 const start=new Date(entry.startedAt);
@@ -2373,11 +2372,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                   "Time In":"var(--green)","Time Out":"#6b7280",
                   "Ongoing":"var(--accent)",
                   "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
-                  "Break":"var(--amber)","Case Saved":"var(--green)",
-                  "Draft Saved":"var(--amber)","Cancelled":"var(--red)",
+                  "Break":"var(--amber)",
+                };
+                const outcomeColors={
+                  "Case Saved":"var(--green)",
+                  "Draft Saved":"var(--amber)",
+                  "Cancelled":"var(--red)",
                 };
                 const col=statusColors[entry.status]||"var(--text)";
                 const isOngoing=!end;
+                const outcome=entry.outcome||"";
                 return (
                   <div key={entry.id} className="session-log-row" style={{background:i%2===0?"var(--entry-bg)":"transparent"}}>
                     <div className="session-log-status" style={{color:col}}>
@@ -2387,10 +2391,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                     <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
                     <span style={{color:end?"var(--text)":"var(--accent)",fontFamily:"monospace",fontSize:11}}>
                       {end?fmtT(end):<span className="session-log-ongoing">● live</span>}
-                      {entry.endNote&&<span style={{marginLeft:6,fontSize:10,color:"var(--muted)"}}>({entry.endNote})</span>}
                     </span>
                     <span style={{color:isOngoing?"var(--accent)":"var(--muted)",fontSize:11,fontFamily:"monospace",fontWeight:isOngoing?700:400}}>
                       {isOngoing?"ongoing…":durStr}
+                    </span>
+                    <span style={{fontSize:11,fontWeight:700,fontFamily:"'Poppins',sans-serif",color:outcome?outcomeColors[outcome]||"var(--muted)":"var(--muted)",opacity:outcome?1:.4}}>
+                      {outcome||"—"}
                     </span>
                   </div>
                 );
@@ -2400,7 +2406,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                 const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
                 return (
                   <div className="session-log-total">
-                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/4"}}>⏱ Total tracked time</span>
+                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/5"}}>⏱ Total tracked time</span>
                     <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
                   </div>
                 );
@@ -3770,31 +3776,45 @@ function App() {
     }
     return [];
   });
+  // addSessionLog variants:
+  //   addSessionLog("Site Comment","","renameOngoing")  — rename last open Ongoing to Site Comment, leave open
+  //   addSessionLog("Break","15 min","renameOngoing")   — rename last open Ongoing to Break, leave open
+  //   addSessionLog("Ongoing","")                       — close any open entry, add fresh Ongoing
+  //   addSessionLog("Time Out","")                      — normal: close last open, add Time Out row
+  //   closeWithOutcome("Case Saved"|"Draft Saved"|"Cancelled") — close last open entry, set outcome field
   const addSessionLog=(status,note="",endNote="")=>{
     const now=Date.now();
     setSessionLog(prev=>{
-      // "renameOngoing": find last open Ongoing entry, rename it to the new status and close it.
-      // No new Ongoing is added — Ongoing only exists while waiting for the next action.
       if(endNote==="renameOngoing"){
+        // Find last open Ongoing and rename it to the chosen type (Site Comment, Inbound, Break)
+        // Keep the entry OPEN (endedAt stays null) — it becomes the live entry
         const lastOngoingIdx=prev.map(e=>e.status).lastIndexOf("Ongoing");
         if(lastOngoingIdx!==-1&&!prev[lastOngoingIdx].endedAt){
-          // Rename that entry in-place and close it
           const updated=prev.map((e,i)=>
-            i===lastOngoingIdx ? {...e,status,endedAt:now,endNote:""} : e
+            i===lastOngoingIdx ? {...e,status} : e
           );
           if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(updated));
           return updated;
         }
-        // No open Ongoing found — just append a closed entry
-        const entry={id:now,status,note,startedAt:now,endedAt:now,endNote:""};
+        // No open Ongoing found — open a new entry with this status
+        const entry={id:now,status,note,startedAt:now,endedAt:null,outcome:"",endNote:""};
         const next=[...prev,entry];
         if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
         return next;
       }
-      // Default: close previous open entry, add new one
-      const entry={id:now,status,note,startedAt:now,endedAt:null,endNote:""};
-      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:endNote||e.endNote}:e);
+      // Default: close last open entry, add new one
+      const entry={id:now,status,note,startedAt:now,endedAt:null,outcome:"",endNote:""};
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now}:e);
       const next=[...closed,entry];
+      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+      return next;
+    });
+  };
+  // Close the last open entry and stamp an outcome label (Case Saved / Draft Saved / Cancelled)
+  const closeWithOutcome=(outcome)=>{
+    const now=Date.now();
+    setSessionLog(prev=>{
+      const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome}:e);
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
     });
@@ -3934,15 +3954,15 @@ function App() {
     const endsAt=now+mins*60*1000;
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
     setBreakTimer({label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60});
-    // Rename current Ongoing to "Break" (same pattern as choosing Site Comment/Inbound)
+    // Rename the current open Ongoing → "Break" (keeps it open, no outcome yet)
     addSessionLog("Break",label,"renameOngoing");
   }
   function stopBreak(){
-    // Close the Break entry and add a fresh Ongoing (back to waiting)
+    // Close the Break entry (no outcome needed), reset timer, add fresh Ongoing
     const now=Date.now();
     setSessionLog(prev=>{
-      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,endNote:"Break ended"}:e);
-      const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,endNote:""};
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome:""}:e);
+      const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,outcome:"",endNote:""};
       const next=[...closed,freshOngoing];
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
@@ -4301,7 +4321,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
