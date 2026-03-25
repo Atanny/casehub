@@ -989,7 +989,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.06));
 }
 .session-log-table-head{
-  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
+  display:grid;grid-template-columns:130px 80px 1fr 1fr 90px 110px;
   background:rgba(1,118,211,.1);
   border-bottom:1px solid rgba(1,118,211,.15);
   padding:9px 16px;
@@ -997,7 +997,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   color:var(--muted);font-family:'Poppins',sans-serif;gap:8px;
 }
 .session-log-row{
-  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
+  display:grid;grid-template-columns:130px 80px 1fr 1fr 90px 110px;
   padding:10px 16px;gap:8px;
   border-bottom:1px solid var(--border);
   font-size:12px;align-items:center;
@@ -1017,7 +1017,7 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
   font-size:10px;color:var(--muted);font-style:italic;
 }
 .session-log-total{
-  display:grid;grid-template-columns:140px 1fr 1fr 100px 110px;
+  display:grid;grid-template-columns:130px 80px 1fr 1fr 90px 110px;
   padding:10px 16px;gap:8px;
   background:linear-gradient(135deg,rgba(1,118,211,.08),rgba(1,84,160,.05));
   border-top:2px solid rgba(1,118,211,.2);
@@ -2258,8 +2258,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             onTimerReset&&onTimerReset();
-            // Close the current open entry with outcome "Case Saved", then add fresh Ongoing
-            closeWithOutcome&&closeWithOutcome("Case Saved");
+            // If this was resumed from a draft, label it "Continued Draft Saved"
+            const outcomeLabel=currentDraft?._id?"Continued Draft Saved":"Case Saved";
+            closeWithOutcome&&closeWithOutcome(outcomeLabel,f.caseNum||"");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:'saved'})}).catch(()=>{});
@@ -2267,14 +2268,15 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
             onTimerReset&&onTimerReset();
-            // Close with "Draft Saved", then fresh Ongoing
-            closeWithOutcome&&closeWithOutcome("Draft Saved");
+            // Close with "Draft Saved" + case number, reset timer, add fresh Ongoing
+            closeWithOutcome&&closeWithOutcome("Draft Saved",fd.caseNum||"");
             setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={()=>{
-            // Cancelled — close with outcome "Cancelled", NO timer reset, NO new Ongoing
-            closeWithOutcome&&closeWithOutcome("Cancelled");
+            // Discard/Cancel: close with "Cancelled", no timer reset, add fresh Ongoing
+            closeWithOutcome&&closeWithOutcome("Cancelled","");
+            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
             exitMode();
           }}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
@@ -2360,13 +2362,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
           {showLog&&(
             <>
               <div className="session-log-table-head">
-                <span>Status</span><span>Time Start</span><span>Time End</span><span>Duration</span><span>Outcome</span>
+                <span>Status</span><span>Case #</span><span>Time Start</span><span>Time End</span><span>Duration</span><span>Outcome</span>
               </div>
               {sessionLog.map((entry,i)=>{
                 const start=new Date(entry.startedAt);
                 const end=entry.endedAt?new Date(entry.endedAt):null;
                 const durMs=end?(entry.endedAt-entry.startedAt):null;
-                const durStr=durMs!=null?`${Math.floor(durMs/60000)}m ${Math.floor((durMs%60000)/1000)}s`:"–";
+                const h=durMs!=null?Math.floor(durMs/3600000):0;
+                const m=durMs!=null?Math.floor((durMs%3600000)/60000):0;
+                const s=durMs!=null?Math.floor((durMs%60000)/1000):0;
+                const durStr=durMs!=null?(h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`):"–";
                 const fmtT=(d)=>d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
                 const statusColors={
                   "Time In":"var(--green)","Time Out":"#6b7280",
@@ -2377,17 +2382,22 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                 const outcomeColors={
                   "Case Saved":"var(--green)",
                   "Draft Saved":"var(--amber)",
+                  "Continued Draft Saved":"#f59e0b",
                   "Cancelled":"var(--red)",
                 };
                 const col=statusColors[entry.status]||"var(--text)";
                 const isOngoing=!end;
                 const outcome=entry.outcome||"";
+                const caseNum=entry.caseNum||"";
                 return (
                   <div key={entry.id} className="session-log-row" style={{background:i%2===0?"var(--entry-bg)":"transparent"}}>
                     <div className="session-log-status" style={{color:col}}>
                       <span className={`session-log-status-dot${isOngoing?" ongoing-dot":""}`} style={{background:col,boxShadow:`0 0 6px ${col}55`}}/>
                       {entry.status}
                     </div>
+                    <span style={{color:caseNum?"var(--text)":"var(--muted)",fontFamily:"monospace",fontSize:11,fontWeight:caseNum?700:400}}>
+                      {caseNum?`#${caseNum}`:"—"}
+                    </span>
                     <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
                     <span style={{color:end?"var(--text)":"var(--accent)",fontFamily:"monospace",fontSize:11}}>
                       {end?fmtT(end):<span className="session-log-ongoing">● live</span>}
@@ -2406,7 +2416,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, allSavedCases, d
                 const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
                 return (
                   <div className="session-log-total">
-                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/5"}}>⏱ Total tracked time</span>
+                    <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",gridColumn:"1/6"}}>⏱ Total tracked time</span>
                     <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
                   </div>
                 );
@@ -3811,10 +3821,10 @@ function App() {
     });
   };
   // Close the last open entry and stamp an outcome label (Case Saved / Draft Saved / Cancelled)
-  const closeWithOutcome=(outcome)=>{
+  const closeWithOutcome=(outcome,caseNum="")=>{
     const now=Date.now();
     setSessionLog(prev=>{
-      const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome}:e);
+      const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome,caseNum:caseNum||e.caseNum||""}:e);
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
     });
@@ -4399,13 +4409,13 @@ function App() {
 
       {/* Nav no longer shows discard warning — form state preserved on page switch */}
 
-      {/* ── Floating in-progress pill (fixed, sitewide, bottom-right) ── */}
+      {/* ── Floating in-progress pill — only outside the form, or on other pages ── */}
       <div className="form-progress-pill"
         onClick={()=>handleNav("postlive")}
         style={{
-          opacity:formActive?1:0,
-          pointerEvents:formActive?"auto":"none",
-          transform:formActive?"translateY(0)":"translateY(16px)",
+          opacity:formActive&&page!=="postlive"?1:0,
+          pointerEvents:formActive&&page!=="postlive"?"auto":"none",
+          transform:formActive&&page!=="postlive"?"translateY(0)":"translateY(16px)",
           transition:"opacity .25s, transform .25s",
         }}>
         <div className="form-progress-pill-dot"/>
@@ -4583,351 +4593,306 @@ function SessionLogPage({ user, refreshKey=0 }) {
 // FILE NAME GENERATOR PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 function FileNameGeneratorPage() {
-  const DEFAULT_FORMAT = {
-    logo:           '{nob}-logo',
-    favicon:        '{nob}-favicon',
-    blogLogo:       '{nob}-blog-logo',
-    introWhy:       '{nob}-intro-why-choose',
-    recentReviews:  '{nob}-recent-reviews',
-    videoSplash:    '{nob}-video',
-    waveZip:        '{nob}-wave',
-    hero:           '{nob}-hero-{nn}',
-    galleryNon:     '{nob}-gallery-{nn}',
-    before:         '{nob}-before-{nn}',
-    after:          '{nob}-after-{nn}',
-    pageContent:    '{nob}-{page}-{nn}',
-    team:           '{nob}-{member}',
-    badge:          '{nob}-badge-{badge}',
-    menu:           '{nob}-menu-{menu}-{nn}',
-    pdf:            '{nob}-{pdf}-pdf',
-  };
-
-  const EMPTY = {
-    bizFilename:'', bizAlt:'', accountNum:'',
-    pages:Array(10).fill(''), badges:Array(10).fill(''),
-    teamMembers:Array(6).fill(''), menuNames:Array(6).fill(''),
-    pdfNames:Array(6).fill(''),
-  };
-
-  const [form, setForm] = useState(EMPTY);
-  const [tab, setTab] = useState('logo');
-  const [copied, setCopied] = useState(null);
-  const [format, setFormat] = useState(DEFAULT_FORMAT);
-  const [editingFormat, setEditingFormat] = useState(false);
-  const [draftFormat, setDraftFormat] = useState(DEFAULT_FORMAT);
-  const [toast, showToast] = useToast();
-
-  // Sanitize: lowercase, replace spaces with dashes, strip special chars
   const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
-  const nob = san(form.bizFilename);
+  const nn  = (i) => String(i+1).padStart(2,'0');
 
-  // Apply format template
-  const applyFmt = (tpl, vars={}) => {
-    if (!nob) return '';
-    let s = tpl;
-    s = s.replace('{nob}', nob);
-    Object.entries(vars).forEach(([k,v]) => { s = s.replace(`{${k}}`, san(v)||k); });
+  const EMPTY = { bizFilename:'', bizAlt:'', accountNum:'', pages:[''], badges:[''], teamMembers:[''], menuNames:[''], pdfNames:[''] };
+
+  const DEFAULT_FORMAT = {
+    logo:'{nob}-logo', favicon:'{nob}-favicon', blogLogo:'{nob}-blog-logo',
+    asst:'Asst_{nob}_logo', introWhy:'{nob}-intro-why-choose',
+    recentReviews:'{nob}-recent-reviews', videoSplash:'{nob}-video',
+    videoSplashPage:'{nob}-video-{page}-{nn}', waveZip:'{nob}-wave',
+    waveAssist:'{nob}-wave-assistant', heroCust:'{nob}-hero-{nn}',
+    heroBi:'{nob}-hero-{nn}', heroSlider:'{nob}-hero-slider-{nn}',
+    galleryNon:'{nob}-gallery-{nn}', gallerySpec:'{nob}-{page}-gallery-{nn}',
+    before:'{nob}-before-{nn}', after:'{nob}-after-{nn}',
+    badge:'{nob}-badge-{badge}', team:'{nob}-{member}',
+    menu:'{nob}-menu-{nn}', menuNamed:'{nob}-menu-{menu}-{nn}',
+    pageContent:'{nob}-{page}-{nn}', callout:'{nob}-callout-{page}-{nn}',
+    pdf:'{nob}-{pdf}-pdf',
+  };
+
+  const [form,setForm]             = useState(EMPTY);
+  const [tab,setTab]               = useState('logo');
+  const [copied,setCopied]         = useState(null);
+  const [copiedAll,setCopiedAll]   = useState(null);
+  const [editingFormat,setEditingFormat] = useState(false);
+  const [format,setFormat]         = useState(DEFAULT_FORMAT);
+  const [draftFmt,setDraftFmt]     = useState(DEFAULT_FORMAT);
+  const [toast,showToast]          = useToast();
+
+  const nob = san(form.bizFilename);
+  const applyFmt = (tpl,vars={}) => {
+    if(!nob) return '';
+    let s=tpl;
+    s=s.replace('{nob}',nob);
+    Object.entries(vars).forEach(([k,v])=>{ s=s.replace(`{${k}}`,san(v)||k); });
     return s;
   };
 
-  const copy = (val, key) => {
-    if (!val) return;
-    navigator.clipboard?.writeText(val).then(()=>{setCopied(key);setTimeout(()=>setCopied(null),1800);});
-  };
+  const copy=(val,key)=>{ if(!val)return; navigator.clipboard?.writeText(val).then(()=>{setCopied(key);setTimeout(()=>setCopied(null),1800);}); };
+  const copyAll=(vals,key)=>{ const t=vals.filter(Boolean).join('\n'); if(!t)return; navigator.clipboard?.writeText(t).then(()=>{setCopiedAll(key);setTimeout(()=>setCopiedAll(null),2000);showToast('Copied all!','success');}); };
 
-  // Excel upload — read first sheet and try to map columns
+  const addItem  = (f) => setForm(x=>({...x,[f]:[...x[f],'']}));
+  const removeItem=(f,i)=>setForm(x=>{const a=[...x[f]];a.splice(i,1);return {...x,[f]:a.length?a:['']};});
+  const setItem  = (f,i,v)=>setForm(x=>{const a=[...x[f]];a[i]=v;return {...x,[f]:a};});
+
   const handleXlsx = async (file) => {
     try {
-      if (!window.XLSX) {
-        await new Promise((res,rej)=>{
-          const s=document.createElement('script');
-          s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-          s.onload=res; s.onerror=rej;
-          document.head.appendChild(s);
-        });
-      }
-      const ab = await file.arrayBuffer();
-      const wb = window.XLSX.read(ab, {type:'array'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      if (!rows.length) { showToast('Empty spreadsheet','error'); return; }
-
-      // Try to find fields by header row
-      const headers = (rows[0]||[]).map(h=>(h||'').toString().toLowerCase().trim());
-      const colIdx = (names) => { for(const n of names){ const i=headers.indexOf(n); if(i>=0) return i; } return -1; };
-
-      const bizCol     = colIdx(['business name','biz name','business','company','name for filename','filename']);
-      const altCol     = colIdx(['alt text name','alt name','alt','display name','name for alt','full name']);
-      const accCol     = colIdx(['account','account number','account #','acc']);
-      const pagesCol   = colIdx(['pages','page names','page']);
-      const teamCol    = colIdx(['team','team members','staff','employees']);
-      const badgeCol   = colIdx(['badges','badge names','badge']);
-      const menuCol    = colIdx(['menu','menu names','menus']);
-      const pdfCol     = colIdx(['pdf','pdf names','pdfs']);
-
-      const getCol = (col, maxRows=10) => rows.slice(1, maxRows+1).map(r => (r[col]||'').toString().trim()).filter(Boolean);
-
-      const newForm = {...EMPTY};
-      if (bizCol>=0 && rows[1]) newForm.bizFilename = (rows[1][bizCol]||'').toString().trim();
-      if (altCol>=0 && rows[1])  newForm.bizAlt      = (rows[1][altCol]||'').toString().trim();
-      if (accCol>=0 && rows[1])  newForm.accountNum  = (rows[1][accCol]||'').toString().trim();
-      if (pagesCol>=0) { const vals=getCol(pagesCol,10); newForm.pages=vals.concat(Array(10).fill('')).slice(0,10); }
-      if (teamCol>=0)  { const vals=getCol(teamCol,6);  newForm.teamMembers=vals.concat(Array(6).fill('')).slice(0,6); }
-      if (badgeCol>=0) { const vals=getCol(badgeCol,10); newForm.badges=vals.concat(Array(10).fill('')).slice(0,10); }
-      if (menuCol>=0)  { const vals=getCol(menuCol,6);  newForm.menuNames=vals.concat(Array(6).fill('')).slice(0,6); }
-      if (pdfCol>=0)   { const vals=getCol(pdfCol,6);   newForm.pdfNames=vals.concat(Array(6).fill('')).slice(0,6); }
-
-      setForm(newForm);
-      showToast('Spreadsheet imported ✅','success');
-    } catch(e) {
-      console.error(e);
-      showToast('Failed to read spreadsheet','error');
-    }
+      if(!window.XLSX){ await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
+      const ab=await file.arrayBuffer();
+      const wb=window.XLSX.read(ab,{type:'array'});
+      const ws=wb.Sheets['INPUTS']||wb.Sheets[wb.SheetNames[0]];
+      const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!rows.length){showToast('Empty sheet','error');return;}
+      const bizFilename=(rows[0]?.[1]||'').toString().trim();
+      const bizAlt=(rows[0]?.[3]||'').toString().trim();
+      const accountNum=(rows[1]?.[1]||'').toString().trim();
+      const headers=(rows[3]||[]).map(h=>(h||'').toString().toLowerCase().trim());
+      const col=(names)=>{for(const n of names){const i=headers.indexOf(n);if(i>=0)return i;}return -1;};
+      const getCol=(c)=>c<0?[]:rows.slice(4).map(r=>(r[c]||'').toString().trim()).filter(Boolean);
+      const pageC=col(['page names','pages','page']);
+      const badgeC=col(['badge names','badges','badge']);
+      const teamC=col(['team member','team members','team','staff']);
+      const menuC=col(['menu names','menus','menu']);
+      const pdfC=col(['pdf','pdf names','pdfs']);
+      setForm({bizFilename,bizAlt,accountNum,
+        pages:getCol(pageC).length?getCol(pageC):[''],
+        badges:getCol(badgeC).length?getCol(badgeC):[''],
+        teamMembers:getCol(teamC).length?getCol(teamC):[''],
+        menuNames:getCol(menuC).length?getCol(menuC):[''],
+        pdfNames:getCol(pdfC).length?getCol(pdfC):[''],
+      });
+      showToast('Imported ✅','success');
+    }catch(e){console.error(e);showToast('Failed to read file','error');}
   };
 
-  const CopyCell = ({val, id}) => (
-    <div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:36,borderRadius:7}}>
+  const CopyCell=({val,id})=>(
+    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34,borderRadius:7}}>
       <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
-      {val&&<button style={{padding:'3px 10px',fontSize:10,background:'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓ Copied':'Copy'}</button>}
+      {val&&<button style={{padding:'3px 10px',fontSize:10,background:copied===id?'var(--green)':'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
     </div>
   );
 
-  const Section = ({title, children}) => (
+  const Section=({title,vals,sk,children})=>(
     <div style={{marginBottom:20}}>
-      <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'var(--muted)',marginBottom:8,fontFamily:"'Poppins',sans-serif",borderBottom:'1px solid var(--border)',paddingBottom:6}}>{title}</div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,borderBottom:'1px solid var(--border)',paddingBottom:6}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'var(--muted)',fontFamily:"'Poppins',sans-serif"}}>{title}</div>
+        {(vals||[]).filter(Boolean).length>0&&<button onClick={()=>copyAll(vals,sk)} style={{padding:'3px 10px',fontSize:10,background:copiedAll===sk?'var(--green)':'var(--card2)',color:copiedAll===sk?'#fff':'var(--muted)',border:'1px solid var(--border)',cursor:'pointer',fontWeight:700,borderRadius:6,transition:'.15s',flexShrink:0}}>{copiedAll===sk?'✓ Copied All':'Copy All'}</button>}
+      </div>
       {children}
     </div>
   );
 
-  const tabs = [
-    {id:'logo',label:'Logo & Misc'},
-    {id:'hero',label:'Hero'},
-    {id:'gallery',label:'Gallery'},
-    {id:'pages',label:'Pages'},
-    {id:'team',label:'Team'},
-    {id:'badges',label:'Badges'},
-    {id:'menu',label:'Menu'},
-    {id:'pdf',label:'PDF'},
+  const DynList=({field,placeholder})=>(
+    <div>
+      {form[field].map((val,i)=>(
+        <div key={i} style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+          <input className="inp" style={{fontSize:12,flex:1}} placeholder={`${placeholder} ${i+1}`} value={val} onChange={e=>setItem(field,i,e.target.value)}/>
+          <button onClick={()=>removeItem(field,i)} style={{background:'var(--btn-cancel-bg)',border:'1px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:6,padding:'5px 9px',fontSize:12,cursor:'pointer',flexShrink:0}} title="Remove">✕</button>
+        </div>
+      ))}
+      <button onClick={()=>addItem(field)} style={{background:'none',border:'2px dashed var(--border)',borderRadius:7,color:'var(--muted)',padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',transition:'.15s',fontFamily:"'Poppins',sans-serif"}} onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}} onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>+ Add {placeholder}</button>
+    </div>
+  );
+
+  const tabs=[
+    {id:'logo',label:'Logo & Misc'},{id:'hero',label:'Hero'},
+    {id:'gallery',label:'Gallery'},{id:'beforeafter',label:'Before/After'},
+    {id:'video',label:'Video Splash'},{id:'badges',label:'Badges'},
+    {id:'team',label:'Team'},{id:'menu',label:'Menu'},
+    {id:'content',label:'Content Image'},{id:'callout',label:'Callout Icon'},
+    {id:'pdf',label:'PDF'},{id:'slider',label:'Hero Slider'},
   ];
 
-  const nn = (i) => String(i+1).padStart(2,'0');
+  const N=40;
+  const logoVals=[applyFmt(format.logo),applyFmt(format.favicon),applyFmt(format.blogLogo),applyFmt(format.asst),applyFmt(format.introWhy),applyFmt(format.recentReviews),applyFmt(format.videoSplash),applyFmt(format.waveZip),applyFmt(format.waveAssist)];
+  const heroCustVals=Array.from({length:N},(_,i)=>applyFmt(format.heroCust,{nn:nn(i)}));
+  const heroBiVals=Array.from({length:N},(_,i)=>applyFmt(format.heroBi,{nn:nn(i)}));
+  const galNonVals=Array.from({length:N},(_,i)=>applyFmt(format.galleryNon,{nn:nn(i)}));
+  const galSpecVals=form.pages.filter(Boolean).flatMap(p=>Array.from({length:20},(_,i)=>applyFmt(format.gallerySpec,{page:san(p),nn:nn(i)})));
+  const baVals=Array.from({length:N},(_,i)=>[applyFmt(format.before,{nn:nn(i)}),applyFmt(format.after,{nn:nn(i)})]).flat();
+  const videoMultiVals=form.pages.filter(Boolean).flatMap(p=>Array.from({length:20},(_,i)=>applyFmt(format.videoSplashPage,{page:san(p),nn:nn(i)})));
+  const badgeVals=form.badges.filter(Boolean).map(b=>applyFmt(format.badge,{badge:san(b)}));
+  const teamVals=form.teamMembers.filter(Boolean).map(m=>applyFmt(format.team,{member:san(m)}));
+  const menuNumVals=Array.from({length:10},(_,i)=>applyFmt(format.menu,{nn:nn(i)}));
+  const menuNamedVals=form.menuNames.filter(Boolean).flatMap(m=>Array.from({length:10},(_,i)=>applyFmt(format.menuNamed,{menu:san(m),nn:nn(i)})));
+  const contentVals=form.pages.filter(Boolean).flatMap(p=>Array.from({length:20},(_,i)=>applyFmt(format.pageContent,{page:san(p),nn:nn(i)})));
+  const calloutVals=form.pages.filter(Boolean).flatMap(p=>Array.from({length:10},(_,i)=>applyFmt(format.callout,{page:san(p),nn:nn(i)})));
+  const pdfVals=form.pdfNames.filter(Boolean).map(p=>applyFmt(format.pdf,{pdf:san(p)}));
+  const sliderVals=Array.from({length:20},(_,i)=>applyFmt(format.heroSlider,{nn:nn(i)}));
 
   return (
     <div>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24,gap:16,flexWrap:'wrap'}}>
         <div>
-          <div className="page-title" style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:22}}>📁</span> File Name Generator
-          </div>
-          <div className="page-sub">Generate standardized image filenames for web projects.</div>
+          <div className="page-title" style={{display:'flex',alignItems:'center',gap:10}}><span style={{fontSize:22}}>📁</span> File Name Generator</div>
+          <div className="page-sub">Unlimited inputs · Copy All per section · Import from Excel</div>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          {/* Excel Upload */}
           <label style={{display:'inline-flex',alignItems:'center',gap:7,padding:'8px 14px',background:'linear-gradient(135deg,#10b981,#059669)',color:'#fff',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 10px rgba(16,185,129,.35)'}}>
-            <span>📊 Import Excel</span>
-            <input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handleXlsx(e.target.files[0]);e.target.value='';}}/>
+            📊 Import Excel<input type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={e=>{if(e.target.files[0])handleXlsx(e.target.files[0]);e.target.value='';}}/>
           </label>
-          <button onClick={()=>{setDraftFormat({...format});setEditingFormat(true);}} style={{padding:'8px 14px',background:'var(--btn-ghost-bg)',border:'1.5px solid var(--btn-ghost-border)',color:'var(--btn-ghost-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>✏️ Edit Format</button>
+          <button onClick={()=>{setDraftFmt({...format});setEditingFormat(true);}} style={{padding:'8px 14px',background:'var(--btn-ghost-bg)',border:'1.5px solid var(--btn-ghost-border)',color:'var(--btn-ghost-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>✏️ Edit Format</button>
           <button onClick={()=>setForm(EMPTY)} style={{padding:'8px 14px',background:'var(--btn-cancel-bg)',border:'1.5px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:8,fontSize:12,fontWeight:700,cursor:'pointer'}}>Clear All</button>
         </div>
       </div>
 
-      {/* Edit Format Modal */}
       {editingFormat&&(
         <div className="modal-bg">
-          <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',borderRadius:14,padding:28,width:'100%',maxWidth:560,maxHeight:'85vh',overflowY:'auto',boxShadow:'var(--glass-shadow)'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
-              <h3 style={{margin:0,fontSize:16}}>✏️ Edit Filename Format</h3>
-              <button onClick={()=>setEditingFormat(false)} style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer'}}>×</button>
+          <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',borderRadius:14,padding:28,width:'100%',maxWidth:600,maxHeight:'88vh',overflowY:'auto',boxShadow:'var(--glass-shadow)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+              <h3 style={{margin:0,fontSize:16}}>✏️ Edit Filename Format Templates</h3>
+              <button onClick={()=>setEditingFormat(false)} style={{background:'none',border:'none',color:'var(--muted)',fontSize:22,cursor:'pointer',lineHeight:1}}>×</button>
             </div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16,padding:'8px 12px',background:'var(--entry-bg)',borderRadius:8,border:'1px solid var(--border)'}}>
-              Use <code style={{color:'var(--accent)'}}>{'{nob}'}</code> for business name, <code style={{color:'var(--accent)'}}>{'{nn}'}</code> for number, <code style={{color:'var(--accent)'}}>{'{page}'}</code>, <code style={{color:'var(--accent)'}}>{'{member}'}</code>, <code style={{color:'var(--accent)'}}>{'{badge}'}</code>, <code style={{color:'var(--accent)'}}>{'{menu}'}</code>, <code style={{color:'var(--accent)'}}>{'{pdf}'}</code>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:16,padding:'8px 12px',background:'var(--entry-bg)',borderRadius:8,border:'1px solid var(--border)',lineHeight:2}}>
+              Tokens: <code style={{color:'var(--accent)'}}>{'{nob}'}</code> name · <code style={{color:'var(--accent)'}}>{'{nn}'}</code> number · <code style={{color:'var(--accent)'}}>{'{page}'}</code> page · <code style={{color:'var(--accent)'}}>{'{member}'}</code> team · <code style={{color:'var(--accent)'}}>{'{badge}'}</code> badge · <code style={{color:'var(--accent)'}}>{'{menu}'}</code> menu · <code style={{color:'var(--accent)'}}>{'{pdf}'}</code> pdf
             </div>
-            {Object.entries(draftFormat).map(([key,val])=>(
-              <div key={key} className="field" style={{marginBottom:10}}>
-                <label style={{textTransform:'uppercase',letterSpacing:'.6px',fontSize:10}}>{key.replace(/([A-Z])/g,' $1').trim()}</label>
-                <input className="inp" style={{fontFamily:'monospace',fontSize:12}} value={val}
-                  onChange={e=>setDraftFormat(f=>({...f,[key]:e.target.value}))}/>
-              </div>
-            ))}
-            <div style={{display:'flex',gap:10,marginTop:8}}>
-              <button onClick={()=>{setFormat(draftFormat);setEditingFormat(false);showToast('Format saved ✅','success');}} className="btn btn-save" style={{flex:1,justifyContent:'center'}}>Save Format</button>
-              <button onClick={()=>{setFormat(DEFAULT_FORMAT);setDraftFormat(DEFAULT_FORMAT);}} className="btn btn-ghost" style={{fontSize:12}}>Reset Default</button>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              {Object.entries(draftFmt).map(([key,val])=>(
+                <div key={key} className="field" style={{marginBottom:0}}>
+                  <label style={{textTransform:'uppercase',letterSpacing:'.5px',fontSize:9}}>{key.replace(/([A-Z])/g,' $1').trim()}</label>
+                  <input className="inp" style={{fontFamily:'monospace',fontSize:11}} value={val} onChange={e=>setDraftFmt(f=>({...f,[key]:e.target.value}))}/>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:10,marginTop:16}}>
+              <button onClick={()=>{setFormat(draftFmt);setEditingFormat(false);showToast('Format saved ✅','success');}} className="btn btn-save" style={{flex:1,justifyContent:'center'}}>Save Format</button>
+              <button onClick={()=>{setFormat(DEFAULT_FORMAT);setDraftFmt(DEFAULT_FORMAT);showToast('Reset to default','info');}} className="btn btn-ghost" style={{fontSize:12}}>Reset</button>
               <button onClick={()=>setEditingFormat(false)} className="btn btn-cancel" style={{fontSize:12}}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Inputs card */}
       <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',marginBottom:20,borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:14,display:'flex',alignItems:'center',gap:8}}>🏢 Business Information</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:14}}>
-          <div className="field" style={{marginBottom:0}}>
-            <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for filename)</span></label>
-            <input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
-            <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Remove LLC, Corp, Inc etc.</div>
-          </div>
-          <div className="field" style={{marginBottom:0}}>
-            <label>Business Name <span style={{fontSize:10,color:'var(--muted)'}}>(for alt text)</span></label>
-            <input className="inp" placeholder="e.g. Acme Plumbing LLC" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
-          </div>
-          <div className="field" style={{marginBottom:0}}>
-            <label>Account Number</label>
-            <input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/>
-          </div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>🏢 Business Information</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
+          <div className="field" style={{marginBottom:0}}><label>Business Name (filename)</label><input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/><div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Remove LLC, Corp, Inc etc.</div></div>
+          <div className="field" style={{marginBottom:0}}><label>Business Name (alt text)</label><input className="inp" placeholder="Full name as-is" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/></div>
+          <div className="field" style={{marginBottom:0}}><label>Account Number</label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setForm(f=>({...f,accountNum:e.target.value}))}/></div>
         </div>
-        <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Page Names</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:14}}>
-          {form.pages.map((p,i)=>(
-            <div key={i} className="field" style={{marginBottom:0}}>
-              <label style={{fontSize:10}}>Page {i+1}</label>
-              <input className="inp" style={{fontSize:12}} placeholder={`Page ${i+1}`} value={p} onChange={e=>{const arr=[...form.pages];arr[i]=e.target.value;setForm(f=>({...f,pages:arr}));}}/>
-            </div>
-          ))}
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
-          <div>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Badge Names</div>
-            {form.badges.slice(0,6).map((b,i)=>(
-              <div key={i} className="field" style={{marginBottom:6}}>
-                <input className="inp" style={{fontSize:12}} placeholder={`Badge ${i+1}`} value={b} onChange={e=>{const arr=[...form.badges];arr[i]=e.target.value;setForm(f=>({...f,badges:arr}));}}/>
-              </div>
-            ))}
-          </div>
-          <div>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Team Members</div>
-            {form.teamMembers.map((t,i)=>(
-              <div key={i} className="field" style={{marginBottom:6}}>
-                <input className="inp" style={{fontSize:12}} placeholder={`Staff ${i+1}`} value={t} onChange={e=>{const arr=[...form.teamMembers];arr[i]=e.target.value;setForm(f=>({...f,teamMembers:arr}));}}/>
-              </div>
-            ))}
-          </div>
-          <div>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Menu Names</div>
-            {form.menuNames.map((m,i)=>(
-              <div key={i} className="field" style={{marginBottom:6}}>
-                <input className="inp" style={{fontSize:12}} placeholder={`Menu ${i+1}`} value={m} onChange={e=>{const arr=[...form.menuNames];arr[i]=e.target.value;setForm(f=>({...f,menuNames:arr}));}}/>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{marginTop:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>PDF Names</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-            {form.pdfNames.map((p,i)=>(
-              <div key={i} className="field" style={{marginBottom:0}}>
-                <input className="inp" style={{fontSize:12}} placeholder={`PDF ${i+1}`} value={p} onChange={e=>{const arr=[...form.pdfNames];arr[i]=e.target.value;setForm(f=>({...f,pdfNames:arr}));}}/>
-              </div>
-            ))}
-          </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:16}}>
+          <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Page Names</div><DynList field="pages" placeholder="Page"/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Badge Names</div><DynList field="badges" placeholder="Badge"/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Team Members</div><DynList field="teamMembers" placeholder="Staff"/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>Menu Names</div><DynList field="menuNames" placeholder="Menu"/></div>
+          <div><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.8px'}}>PDF Names</div><DynList field="pdfNames" placeholder="PDF"/></div>
         </div>
       </div>
 
-      {/* Tab bar */}
       <div style={{display:'flex',gap:2,marginBottom:16,flexWrap:'wrap',borderBottom:'1px solid var(--border)',paddingBottom:0}}>
         {tabs.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 14px',fontSize:12,fontWeight:tab===t.id?700:500,border:'none',borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent',background:'none',color:tab===t.id?'var(--accent)':'var(--muted)',cursor:'pointer',fontFamily:"'Poppins',sans-serif",transition:'.15s',marginBottom:-1}}>
-            {t.label}
-          </button>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'8px 13px',fontSize:11,fontWeight:tab===t.id?700:500,border:'none',borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent',background:'none',color:tab===t.id?'var(--accent)':'var(--muted)',cursor:'pointer',fontFamily:"'Poppins',sans-serif",transition:'.15s',marginBottom:-1}}>{t.label}</button>
         ))}
       </div>
 
-      {/* Generated names */}
       <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
-        {tab==='logo'&&(
-          <>
-            <Section title="Logo"><CopyCell val={applyFmt(format.logo)} id="logo"/></Section>
-            <Section title="Favicon"><CopyCell val={applyFmt(format.favicon)} id="favicon"/></Section>
-            <Section title="Blog Logo"><CopyCell val={applyFmt(format.blogLogo)} id="blog-logo"/></Section>
-            <Section title="Intro / Why Choose"><CopyCell val={applyFmt(format.introWhy)} id="intro"/></Section>
-            <Section title="Recent Reviews"><CopyCell val={applyFmt(format.recentReviews)} id="reviews"/></Section>
-            <Section title="Video Splash"><CopyCell val={applyFmt(format.videoSplash)} id="video"/></Section>
-            <Section title="Wave Zip"><CopyCell val={applyFmt(format.waveZip)} id="wave"/></Section>
-          </>
-        )}
-        {tab==='hero'&&(
-          <Section title="Hero Images">
-            {Array.from({length:10},(_,i)=>(
-              <CopyCell key={i} val={applyFmt(format.hero,{nn:nn(i)})} id={`hero-${i}`}/>
+        {tab==='logo'&&(<>
+          <Section title="Logo" vals={[applyFmt(format.logo)]} sk="logo"><CopyCell val={applyFmt(format.logo)} id="logo"/></Section>
+          <Section title="Favicon" vals={[applyFmt(format.favicon)]} sk="favicon"><CopyCell val={applyFmt(format.favicon)} id="favicon"/></Section>
+          <Section title="Blog Logo" vals={[applyFmt(format.blogLogo)]} sk="blogLogo"><CopyCell val={applyFmt(format.blogLogo)} id="blogLogo"/></Section>
+          <Section title="Assistant Logo" vals={[applyFmt(format.asst)]} sk="asst"><CopyCell val={applyFmt(format.asst)} id="asst"/></Section>
+          <Section title="Intro / Why Choose" vals={[applyFmt(format.introWhy)]} sk="introWhy"><CopyCell val={applyFmt(format.introWhy)} id="introWhy"/></Section>
+          <Section title="Recent Reviews" vals={[applyFmt(format.recentReviews)]} sk="recentReviews"><CopyCell val={applyFmt(format.recentReviews)} id="recentReviews"/></Section>
+          <Section title="Video Splash" vals={[applyFmt(format.videoSplash)]} sk="videoSplash"><CopyCell val={applyFmt(format.videoSplash)} id="videoSplash"/></Section>
+          <Section title="Wave Zip" vals={[applyFmt(format.waveZip)]} sk="waveZip"><CopyCell val={applyFmt(format.waveZip)} id="waveZip"/></Section>
+          <Section title="Wave-Assistant Zip" vals={[applyFmt(format.waveAssist)]} sk="waveAssist"><CopyCell val={applyFmt(format.waveAssist)} id="waveAssist"/></Section>
+          <div style={{marginTop:12}}><button onClick={()=>copyAll(logoVals,'logo-all')} className="btn btn-ghost" style={{width:'100%',justifyContent:'center',fontSize:12}}>{copiedAll==='logo-all'?'✓ Copied All':'Copy All Logo & Misc'}</button></div>
+        </>)}
+        {tab==='hero'&&(<>
+          <Section title="Hero — AI Artwork / Customer Supplied" vals={heroCustVals} sk="hero-cust">{heroCustVals.map((v,i)=><CopyCell key={i} val={v} id={`hc-${i}`}/>)}</Section>
+          <Section title="Hero — Business Images" vals={heroBiVals} sk="hero-bi">{heroBiVals.map((v,i)=><CopyCell key={i} val={v} id={`hbi-${i}`}/>)}</Section>
+        </>)}
+        {tab==='gallery'&&(<>
+          <Section title="Gallery (Nondescript)" vals={galNonVals} sk="gal-non">{galNonVals.map((v,i)=><CopyCell key={i} val={v} id={`gn-${i}`}/>)}</Section>
+          <Section title="Gallery (Specific / Categorized by Page)" vals={galSpecVals} sk="gal-spec">
+            {nob&&form.pages.filter(Boolean).map((p,pi)=>(
+              <div key={pi} style={{marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                {Array.from({length:20},(_,i)=><CopyCell key={i} val={applyFmt(format.gallerySpec,{page:san(p),nn:nn(i)})} id={`gs-${pi}-${i}`}/>)}
+              </div>
+            ))}
+            {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name and page names above.</div>}
+          </Section>
+        </>)}
+        {tab==='beforeafter'&&(
+          <Section title="Before / After" vals={baVals} sk="ba">
+            {Array.from({length:N},(_,i)=>(
+              <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:4}}>
+                <CopyCell val={applyFmt(format.before,{nn:nn(i)})} id={`bef-${i}`}/>
+                <CopyCell val={applyFmt(format.after,{nn:nn(i)})} id={`aft-${i}`}/>
+              </div>
             ))}
           </Section>
         )}
-        {tab==='gallery'&&(
-          <>
-            <Section title="Gallery (Nondescript)">
-              {Array.from({length:10},(_,i)=>(
-                <CopyCell key={i} val={applyFmt(format.galleryNon,{nn:nn(i)})} id={`gal-${i}`}/>
-              ))}
-            </Section>
-            <Section title="Before / After">
-              {Array.from({length:5},(_,i)=>(
-                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:4}}>
-                  <CopyCell val={applyFmt(format.before,{nn:nn(i)})} id={`bef-${i}`}/>
-                  <CopyCell val={applyFmt(format.after,{nn:nn(i)})} id={`aft-${i}`}/>
-                </div>
-              ))}
-            </Section>
-          </>
-        )}
-        {tab==='pages'&&(
-          <Section title="Content Images (by Page)">
-            {form.pages.map((p,pi)=>p&&(
-              <div key={pi} style={{marginBottom:14}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:6}}>{p}</div>
-                {Array.from({length:10},(_,i)=>(
-                  <CopyCell key={i} val={applyFmt(format.pageContent,{page:san(p),nn:nn(i)})} id={`pg-${pi}-${i}`}/>
-                ))}
+        {tab==='video'&&(<>
+          <Section title="Video Splash (Single)" vals={[applyFmt(format.videoSplash)]} sk="vid-s"><CopyCell val={applyFmt(format.videoSplash)} id="vid-s"/></Section>
+          <Section title="Video Splash — Multiple Images (by Page)" vals={videoMultiVals} sk="vid-multi">
+            {nob&&form.pages.filter(Boolean).map((p,pi)=>(
+              <div key={pi} style={{marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                {Array.from({length:20},(_,i)=><CopyCell key={i} val={applyFmt(format.videoSplashPage,{page:san(p),nn:nn(i)})} id={`vm-${pi}-${i}`}/>)}
               </div>
             ))}
-            {form.pages.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above to generate filenames.</div>}
+            {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name + page names above.</div>}
+          </Section>
+        </>)}
+        {tab==='badges'&&(
+          <Section title="Badge Images" vals={badgeVals} sk="badges">
+            {form.badges.filter(Boolean).map((b,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{b}</div><CopyCell val={applyFmt(format.badge,{badge:san(b)})} id={`badge-${i}`}/></div>))}
+            {!form.badges.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter badge names above.</div>}
           </Section>
         )}
         {tab==='team'&&(
-          <Section title="Team Member Photos">
-            {form.teamMembers.map((t,i)=>t&&(
-              <div key={i} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{t}</div>
-                <CopyCell val={applyFmt(format.team,{member:san(t)})} id={`tm-${i}`}/>
-              </div>
-            ))}
-            {form.teamMembers.every(t=>!t)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter team member names above.</div>}
+          <Section title="Team Member Photos" vals={teamVals} sk="team">
+            {form.teamMembers.filter(Boolean).map((m,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{m}</div><CopyCell val={applyFmt(format.team,{member:san(m)})} id={`tm-${i}`}/></div>))}
+            {!form.teamMembers.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter team member names above.</div>}
           </Section>
         )}
-        {tab==='badges'&&(
-          <Section title="Badge Images">
-            {form.badges.map((b,i)=>b&&(
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{b}</div>
-                <CopyCell val={applyFmt(format.badge,{badge:san(b)})} id={`badge-${i}`}/>
+        {tab==='menu'&&(<>
+          <Section title="Menu (Single — numbered)" vals={menuNumVals} sk="menu-num">{menuNumVals.map((v,i)=><CopyCell key={i} val={v} id={`mn-${i}`}/>)}</Section>
+          <Section title="Menu (Multiple — by name)" vals={menuNamedVals} sk="menu-named">
+            {form.menuNames.filter(Boolean).map((m,mi)=>(
+              <div key={mi} style={{marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{m}</div>
+                {Array.from({length:10},(_,i)=><CopyCell key={i} val={applyFmt(format.menuNamed,{menu:san(m),nn:nn(i)})} id={`mnn-${mi}-${i}`}/>)}
               </div>
             ))}
-            {form.badges.every(b=>!b)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter badge names above.</div>}
+            {!form.menuNames.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter menu names above.</div>}
+          </Section>
+        </>)}
+        {tab==='content'&&(
+          <Section title="Body / Content Image (by Page)" vals={contentVals} sk="content">
+            {form.pages.filter(Boolean).map((p,pi)=>(
+              <div key={pi} style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                {Array.from({length:20},(_,i)=><CopyCell key={i} val={applyFmt(format.pageContent,{page:san(p),nn:nn(i)})} id={`ci-${pi}-${i}`}/>)}
+              </div>
+            ))}
+            {!form.pages.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above.</div>}
           </Section>
         )}
-        {tab==='menu'&&(
-          <Section title="Menu Images">
-            {form.menuNames.map((m,i)=>m&&(
-              <div key={i} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{m}</div>
-                {Array.from({length:3},(_,j)=>(
-                  <CopyCell key={j} val={applyFmt(format.menu,{menu:san(m),nn:nn(j)})} id={`menu-${i}-${j}`}/>
-                ))}
+        {tab==='callout'&&(
+          <Section title="Callout / Coupon Icon (by Page)" vals={calloutVals} sk="callout">
+            {form.pages.filter(Boolean).map((p,pi)=>(
+              <div key={pi} style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
+                {Array.from({length:10},(_,i)=><CopyCell key={i} val={applyFmt(format.callout,{page:san(p),nn:nn(i)})} id={`co-${pi}-${i}`}/>)}
               </div>
             ))}
-            {form.menuNames.every(m=>!m)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter menu names above.</div>}
+            {!form.pages.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above.</div>}
           </Section>
         )}
         {tab==='pdf'&&(
-          <Section title="PDF Files">
-            {form.pdfNames.map((p,i)=>p&&(
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{p}</div>
-                <CopyCell val={applyFmt(format.pdf,{pdf:san(p)})} id={`pdf-${i}`}/>
-              </div>
-            ))}
-            {form.pdfNames.every(p=>!p)&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter PDF names above.</div>}
+          <Section title="PDF Files" vals={pdfVals} sk="pdf">
+            {form.pdfNames.filter(Boolean).map((p,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{p}</div><CopyCell val={applyFmt(format.pdf,{pdf:san(p)})} id={`pdf-${i}`}/></div>))}
+            {!form.pdfNames.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter PDF names above.</div>}
           </Section>
+        )}
+        {tab==='slider'&&(
+          <Section title="Hero Slider" vals={sliderVals} sk="slider">{sliderVals.map((v,i)=><CopyCell key={i} val={v} id={`sl-${i}`}/>)}</Section>
         )}
       </div>
       <Toast msg={toast.msg} type={toast.type}/>
