@@ -1687,7 +1687,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2011,7 +2011,7 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
           ))}
         </div>
 
-        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="warn" size={40} color="var(--amber)"/></div><h3>Cancel Form?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>The form will be discarded. Your session timer will <strong>continue running</strong> — only the form is cancelled.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onBack&&onBack();}}>Yes, Cancel</button></div></div></div>)}
+        {modal==="cancel"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="warn" size={40} color="var(--amber)"/></div><h3>Cancel Form?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>The form will be discarded. Your session timer will <strong>continue running</strong> — only the form is cancelled.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Keep Editing</button><button className="btn btn-danger" onClick={()=>{setModal(null);onCancelForm?onCancelForm():onBack&&onBack();}}>Yes, Cancel</button></div></div></div>)}
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
@@ -2276,14 +2276,16 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak }) {
   const [mode,setMode]=useState(null);
+  const [useDraft,setUseDraft]=useState(false);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
   const [editCase,setEditCase]=useState(null);
   const [showLog,setShowLog]=useState(true);
   const [toast,showToast]=useToast();
 
-  const enterMode=(m)=>{
+  const enterMode=(m, withDraft=false)=>{
     setMode(m);
+    setUseDraft(withDraft);
     onFormActive&&onFormActive(true);
     onFormInFields&&onFormInFields(true);
     if(addSessionLog){
@@ -2291,9 +2293,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       addSessionLog(label,"Form opened","renameOngoing");
     }
   };
-  const exitMode=()=>{setMode(null);onFormActive&&onFormActive(false);onFormInFields&&onFormInFields(false);};
+  const exitMode=()=>{setMode(null);setUseDraft(false);onFormActive&&onFormActive(false);onFormInFields&&onFormInFields(false);};
 
-  const currentDraft=dbDrafts?.find(d=>d._mode===mode)||null;
+  // Only load draft when user explicitly clicked "Continue Draft" — never on new form button
+  const currentDraft=useDraft?(dbDrafts?.find(d=>d._mode===mode)||null):null;
 
   // ── hooks must be before any conditional return ──
   const recentAll = [...allSavedCases].slice(0,6);
@@ -2348,6 +2351,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={()=>{
+            exitMode();
+          }}
+          onCancelForm={()=>{
             const lastLog=sessionLog[sessionLog.length-1];
             if(lastLog&&lastLog.outcome){exitMode();return;}
             const nowMs=Date.now();
@@ -2526,7 +2532,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-              <button className="draft-resume" onClick={()=>enterMode(d._mode)}><Icon name="play" size={11} style={{marginRight:4}}/>Continue Draft</button>
+              <button className="draft-resume" onClick={()=>enterMode(d._mode, true)}><Icon name="play" size={11} style={{marginRight:4}}/>Continue Draft</button>
               <button className="entry-del" title="Delete" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button>
             </div>
           ))}
