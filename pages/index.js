@@ -2278,6 +2278,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [mode,setMode]=useState(null);
   const [useDraft,setUseDraft]=useState(false);
   const [backConfirm,setBackConfirm]=useState(false);
+  const [deleteDraftConfirm,setDeleteDraftConfirm]=useState(null); // {id,mode}
   const [openSavedId,setOpenSavedId]=useState(null);
   const [editCase,setEditCase]=useState(null);
   const [showLog,setShowLog]=useState(true);
@@ -2368,6 +2369,15 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           }}
           onStartBreak={onStartBreak}
           setSessionLog={setSessionLog}/>
+        {deleteDraftConfirm&&(<div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14,fontSize:36}}>🗑</div>
+          <h3>Delete Draft?</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>This draft will be permanently deleted and cannot be recovered.</p>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setDeleteDraftConfirm(null)}>Keep Draft</button>
+            <button className="btn btn-danger" onClick={()=>{onDeleteDraft&&onDeleteDraft(deleteDraftConfirm.id,deleteDraftConfirm.mode);setDeleteDraftConfirm(null);}}>Yes, Delete</button>
+          </div>
+        </div></div>)}
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
@@ -2533,7 +2543,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
               <button className="draft-resume" onClick={()=>enterMode(d._mode, true)}><Icon name="play" size={11} style={{marginRight:4}}/>Continue Draft</button>
-              <button className="entry-del" title="Delete" onClick={()=>onDeleteDraft&&onDeleteDraft(d._id,d._mode)} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button>
+              <button className="entry-del" title="Delete" onClick={()=>setDeleteDraftConfirm({id:d._id,mode:d._mode})} style={{marginLeft:4}}><Icon name="trash" size={13} color="var(--red)"/></button>
             </div>
           ))}
         </div>
@@ -3872,6 +3882,9 @@ function App() {
 
       return finalLog;
     });
+    // Stop any active break when timing out
+    setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_break");
     setTimedIn(false);
     setGlobalTimeIn(null);
     if(typeof window!=="undefined"){
@@ -4011,7 +4024,18 @@ function App() {
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
   const [dataLoading,setDataLoading]=useState(false);
-  const [breakTimer,setBreakTimer]=useState(null); // {label,endsAt,warnAt,warned,ended}
+  const [breakTimer,setBreakTimer]=useState(()=>{
+    if(typeof window==="undefined") return null;
+    try{
+      const v=localStorage.getItem("ch_break");
+      if(!v) return null;
+      const bt=JSON.parse(v);
+      const now=Date.now();
+      const secsLeft=Math.ceil((bt.endsAt-now)/1000);
+      if(secsLeft<=0) return null;
+      return {...bt,secsLeft,warned:now>=bt.warnAt,ended:false};
+    }catch{return null;}
+  }); // {label,mins,endsAt,warnAt,warned,ended,secsLeft}
   // timerLimit (mins) is the single source of truth — also aliased as alarmMins for legacy compat
   const alarmMins = timerLimit;
   const saveAlarmMins = saveTimerLimit;
@@ -4083,6 +4107,16 @@ function App() {
         }
         if(!bt.ended && secsLeft<=0){
           startAlarmLoop("end");
+          // Auto-close the break log entry and push fresh Ongoing
+          const nowMs=Date.now();
+          setSessionLog(prev=>{
+            const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:""}:e);
+            const freshOngoing={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+            const next=[...closed,freshOngoing];
+            if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+            return next;
+          });
+          if(typeof window!=="undefined") localStorage.removeItem("ch_break");
           return {...bt,ended:true,secsLeft:0};
         }
         return {...bt,secsLeft:Math.max(0,secsLeft)};
@@ -4097,7 +4131,9 @@ function App() {
     const now=Date.now();
     const endsAt=now+mins*60*1000;
     const warnAt=Math.max(now+1000, endsAt-5*60*1000);
-    setBreakTimer({label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60});
+    const bt={label,mins,endsAt,warnAt,warned:false,ended:false,secsLeft:mins*60};
+    setBreakTimer(bt);
+    if(typeof window!=="undefined") localStorage.setItem("ch_break",JSON.stringify(bt));
     // Rename the current open Ongoing → "Break" (keeps it open, no outcome yet)
     addSessionLog("Break",label,"renameOngoing");
   }
@@ -4115,6 +4151,7 @@ function App() {
     setGlobalTimeIn(now);
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
     setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+    if(typeof window!=="undefined") localStorage.removeItem("ch_break");
     setCancelBreakConfirm(false);
   }
 
@@ -4726,6 +4763,47 @@ function SessionLogPage({ user, refreshKey=0 }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FILE NAME GENERATOR PAGE
 // ─────────────────────────────────────────────────────────────────────────────
+// ── File Name Generator: shared context so CopyCell/Section/DynList are stable top-level components ──
+const FngCtx = React.createContext({});
+
+function CopyCell({val,id}){
+  const {copy,copied}=React.useContext(FngCtx);
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34,borderRadius:7}}>
+      <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
+      {val&&<button style={{padding:'3px 10px',fontSize:10,background:copied===id?'var(--green)':'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
+    </div>
+  );
+}
+
+function FngSection({title,vals,sk,children}){
+  const {copyAll,copiedAll}=React.useContext(FngCtx);
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,borderBottom:'1px solid var(--border)',paddingBottom:6}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'var(--muted)',fontFamily:"'Poppins',sans-serif"}}>{title}</div>
+        {(vals||[]).filter(Boolean).length>0&&<button onClick={()=>copyAll(vals,sk)} style={{padding:'3px 10px',fontSize:10,background:copiedAll===sk?'var(--green)':'var(--card2)',color:copiedAll===sk?'#fff':'var(--muted)',border:'1px solid var(--border)',cursor:'pointer',fontWeight:700,borderRadius:6,transition:'.15s',flexShrink:0}}>{copiedAll===sk?'✓ Copied All':'Copy All'}</button>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DynList({field,placeholder}){
+  const {form,setItem,removeItem,addItem}=React.useContext(FngCtx);
+  return (
+    <div>
+      {form[field].map((val,i)=>(
+        <div key={i} style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+          <input className="inp" style={{fontSize:12,flex:1}} placeholder={`${placeholder} ${i+1}`} value={val} onChange={e=>setItem(field,i,e.target.value)}/>
+          <button onClick={()=>removeItem(field,i)} style={{background:'var(--btn-cancel-bg)',border:'1px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:6,padding:'5px 9px',fontSize:12,cursor:'pointer',flexShrink:0}} title="Remove">✕</button>
+        </div>
+      ))}
+      <button onClick={()=>addItem(field)} style={{background:'none',border:'2px dashed var(--border)',borderRadius:7,color:'var(--muted)',padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',transition:'.15s',fontFamily:"'Poppins',sans-serif"}} onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}} onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>+ Add {placeholder}</button>
+    </div>
+  );
+}
+
 function FileNameGeneratorPage() {
   const san = (s) => (s||'').toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
   const nn  = (i) => String(i+1).padStart(2,'0');
@@ -4802,34 +4880,7 @@ function FileNameGeneratorPage() {
     }catch(e){console.error(e);showToast('Failed to read file','error');}
   };
 
-  const CopyCell=({val,id})=>(
-    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34,borderRadius:7}}>
-      <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
-      {val&&<button style={{padding:'3px 10px',fontSize:10,background:copied===id?'var(--green)':'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
-    </div>
-  );
-
-  const Section=({title,vals,sk,children})=>(
-    <div style={{marginBottom:20}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8,borderBottom:'1px solid var(--border)',paddingBottom:6}}>
-        <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'var(--muted)',fontFamily:"'Poppins',sans-serif"}}>{title}</div>
-        {(vals||[]).filter(Boolean).length>0&&<button onClick={()=>copyAll(vals,sk)} style={{padding:'3px 10px',fontSize:10,background:copiedAll===sk?'var(--green)':'var(--card2)',color:copiedAll===sk?'#fff':'var(--muted)',border:'1px solid var(--border)',cursor:'pointer',fontWeight:700,borderRadius:6,transition:'.15s',flexShrink:0}}>{copiedAll===sk?'✓ Copied All':'Copy All'}</button>}
-      </div>
-      {children}
-    </div>
-  );
-
-  const DynList=({field,placeholder})=>(
-    <div>
-      {form[field].map((val,i)=>(
-        <div key={i} style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
-          <input className="inp" style={{fontSize:12,flex:1}} placeholder={`${placeholder} ${i+1}`} value={val} onChange={e=>setItem(field,i,e.target.value)}/>
-          <button onClick={()=>removeItem(field,i)} style={{background:'var(--btn-cancel-bg)',border:'1px solid var(--btn-cancel-border)',color:'var(--btn-cancel-text)',borderRadius:6,padding:'5px 9px',fontSize:12,cursor:'pointer',flexShrink:0}} title="Remove">✕</button>
-        </div>
-      ))}
-      <button onClick={()=>addItem(field)} style={{background:'none',border:'2px dashed var(--border)',borderRadius:7,color:'var(--muted)',padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',transition:'.15s',fontFamily:"'Poppins',sans-serif"}} onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}} onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>+ Add {placeholder}</button>
-    </div>
-  );
+  // CopyCell, Section, DynList are defined outside this component to keep stable refs (prevents input focus loss on keystroke)
 
   const tabs=[
     {id:'logo',label:'Logo & Misc'},{id:'hero',label:'Hero'},
@@ -4858,6 +4909,7 @@ function FileNameGeneratorPage() {
   const sliderVals=Array.from({length:20},(_,i)=>applyFmt(format.heroSlider,{nn:nn(i)}));
 
   return (
+    <FngCtx.Provider value={{copy,copied,copyAll,copiedAll,form,setItem,removeItem,addItem}}>
     <div>
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24,gap:16,flexWrap:'wrap'}}>
         <div>
@@ -4924,24 +4976,24 @@ function FileNameGeneratorPage() {
 
       <div style={{background:'var(--glass-bg)',border:'1px solid var(--glass-border)',backdropFilter:'var(--glass-blur)',WebkitBackdropFilter:'var(--glass-blur)',padding:'20px 22px',borderRadius:12,boxShadow:'var(--glass-shadow)'}}>
         {tab==='logo'&&(<>
-          <Section title="Logo" vals={[applyFmt(format.logo)]} sk="logo"><CopyCell val={applyFmt(format.logo)} id="logo"/></Section>
-          <Section title="Favicon" vals={[applyFmt(format.favicon)]} sk="favicon"><CopyCell val={applyFmt(format.favicon)} id="favicon"/></Section>
-          <Section title="Blog Logo" vals={[applyFmt(format.blogLogo)]} sk="blogLogo"><CopyCell val={applyFmt(format.blogLogo)} id="blogLogo"/></Section>
-          <Section title="Assistant Logo" vals={[applyFmt(format.asst)]} sk="asst"><CopyCell val={applyFmt(format.asst)} id="asst"/></Section>
-          <Section title="Intro / Why Choose" vals={[applyFmt(format.introWhy)]} sk="introWhy"><CopyCell val={applyFmt(format.introWhy)} id="introWhy"/></Section>
-          <Section title="Recent Reviews" vals={[applyFmt(format.recentReviews)]} sk="recentReviews"><CopyCell val={applyFmt(format.recentReviews)} id="recentReviews"/></Section>
-          <Section title="Video Splash" vals={[applyFmt(format.videoSplash)]} sk="videoSplash"><CopyCell val={applyFmt(format.videoSplash)} id="videoSplash"/></Section>
-          <Section title="Wave Zip" vals={[applyFmt(format.waveZip)]} sk="waveZip"><CopyCell val={applyFmt(format.waveZip)} id="waveZip"/></Section>
-          <Section title="Wave-Assistant Zip" vals={[applyFmt(format.waveAssist)]} sk="waveAssist"><CopyCell val={applyFmt(format.waveAssist)} id="waveAssist"/></Section>
+          <FngSection title="Logo" vals={[applyFmt(format.logo)]} sk="logo"><CopyCell val={applyFmt(format.logo)} id="logo"/></FngSection>
+          <FngSection title="Favicon" vals={[applyFmt(format.favicon)]} sk="favicon"><CopyCell val={applyFmt(format.favicon)} id="favicon"/></FngSection>
+          <FngSection title="Blog Logo" vals={[applyFmt(format.blogLogo)]} sk="blogLogo"><CopyCell val={applyFmt(format.blogLogo)} id="blogLogo"/></FngSection>
+          <FngSection title="Assistant Logo" vals={[applyFmt(format.asst)]} sk="asst"><CopyCell val={applyFmt(format.asst)} id="asst"/></FngSection>
+          <FngSection title="Intro / Why Choose" vals={[applyFmt(format.introWhy)]} sk="introWhy"><CopyCell val={applyFmt(format.introWhy)} id="introWhy"/></FngSection>
+          <FngSection title="Recent Reviews" vals={[applyFmt(format.recentReviews)]} sk="recentReviews"><CopyCell val={applyFmt(format.recentReviews)} id="recentReviews"/></FngSection>
+          <FngSection title="Video Splash" vals={[applyFmt(format.videoSplash)]} sk="videoSplash"><CopyCell val={applyFmt(format.videoSplash)} id="videoSplash"/></FngSection>
+          <FngSection title="Wave Zip" vals={[applyFmt(format.waveZip)]} sk="waveZip"><CopyCell val={applyFmt(format.waveZip)} id="waveZip"/></FngSection>
+          <FngSection title="Wave-Assistant Zip" vals={[applyFmt(format.waveAssist)]} sk="waveAssist"><CopyCell val={applyFmt(format.waveAssist)} id="waveAssist"/></FngSection>
           <div style={{marginTop:12}}><button onClick={()=>copyAll(logoVals,'logo-all')} className="btn btn-ghost" style={{width:'100%',justifyContent:'center',fontSize:12}}>{copiedAll==='logo-all'?'✓ Copied All':'Copy All Logo & Misc'}</button></div>
         </>)}
         {tab==='hero'&&(<>
-          <Section title="Hero — AI Artwork / Customer Supplied" vals={heroCustVals} sk="hero-cust">{heroCustVals.map((v,i)=><CopyCell key={i} val={v} id={`hc-${i}`}/>)}</Section>
-          <Section title="Hero — Business Images" vals={heroBiVals} sk="hero-bi">{heroBiVals.map((v,i)=><CopyCell key={i} val={v} id={`hbi-${i}`}/>)}</Section>
+          <FngSection title="Hero — AI Artwork / Customer Supplied" vals={heroCustVals} sk="hero-cust">{heroCustVals.map((v,i)=><CopyCell key={i} val={v} id={`hc-${i}`}/>)}</FngSection>
+          <FngSection title="Hero — Business Images" vals={heroBiVals} sk="hero-bi">{heroBiVals.map((v,i)=><CopyCell key={i} val={v} id={`hbi-${i}`}/>)}</FngSection>
         </>)}
         {tab==='gallery'&&(<>
-          <Section title="Gallery (Nondescript)" vals={galNonVals} sk="gal-non">{galNonVals.map((v,i)=><CopyCell key={i} val={v} id={`gn-${i}`}/>)}</Section>
-          <Section title="Gallery (Specific / Categorized by Page)" vals={galSpecVals} sk="gal-spec">
+          <FngSection title="Gallery (Nondescript)" vals={galNonVals} sk="gal-non">{galNonVals.map((v,i)=><CopyCell key={i} val={v} id={`gn-${i}`}/>)}</FngSection>
+          <FngSection title="Gallery (Specific / Categorized by Page)" vals={galSpecVals} sk="gal-spec">
             {nob&&form.pages.filter(Boolean).map((p,pi)=>(
               <div key={pi} style={{marginBottom:12}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
@@ -4949,21 +5001,21 @@ function FileNameGeneratorPage() {
               </div>
             ))}
             {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name and page names above.</div>}
-          </Section>
+          </FngSection>
         </>)}
         {tab==='beforeafter'&&(
-          <Section title="Before / After" vals={baVals} sk="ba">
+          <FngSection title="Before / After" vals={baVals} sk="ba">
             {Array.from({length:N},(_,i)=>(
               <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:4}}>
                 <CopyCell val={applyFmt(format.before,{nn:nn(i)})} id={`bef-${i}`}/>
                 <CopyCell val={applyFmt(format.after,{nn:nn(i)})} id={`aft-${i}`}/>
               </div>
             ))}
-          </Section>
+          </FngSection>
         )}
         {tab==='video'&&(<>
-          <Section title="Video Splash (Single)" vals={[applyFmt(format.videoSplash)]} sk="vid-s"><CopyCell val={applyFmt(format.videoSplash)} id="vid-s"/></Section>
-          <Section title="Video Splash — Multiple Images (by Page)" vals={videoMultiVals} sk="vid-multi">
+          <FngSection title="Video Splash (Single)" vals={[applyFmt(format.videoSplash)]} sk="vid-s"><CopyCell val={applyFmt(format.videoSplash)} id="vid-s"/></FngSection>
+          <FngSection title="Video Splash — Multiple Images (by Page)" vals={videoMultiVals} sk="vid-multi">
             {nob&&form.pages.filter(Boolean).map((p,pi)=>(
               <div key={pi} style={{marginBottom:12}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
@@ -4971,23 +5023,23 @@ function FileNameGeneratorPage() {
               </div>
             ))}
             {!nob&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter business name + page names above.</div>}
-          </Section>
+          </FngSection>
         </>)}
         {tab==='badges'&&(
-          <Section title="Badge Images" vals={badgeVals} sk="badges">
+          <FngSection title="Badge Images" vals={badgeVals} sk="badges">
             {form.badges.filter(Boolean).map((b,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{b}</div><CopyCell val={applyFmt(format.badge,{badge:san(b)})} id={`badge-${i}`}/></div>))}
             {!form.badges.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter badge names above.</div>}
-          </Section>
+          </FngSection>
         )}
         {tab==='team'&&(
-          <Section title="Team Member Photos" vals={teamVals} sk="team">
+          <FngSection title="Team Member Photos" vals={teamVals} sk="team">
             {form.teamMembers.filter(Boolean).map((m,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{m}</div><CopyCell val={applyFmt(format.team,{member:san(m)})} id={`tm-${i}`}/></div>))}
             {!form.teamMembers.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter team member names above.</div>}
-          </Section>
+          </FngSection>
         )}
         {tab==='menu'&&(<>
-          <Section title="Menu (Single — numbered)" vals={menuNumVals} sk="menu-num">{menuNumVals.map((v,i)=><CopyCell key={i} val={v} id={`mn-${i}`}/>)}</Section>
-          <Section title="Menu (Multiple — by name)" vals={menuNamedVals} sk="menu-named">
+          <FngSection title="Menu (Single — numbered)" vals={menuNumVals} sk="menu-num">{menuNumVals.map((v,i)=><CopyCell key={i} val={v} id={`mn-${i}`}/>)}</FngSection>
+          <FngSection title="Menu (Multiple — by name)" vals={menuNamedVals} sk="menu-named">
             {form.menuNames.filter(Boolean).map((m,mi)=>(
               <div key={mi} style={{marginBottom:12}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{m}</div>
@@ -4995,10 +5047,10 @@ function FileNameGeneratorPage() {
               </div>
             ))}
             {!form.menuNames.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter menu names above.</div>}
-          </Section>
+          </FngSection>
         </>)}
         {tab==='content'&&(
-          <Section title="Body / Content Image (by Page)" vals={contentVals} sk="content">
+          <FngSection title="Body / Content Image (by Page)" vals={contentVals} sk="content">
             {form.pages.filter(Boolean).map((p,pi)=>(
               <div key={pi} style={{marginBottom:14}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
@@ -5006,10 +5058,10 @@ function FileNameGeneratorPage() {
               </div>
             ))}
             {!form.pages.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above.</div>}
-          </Section>
+          </FngSection>
         )}
         {tab==='callout'&&(
-          <Section title="Callout / Coupon Icon (by Page)" vals={calloutVals} sk="callout">
+          <FngSection title="Callout / Coupon Icon (by Page)" vals={calloutVals} sk="callout">
             {form.pages.filter(Boolean).map((p,pi)=>(
               <div key={pi} style={{marginBottom:14}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:4}}>{p}</div>
@@ -5017,20 +5069,21 @@ function FileNameGeneratorPage() {
               </div>
             ))}
             {!form.pages.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter page names above.</div>}
-          </Section>
+          </FngSection>
         )}
         {tab==='pdf'&&(
-          <Section title="PDF Files" vals={pdfVals} sk="pdf">
+          <FngSection title="PDF Files" vals={pdfVals} sk="pdf">
             {form.pdfNames.filter(Boolean).map((p,i)=>(<div key={i} style={{marginBottom:8}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>{p}</div><CopyCell val={applyFmt(format.pdf,{pdf:san(p)})} id={`pdf-${i}`}/></div>))}
             {!form.pdfNames.filter(Boolean).length&&<div style={{fontSize:13,color:'var(--muted)'}}>Enter PDF names above.</div>}
-          </Section>
+          </FngSection>
         )}
         {tab==='slider'&&(
-          <Section title="Hero Slider" vals={sliderVals} sk="slider">{sliderVals.map((v,i)=><CopyCell key={i} val={v} id={`sl-${i}`}/>)}</Section>
+          <FngSection title="Hero Slider" vals={sliderVals} sk="slider">{sliderVals.map((v,i)=><CopyCell key={i} val={v} id={`sl-${i}`}/>)}</FngSection>
         )}
       </div>
       <Toast msg={toast.msg} type={toast.type}/>
     </div>
+    </FngCtx.Provider>
   );
 }
 
