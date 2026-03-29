@@ -4,7 +4,14 @@ const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_P
 export default async function handler(req, res) {
   const { method } = req;
   if (method === 'GET') {
-    const { email, date } = req.query;
+    const { email, date, action, session_id } = req.query;
+    // get_log: restore session log for an active session
+    if (action === 'get_log' && session_id) {
+      const { data, error } = await sb.from('sessions').select('session_log').eq('id', session_id).single();
+      if (error || !data) return res.status(200).json({ log: [] });
+      try { return res.status(200).json({ log: JSON.parse(data.session_log||'[]') }); }
+      catch { return res.status(200).json({ log: [] }); }
+    }
     let q = sb.from('sessions').select('*, session_cases(*), session_breaks(*)').order('time_in', { ascending: false });
     if (email) q = q.eq('email', email);
     if (date) q = q.gte('time_in', date + 'T00:00:00').lte('time_in', date + 'T23:59:59');
@@ -34,7 +41,13 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json(data);
     }
-    if (action === 'log_break') {
+    if (action === 'save_log') {
+      const { log_data } = req.body;
+      if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+      const { error } = await sb.from('sessions').update({ session_log: JSON.stringify(log_data) }).eq('id', session_id);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ ok: true });
+    }
       const { data, error } = await sb.from('session_breaks').insert([{ session_id, email, break_type, started_at: new Date().toISOString() }]).select().single();
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json(data);

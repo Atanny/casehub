@@ -2000,9 +2000,11 @@ function PostLiveForm({ mode, onSave, onBack, onSaveDraftDirect, onAutoSaveDraft
             <button key={mins} className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}} title={`Save case then start ${label} break`}
               onClick={()=>{
                 if(!form.caseNum){showToast("Enter a case number first","error");return;}
-                setModal(null);
+                // Save the case first — this closes current entry + adds Ongoing
+                // Then startBreak immediately renames that Ongoing → Break
                 onSave&&onSave(formRef.current);
-                onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins);
+                // Small delay to let onSave's setSessionLog finish, then rename Ongoing→Break
+                setTimeout(()=>onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins),80);
               }}>
               {label}
             </button>
@@ -2272,7 +2274,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak }) {
   const [mode,setMode]=useState(null);
   const [backConfirm,setBackConfirm]=useState(false);
   const [openSavedId,setOpenSavedId]=useState(null);
@@ -2311,7 +2313,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           <div className="page-sub">{mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60}
-          globalTimeIn={globalTimeIn}
           onAutoSaveDraft={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
           }}
@@ -2320,28 +2321,47 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
             onSaveCase&&onSaveCase(rec);
             onTimerReset&&onTimerReset();
-            // "Draft completed" if resumed from draft, otherwise "Case Completed"
             const outcomeLabel=currentDraft?._id?"Draft Completed":"Case Completed";
-            closeWithOutcome&&closeWithOutcome(outcomeLabel,f.caseNum||"");
-            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
+            // Close current entry with outcome + immediately add fresh Ongoing in same state update
+            const nowMs=Date.now();
+            setSessionLog&&setSessionLog(prev=>{
+              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
+              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+              const next=[...closed,fresh];
+              if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+              return next;
+            });
             exitMode();
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:'saved'})}).catch(()=>{});
           }}
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
             onTimerReset&&onTimerReset();
-            closeWithOutcome&&closeWithOutcome("Saved as Draft",fd.caseNum||"");
-            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
+            const nowMs=Date.now();
+            setSessionLog&&setSessionLog(prev=>{
+              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:"Saved as Draft",caseNum:fd.caseNum||e.caseNum||""}:e);
+              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+              const next=[...closed,fresh];
+              if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+              return next;
+            });
             if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:fd.caseNum,case_type:mode,note:'draft'})}).catch(()=>{});
           }}
           onBack={()=>{
             const lastLog=sessionLog[sessionLog.length-1];
             if(lastLog&&lastLog.outcome){exitMode();return;}
-            closeWithOutcome&&closeWithOutcome("Cancelled","");
-            setTimeout(()=>addSessionLog&&addSessionLog("Ongoing",""),50);
+            const nowMs=Date.now();
+            setSessionLog&&setSessionLog(prev=>{
+              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:"Cancelled",caseNum:""}:e);
+              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+              const next=[...closed,fresh];
+              if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+              return next;
+            });
             exitMode();
           }}
-          onStartBreak={onStartBreak}/>
+          onStartBreak={onStartBreak}
+          setSessionLog={setSessionLog}/>
         {backConfirm&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="pin" size={40} color="var(--accent)"/></div><h3>Go Back?</h3><p>Your form and timer will keep running. You can resume at any time — your progress is safe.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setBackConfirm(false)}>Keep Editing</button><button className="btn btn-primary" onClick={()=>{setBackConfirm(false);exitMode();}}>Minimise</button></div></div></div>)}
       </div>
     );
@@ -3863,6 +3883,36 @@ function App() {
     }
     return [];
   });
+
+  // ── Persist session log to DB whenever it changes (debounced 2s) ──
+  const saveLogTimer=useRef(null);
+  useEffect(()=>{
+    if(!sessionDbId||!user?.email||!sessionLog.length) return;
+    if(saveLogTimer.current) clearTimeout(saveLogTimer.current);
+    saveLogTimer.current=setTimeout(()=>{
+      fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'save_log',session_id:sessionDbId,email:user.email,log_data:sessionLog})
+      }).catch(()=>{});
+    },2000);
+    return()=>{ if(saveLogTimer.current) clearTimeout(saveLogTimer.current); };
+  },[sessionLog,sessionDbId]);
+
+  // ── Restore session log from DB if active session exists on mount ──
+  useEffect(()=>{
+    const dbId=typeof window!=="undefined"?localStorage.getItem("ch_session_db_id"):null;
+    const localLog=typeof window!=="undefined"?localStorage.getItem("ch_session_log"):null;
+    if(!dbId) return;
+    // If local log is empty but DB session exists, try to restore from DB
+    const localParsed=localLog?JSON.parse(localLog):[];
+    if(localParsed.length>0) return; // Local has data, use it
+    fetch(`/api/sessions?action=get_log&session_id=${dbId}`)
+      .then(r=>r.json()).then(d=>{
+      if(d.log&&d.log.length>0){
+        setSessionLog(d.log);
+        localStorage.setItem("ch_session_log",JSON.stringify(d.log));
+      }
+    }).catch(()=>{});
+  },[]);
   // addSessionLog variants:
   //   addSessionLog("Site Comment","","renameOngoing")  — rename last open Ongoing to Site Comment, leave open
   //   addSessionLog("Break","15 min","renameOngoing")   — rename last open Ongoing to Break, leave open
@@ -4409,7 +4459,7 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
