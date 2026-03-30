@@ -3338,7 +3338,7 @@ function LinksPage({ links, setLinks, addLink, updateLink, removeLink }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, timeInAlarm=0, saveTimeInAlarm, specialRequestors=[], addRequestor, removeRequestor }) {
+function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shiftEndTime="", saveShiftEndTime, shiftWarnMins=10, saveShiftWarnMins, specialRequestors=[], addRequestor, removeRequestor }) {
   const [editing,setEditing]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -3369,7 +3369,8 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, time
   });
   const [pwForm,setPwForm]=useState({next:"",confirm:""});
   const [timerInput,setTimerInput]=useState(String(timerLimit||30));
-  const [timeInAlarmInput,setTimeInAlarmInput]=useState(String(timeInAlarm||0));
+  const [shiftEndInput,setShiftEndInput]=useState(shiftEndTime||"");
+  const [shiftWarnInput,setShiftWarnInput]=useState(String(shiftWarnMins||10));
 
   // ── Load latest profile from DB on mount ──
   useEffect(()=>{
@@ -3648,27 +3649,43 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, time
         <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Currently: <strong style={{color:"var(--accent)"}}>{timerLimit} min</strong></div>
       </div>
 
-      {/* ── Session Duration Alarm card ── */}
+      {/* ── Shift End Alarm card ── */}
       <div className="profile-card">
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Session Duration Alarm</h3>
-        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Alarm fires after this many minutes since clocking in. Set to 0 to disable.</p>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <input className="inp" type="number" min="0" max="480" style={{width:90,textAlign:"center",fontWeight:700,fontSize:15}}
-            value={timeInAlarmInput}
-            onChange={e=>setTimeInAlarmInput(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&(saveTimeInAlarm(timeInAlarmInput),showToast("Session alarm updated ✅"))}
-          />
-          <span style={{fontSize:13,color:"var(--muted)"}}>minutes</span>
-          <button className="btn btn-primary" style={{marginLeft:"auto",padding:"8px 18px",fontSize:12}}
-            onClick={()=>{saveTimeInAlarm(timeInAlarmInput);showToast("Session alarm updated ✅");}}>
-            Save
-          </button>
+        <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>⏰ Shift End Alarm</h3>
+        <p style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Set your shift end time and how many minutes before it you want to be alerted. Leave blank to disable.</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Shift End Time</label>
+            <input className="inp" type="time" value={shiftEndInput} onChange={e=>setShiftEndInput(e.target.value)}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>e.g. 05:00 for 5:00 AM</div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Warn me this many minutes before</label>
+            <input className="inp" type="number" min="1" max="60" value={shiftWarnInput} onChange={e=>setShiftWarnInput(e.target.value)}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Default: 10 minutes</div>
+          </div>
         </div>
-        <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>
-          {timeInAlarm>0
-            ? <>Currently: <strong style={{color:"var(--accent)"}}>{timeInAlarm} min</strong></>
-            : <span style={{color:"var(--muted)"}}>Currently disabled (0)</span>}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button className="btn btn-primary" style={{padding:"8px 18px",fontSize:12}} onClick={()=>{
+            saveShiftEndTime(shiftEndInput);
+            saveShiftWarnMins(shiftWarnInput);
+            showToast("Shift alarm updated ✅");
+          }}>Save</button>
+          {shiftEndTime&&<button className="btn btn-ghost" style={{fontSize:12}} onClick={()=>{
+            setShiftEndInput(""); saveShiftEndTime(""); showToast("Shift alarm disabled");
+          }}>Disable</button>}
         </div>
+        {shiftEndTime&&<div style={{fontSize:11,color:"var(--muted)",marginTop:10}}>
+          Active: alarm fires at <strong style={{color:"var(--accent)"}}>{(()=>{
+            const [hh,mm]=shiftEndTime.split(":").map(Number);
+            const warn=new Date();warn.setHours(hh,mm,0,0);
+            warn.setMinutes(warn.getMinutes()-shiftWarnMins);
+            return warn.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+          })()}</strong> ({shiftWarnMins} min before {(()=>{
+            const [hh,mm]=shiftEndTime.split(":").map(Number);
+            return new Date(0,0,0,hh,mm).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+          })()})
+        </div>}
       </div>
 
       {/* ── Danger zone ── */}
@@ -3920,10 +3937,13 @@ function App() {
   };
 
   // ── Warn before closing tab/window while session is active ──
+  const [showLeaveModal,setShowLeaveModal]=useState(false);
   useEffect(()=>{
     const handleBeforeUnload=(e)=>{
       if(!timedIn) return;
       e.preventDefault();
+      // Show our custom modal as a fallback visual
+      setShowLeaveModal(true);
       e.returnValue="You have an active session. Please Time Out before closing.";
       return e.returnValue;
     };
@@ -4057,16 +4077,25 @@ function App() {
     setTimerLimit(v);
     if(typeof window!=="undefined") localStorage.setItem("ch_timer_limit",v);
   };
-  // ── Time-In session duration alarm ──
-  const [timeInAlarm,setTimeInAlarm]=useState(()=>{
-    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_timein_alarm"));return isNaN(v)?0:v;}
-    return 0; // 0 = disabled
+  // ── Shift End Alarm: shiftEndTime = "HH:MM" (24h), shiftWarnMins = minutes before end to alarm ──
+  const [shiftEndTime,setShiftEndTime]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_shift_end")||"";
+    return "";
   });
-  const saveTimeInAlarm=(mins)=>{
-    const v=Math.max(0,Math.min(480,parseInt(mins)||0));
-    setTimeInAlarm(v);
-    if(typeof window!=="undefined") localStorage.setItem("ch_timein_alarm",v);
+  const saveShiftEndTime=(t)=>{
+    setShiftEndTime(t);
+    if(typeof window!=="undefined") localStorage.setItem("ch_shift_end",t);
   };
+  const [shiftWarnMins,setShiftWarnMins]=useState(()=>{
+    if(typeof window!=="undefined"){const v=parseInt(localStorage.getItem("ch_shift_warn"));return isNaN(v)?10:v;}
+    return 10;
+  });
+  const saveShiftWarnMins=(m)=>{
+    const v=Math.max(1,Math.min(60,parseInt(m)||10));
+    setShiftWarnMins(v);
+    if(typeof window!=="undefined") localStorage.setItem("ch_shift_warn",v);
+  };
+
   const [announcements,setAnnouncements]=useState([]); // always loaded from DB
   const [links,setLinks]=useState([]);
   const [dataLoading,setDataLoading]=useState(false);
@@ -4086,14 +4115,25 @@ function App() {
   const alarmMins = timerLimit;
   const saveAlarmMins = saveTimerLimit;
 
-  // ── Session duration alarm (fires when timedIn duration hits timeInAlarm) ──
+
+  // ── Shift-end alarm: fires shiftWarnMins before the configured shift end time ──
   useEffect(()=>{
-    if(!timedIn||!globalTimeIn||!timeInAlarm) return;
-    const remaining=globalTimeIn+(timeInAlarm*60*1000)-Date.now();
-    if(remaining<=0){ startAlarmLoop("case"); return; }
-    const t=setTimeout(()=>startAlarmLoop("case"),remaining);
-    return()=>clearTimeout(t);
-  },[timedIn,globalTimeIn,timeInAlarm]);
+    if(!shiftEndTime) return;
+    const schedule=()=>{
+      const now=new Date();
+      const [hh,mm]=shiftEndTime.split(":").map(Number);
+      const end=new Date(now);
+      end.setHours(hh,mm,0,0);
+      // If end time already passed today, schedule for tomorrow
+      if(end<=now) end.setDate(end.getDate()+1);
+      const alarmAt=new Date(end.getTime()-shiftWarnMins*60*1000);
+      const delay=alarmAt-now;
+      if(delay<=0){ startAlarmLoop("case"); return null; }
+      return setTimeout(()=>startAlarmLoop("case"),delay);
+    };
+    const t=schedule();
+    return()=>{ if(t) clearTimeout(t); };
+  },[shiftEndTime,shiftWarnMins]);
 
   useEffect(()=>{document.body.classList.toggle("light",lightMode);if(typeof window!=="undefined") localStorage.setItem("ch_theme",lightMode?"light":"dark");},[lightMode]);
 
@@ -4397,14 +4437,22 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_page",id);
   };
 
+  const [showLogoutConfirm,setShowLogoutConfirm]=useState(false);
   const logout=()=>{
+    // If session is active, time out first
+    if(timedIn) doTimeOut();
     localStorage.removeItem("ch_token");
     localStorage.removeItem("ch_refresh");
     localStorage.removeItem("ch_user");
     localStorage.removeItem("ch_form_active");
     localStorage.removeItem("ch_page");
+    localStorage.removeItem("ch_timed_in");
+    localStorage.removeItem("ch_timein");
+    localStorage.removeItem("ch_break");
+    localStorage.removeItem("ch_session_db_id");
     setUser(null);setAuthPage("login");setPage("dashboard");
     setAllCases([]);setDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
+    setShowLogoutConfirm(false);
   };
 
   // ── Show nothing while checking stored session (prevents login flash) ──
@@ -4530,6 +4578,10 @@ function App() {
             </div>
             <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
+          <button onClick={()=>setShowLogoutConfirm(true)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"7px 10px",borderRadius:7,cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".15s",marginTop:2}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span className="nav-label">Sign Out</span>
+          </button>
           <button className="theme-toggle" onClick={()=>setLightMode(l=>!l)}>
             <span style={{flexShrink:0}}>{lightMode?"🌙":"☀️"}</span>
             <span className="toggle-label" style={{flex:1,textAlign:"left"}}>{lightMode?"Dark Mode":"Light Mode"}</span>
@@ -4562,7 +4614,7 @@ function App() {
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
-          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} timeInAlarm={timeInAlarm} saveTimeInAlarm={saveTimeInAlarm} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
+          {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
@@ -4591,6 +4643,42 @@ function App() {
           </div>
         );
       })()}
+
+      {/* ── Logout confirmation modal ── */}
+      {showLogoutConfirm&&(
+        <div className="modal-bg" style={{zIndex:9999}}>
+          <div className="modal" style={{maxWidth:420,textAlign:"center"}}>
+            <div style={{fontSize:48,marginBottom:12}}>👋</div>
+            <h3 style={{fontSize:18,fontWeight:800,marginBottom:8}}>Sign Out?</h3>
+            {timedIn
+              ? <p style={{color:"var(--muted)",fontSize:13,lineHeight:1.7,marginBottom:20}}>You have an <strong style={{color:"var(--amber)"}}>active session</strong>.<br/>Signing out will automatically <strong>Time Out</strong> your session first, then log you out.</p>
+              : <p style={{color:"var(--muted)",fontSize:13,lineHeight:1.7,marginBottom:20}}>You'll be logged out and returned to the login screen.</p>
+            }
+            <div className="modal-btns">
+              <button className="btn btn-ghost" onClick={()=>setShowLogoutConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" style={{gap:8}} onClick={logout}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                {timedIn?"Time Out & Sign Out":"Sign Out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Leave Site modal (styled overlay before browser dialog) ── */}
+      {showLeaveModal&&timedIn&&(
+        <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(0,0,0,.85)",backdropFilter:"blur(12px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"var(--glass-bg)",border:"1px solid var(--glass-border)",borderRadius:20,padding:"40px 44px",maxWidth:440,width:"90%",textAlign:"center",boxShadow:"0 32px 80px rgba(0,0,0,.6)"}}>
+            <div style={{fontSize:56,marginBottom:16}}>⚠️</div>
+            <h2 style={{fontSize:22,fontWeight:800,marginBottom:8,color:"var(--text)"}}>Active Session</h2>
+            <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.7,marginBottom:8}}>You have an active session running.<br/>Please <strong style={{color:"var(--amber)"}}>Time Out</strong> before leaving.</p>
+            <p style={{color:"var(--muted)",fontSize:12,marginBottom:28,opacity:.7}}>If you close now, your session will not be properly closed in the database.</p>
+            <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+              <button onClick={()=>setShowLeaveModal(false)} style={{padding:"12px 24px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text)",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Poppins',sans-serif"}}>Stay & Time Out</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Break Modals (at root level so they overlay the full screen) ── */}
       {breakPending&&(<div className="modal-bg"><div className="modal">
