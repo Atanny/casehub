@@ -2081,44 +2081,59 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           </div>
         </StepCard>
 
-        <div className="action-bar">
-          {isEditMode ? (
-            <>
-              <div className="action-group action-group-left">
-                <button className="btn btn-danger" style={{borderRadius:8}} onClick={()=>onCancelForm&&onCancelForm()}>✕ Cancel Edit</button>
-              </div>
-              <div className="action-group action-group-center"/>
-              <div className="action-group action-group-right">
-                <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>💾 Save Case</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="action-group action-group-left">
-                <button className="btn btn-ghost" style={{borderRadius:8}} onClick={()=>onBack&&onBack()}>← Back</button>
-                <button className="btn btn-ghost" style={{borderRadius:8}} onClick={()=>setModal("clear")}>🧹 Clear</button>
-              </div>
+  
+      <div className="action-bar">
+  {isEditMode ? (
+    <>
+      <div className="action-group action-group-left">
+        {/* FIX: Use onBack instead of onCancelForm to skip session updates */}
+        <button 
+          className="btn btn-danger" 
+          style={{borderRadius:8}} 
+          onClick={() => onBack && onBack()} 
+        >
+          ✕ Cancel Edit
+        </button>
+      </div>
+      <div className="action-group action-group-center"/>
+      <div className="action-group action-group-right">
+        <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>💾 Save Case</button>
+      </div>
+    </>
+  ) : (
+    <>
+      <div className="action-group action-group-left">
+        {/* FIX: Using onBack here ensures new forms/inbound also cancel cleanly */}
+        <button 
+          className="btn btn-ghost" 
+          style={{borderRadius:8}} 
+          onClick={() => onBack && onBack()}
+        >
+          ← Back
+        </button>
+        <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
+      </div>
 
-              <div className="action-group action-group-center">
-                {onStartBreak&&[{label:"☕ 15m",mins:15},{label:"🧘 30m",mins:30},{label:"🍱 1h",mins:60}].map(({label,mins})=>(
-                  <button key={mins} className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}} title={`Save case then start ${label} break`}
-                    onClick={()=>{
-                      if(!form.caseNum){showToast("Enter a case number first","error");return;}
-                      onSave&&onSave(formRef.current);
-                      setTimeout(()=>onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins),80);
-                    }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
+      <div className="action-group action-group-center">
+        {onStartBreak && [{label:"☕ 15m",mins:15},{label:"🧘 30m",mins:30},{label:"🍱 1h",mins:60}].map(({label,mins})=>(
+          <button key={mins} className="btn btn-amber" style={{borderRadius:8,fontSize:12,padding:"8px 12px"}}
+            onClick={() => {
+              if(!form.caseNum){showToast("Enter a case number first","error");return;}
+              onSave && onSave(formRef.current);
+              setTimeout(() => onStartBreak(label.replace(/[☕🧘🍱]/g,"").trim()+" break",mins), 80);
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-              <div className="action-group action-group-right">
-                <button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>
-                <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
-              </div>
-            </>
-          )}
-        </div>
+      <div className="action-group action-group-right">
+        <button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>
+        <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
+      </div>
+    </>
+  )}
+</div>
 
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>✅ Save Case</button></div></div></div>)}
@@ -2414,28 +2429,62 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [showLog,setShowLog]=useState(true);
   const [editingCase,setEditingCase]=useState(null); // {savedCase, mode} — for editing from session log
   const [isMinimised,setIsMinimised]=useState(false); // true when a form is minimised (paused)
+  const [minimisedFormData,setMinimisedFormData]=useState(()=>{ // saves form inputs when minimised
+    if(typeof window==="undefined") return null;
+    try{ const v=localStorage.getItem("ch_minimised_form"); return v?JSON.parse(v):null; }catch{ return null; }
+  });
   const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
   const handledResumeTick=useRef(0);
 
-  const enterMode=(m, withDraft=false, draftId=null)=>{
-    if(breakActive){
-      showToast("Finish your break first before opening an amend form","error");
+  const enterMode = (m, withDraft = false, draftId = null) => {
+    if (breakActive) {
+      showToast("Finish your break first before opening an amend form", "error");
       return;
     }
     setMode(m);
     setUseDraft(withDraft);
-    setActiveDraftId(draftId||null);
+    setActiveDraftId(draftId || null);
     setIsMinimised(false);
-    if(typeof window!=="undefined"){
-      localStorage.setItem("ch_active_form_mode",m);
-      localStorage.setItem("ch_active_form_use_draft",withDraft?"1":"0");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ch_active_form_mode", m);
+      localStorage.setItem("ch_active_form_use_draft", withDraft ? "1" : "0");
     }
-    onFormActive&&onFormActive(true);
-    onFormInFields&&onFormInFields(true);
-    if(addSessionLog){
-      const label=m==="siteComment"?"Site Comment":"Inbound Email";
-      addSessionLog(label,"Form opened","renameOngoing");
+    onFormActive && onFormActive(true);
+    onFormInFields && onFormInFields(true);
+
+    const isResumingMinimised = minimisedFormData && minimisedFormData._mode === m && !withDraft;
+    
+    // FIX: Update session log for both new cases AND resumed suspended drafts
+    if (!isResumingMinimised) {
+      const label = m === "siteComment" ? "Site Comment" : "Inbound Email";
+      
+      if (withDraft && draftId) {
+        // We are resuming a draft. Get the case number so we can attach it to the log.
+        const draft = dbDrafts?.find(d => d._id === draftId);
+        const draftCaseNum = draft?.caseNum || "";
+
+        setSessionLog && setSessionLog(prev => {
+          let next = [...prev];
+          const hasOpen = next.some(e => !e.endedAt);
+          
+          if (hasOpen) {
+            // Rename the active "Ongoing" entry to the specific status and attach the Case Number
+            next = next.map((e, i) => i === next.length - 1 && !e.endedAt
+              ? { ...e, status: label, caseNum: draftCaseNum }
+              : e);
+          } else {
+            // If no open entry exists for some reason, create a fresh one
+            const nowMs = Date.now();
+            next = [...next, { id: nowMs, status: label, note: "Resumed draft", startedAt: nowMs, endedAt: null, outcome: "", caseNum: draftCaseNum, endNote: "" }];
+          }
+          if (typeof window !== "undefined") localStorage.setItem("ch_session_log", JSON.stringify(next));
+          return next;
+        });
+      } else if (addSessionLog) {
+        // Standard logic for completely new forms
+        addSessionLog(label, "Form opened", "renameOngoing");
+      }
     }
   };
   const exitMode=()=>{
@@ -2444,16 +2493,23 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     setActiveDraftId(null);
     setEditingCase(null);
     setIsMinimised(false);
+    setMinimisedFormData(null);
     if(typeof window!=="undefined"){
       localStorage.removeItem("ch_active_form_mode");
       localStorage.removeItem("ch_active_form_use_draft");
+      localStorage.removeItem("ch_minimised_form");
     }
     onFormActive&&onFormActive(false);
     onFormInFields&&onFormInFields(false);
   };
-  const pauseMode=()=>{
+  const pauseMode=(formData=null)=>{
     setMode(null);
     setIsMinimised(true);
+    if(formData){
+      const toSave={...formData, _mode: mode||formData._mode};
+      setMinimisedFormData(toSave);
+      if(typeof window!=="undefined") localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
+    }
     onFormActive&&onFormActive(true);
     onFormInFields&&onFormInFields(false);
   };
@@ -2511,13 +2567,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     onFormActive&&onFormActive(true);
     onFormInFields&&onFormInFields(true);
   };
-  const returnToChooser=()=>{
+  const returnToChooser=(formData=null)=>{
     setBackConfirm(false);
-    pauseMode();
+    pauseMode(formData);
   };
-  const minimiseMode=()=>{
+  const minimiseMode=(formData=null)=>{
     setBackConfirm(false);
-    pauseMode();
+    pauseMode(formData);
     onMinimise&&onMinimise();
   };
   const cancelMode=()=>{
@@ -2535,17 +2591,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       exitMode();
       return;
     }
-    // Normal cancel (non-edit form): close open entry + fresh Ongoing
-    const lastLog=sessionLog[sessionLog.length-1];
-    if(lastLog&&lastLog.outcome){exitMode();return;}
-    const nowMs=Date.now();
-    setSessionLog&&setSessionLog(prev=>{
-      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:"Cancelled",caseNum:""}:e);
-      const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"Pending",endNote:""};
-      const next=[...closed,fresh];
-      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
-      return next;
-    });
+    // For ALL cancels (new form, or resumed draft/suspended): do nothing to the session log.
+    // Just exit the mode — no new entries, no closing entries, no timer reset.
     exitMode();
   };
 
@@ -2564,7 +2611,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
   // Only load draft when user explicitly clicked "Continue Suspended" — never on new form button
   // When editing from session log, use the savedCase as the form's initial data
-  const currentDraft=editingCase?editingCase.savedCase:useDraft?(activeDraftId?dbDrafts?.find(d=>d._id===activeDraftId):dbDrafts?.find(d=>d._mode===mode)||null):null;
+  // When resuming minimised form, use the saved minimised form data
+  const isResumingMinimised = !editingCase && !useDraft && minimisedFormData && minimisedFormData._mode === mode;
+  const currentDraft=editingCase?editingCase.savedCase
+    :isResumingMinimised?minimisedFormData
+    :useDraft?(activeDraftId?dbDrafts?.find(d=>d._id===activeDraftId):dbDrafts?.find(d=>d._mode===mode)||null):null;
   const isEditingFromLog=!!editingCase;
 
   // ── hooks must be before any conditional return ──
@@ -2588,31 +2639,39 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog}
           onSave={f=>{
-            const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
-            if(isEditingFromLog){
-              // Editing an existing case — update it, don't create new
-              onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
-              setEditingCase(null);
-            } else {
-              if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
-              onSaveCase&&onSaveCase(rec);
-            }
-            onTimerReset&&onTimerReset();
-            const outcomeLabel=isEditingFromLog?"Case Updated":"Case Completed";
-            // Close current entry with outcome + immediately add fresh Ongoing in same state update
-            const nowMs=Date.now();
-            setSessionLog&&setSessionLog(prev=>{
-              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
-              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
-              const next=[...closed,fresh];
-              if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
-              return next;
-            });
-            exitMode();
-            if(sessionDbId) fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'log_case',session_id:sessionDbId,email:user?.email,case_num:f.caseNum,case_type:mode,note:isEditingFromLog?'edited':'saved'})}).catch(()=>{});
-          }}
+  const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
+  if(isEditingFromLog){
+    // Editing an existing case — update it, don't create new
+    onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
+    setEditingCase(null);
+  } else {
+    if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
+    onSaveCase&&onSaveCase(rec);
+  }
+  // Clear minimised form data since it's now saved
+  setMinimisedFormData(null);
+  if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
+  onTimerReset&&onTimerReset();
+  
+  // FIX 1: Set outcome to 'Suspended Completed' if it was resumed from a draft
+  const outcomeLabel = isEditingFromLog ? "Case Updated" : (useDraft ? "Suspended Completed" : "Case Completed");
+  
+  // Close current entry with outcome + immediately add fresh Ongoing in same state update
+  const nowMs=Date.now();
+  setSessionLog&&setSessionLog(prev=>{
+    const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
+    const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+    const next=[...closed,fresh];
+    if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+    return next;
+  });
+  exitMode();
+}}
           onSaveDraftDirect={async(fd)=>{
             await onSaveDraft(mode,{...fd,_mode:mode});
+            // Clear minimised form data since it's now properly suspended
+            setMinimisedFormData(null);
+            if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
             onTimerReset&&onTimerReset();
             const nowMs=Date.now();
             setSessionLog&&setSessionLog(prev=>{
@@ -2664,13 +2723,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                     Keep Editing
                   </button>
 
-                  <button
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                    onClick={minimiseMode}
-                  >
-                    Minimize
-                  </button>
+                 <button 
+                        className="btn btn-primary" 
+                        style={{ flex: 1 }}
+                        onClick={() => {
+                          // FIX: Check if formRef exists in this scope
+                          if (typeof formRef !== 'undefined' && formRef.current) {
+                              minimiseMode(formRef.current);
+                          } else {
+                              // Fallback: If formRef isn't in scope, just trigger minimize
+                              minimiseMode && minimiseMode();
+                          }
+                        }}
+                      >
+                        Minimize
+                      </button>
                 </div>
 
                 <button
@@ -2778,7 +2845,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       </div>}
       {isMinimised&&!breakActive&&<div style={{fontSize:12,color:"var(--amber)",marginTop:-16,marginBottom:24,fontFamily:"'Poppins',sans-serif",padding:"10px 14px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.35)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
         <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>🗕</span> A form is currently <strong style={{color:"var(--amber)"}}>minimised</strong> — resume or cancel it before starting a new one.</span>
-        <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:6,color:"var(--amber)",borderColor:"rgba(245,158,11,.4)"}} onClick={()=>{const m=typeof window!=="undefined"?localStorage.getItem("ch_active_form_mode"):null;if(m==="siteComment"||m==="inbound"){setMode(m);setIsMinimised(false);onFormInFields&&onFormInFields(true);}}}>↩ Resume</button>
+        <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:6,color:"var(--amber)",borderColor:"rgba(245,158,11,.4)"}} onClick={()=>{const m=typeof window!=="undefined"?localStorage.getItem("ch_active_form_mode"):null;if(m==="siteComment"||m==="inbound"){setMode(m);setIsMinimised(false);onFormInFields&&onFormInFields(true);}}}> Resume</button>
       </div>}
 
       {/* Session Time Log */}
@@ -2845,112 +2912,176 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           {showLog&&(
             <>
               {(()=>{
-                const caseNumCounts=sessionLog.reduce((acc,e)=>{
-                  const key=(e.caseNum||"").trim();
-                  if(key) acc[key]=(acc[key]||0)+1;
-                  return acc;
-                },{});
-                // Last index per case# — only that row gets an Edit button
-                const caseNumLastIdx={};
-                sessionLog.forEach((e,idx)=>{
-                  const key=(e.caseNum||"").trim();
-                  if(key&&(e.status==="Site Comment"||e.status==="Inbound Email")&&e.endedAt) caseNumLastIdx[key]=idx;
-                });
-                const hasDuplicateCases=Object.values(caseNumCounts).some(v=>v>1);
-                return <>
-                  {hasDuplicateCases&&<div style={{padding:"10px 16px",background:"rgba(245,158,11,.1)",borderBottom:"1px solid rgba(245,158,11,.2)",fontSize:11,fontWeight:700,color:"var(--amber)",fontFamily:"'Poppins',sans-serif"}}>⚠ Duplicate case numbers — only the latest entry per case can be edited.</div>}
-                  {/* Table header */}
-                  <div className="session-log-table-head">
-                    <span>Case Number</span><span> Status</span><span>Started</span><span>Ended</span><span>Duration</span><span>Outcome</span><span>Actions</span>
-                  </div>
-                  {sessionLog.map((entry,i)=>{
-                const start=new Date(entry.startedAt);
-                const end=entry.endedAt?new Date(entry.endedAt):null;
-                const durMs=end?(entry.endedAt-entry.startedAt):null;
-                const h=durMs!=null?Math.floor(durMs/3600000):0;
-                const m=durMs!=null?Math.floor((durMs%3600000)/60000):0;
-                const s=durMs!=null?Math.floor((durMs%60000)/1000):0;
-                const durStr=durMs!=null?(h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`):"–";
-                const fmtT=(d)=>d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-                const statusColors={
-                  "Time In":"#7c3aed","Time Out":"#6b7280",
-                  "Ongoing":"var(--amber)",
-                  "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
-                  "Break":"var(--green)",
-                };
-                const outcomeColors={
-                  "Case Completed":"var(--green)",
-                  "Draft Completed":"var(--green)",
-                  "Suspended":"var(--red)",
-                  "Continued Draft Saved":"var(--amber)",
-                  "Draft Saved":"var(--amber)",
-                  "Break Ended":"var(--amber)",
-                  "Open Hour Ended":"var(--accent)",
-                  "Cancelled":"var(--red)",
-                  "On going":"var(--blue)",
-                  "Suspended Completed":"var(--green)"
-                };
-                const col=statusColors[entry.status]||"var(--text)";
-                const isOngoing=!end;
-                const outcome=entry.outcome||"";
-                const caseNum=entry.caseNum||"";
-                const isDuplicate=!!caseNum&&caseNumCounts[caseNum]>1;
-                const outcomeColor=outcome?outcomeColors[outcome]||"var(--muted)":"var(--muted)";
-                const isLatestForCase=!!caseNum&&caseNumLastIdx[caseNum.trim()]===i;
-                 const editButtonDisabled = !!editCase && (editCase._mode === "siteComment" || editCase._mode === "inbound");
-             
-                return (
-                  <div key={entry.id} className="session-log-row" style={{background:isDuplicate?"none":i%2===0?"var(--none)":"transparent",borderLeft:isDuplicate?"3px solid var(--amber)":"3px solid transparent"}}>
-                    <span style={{color:isDuplicate?"var(--dark)":caseNum?"var(--text)":"var(--muted)",fontFamily:"monospace",fontSize:12,fontWeight:caseNum?700:400,display:"inline-flex",alignItems:"center",gap:6,background:isDuplicate?"rgba(245,158,11,.12)":"transparent",padding:isDuplicate?"0":"0"}}>
-                      {caseNum?`#${caseNum}`:"-"}
-                      {isDuplicate&&<span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}> - Duplicate Case</span>}
-                    </span>
-                    
-                    <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
-                      <span className={`session-log-status-dot${isOngoing?" ongoing-dot":""}`} style={{background:col,boxShadow:`0 0 6px ${col}55`,width:7,height:7,borderRadius:"50%",flexShrink:0}}/>
-                      {entry.status}
-                    </div>
-                    
-                    <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
-                    <span style={{color:end?"var(--text)":"var(--accent)",fontFamily:"monospace",fontSize:11}}>
-                      {end?fmtT(end):<span className="session-log-ongoing">-</span>}
-                    </span>
-                    <span style={{color:isOngoing?"var(--accent)":"var(--muted)",fontSize:11,fontFamily:"monospace",fontWeight:isOngoing?700:400}}>
-                      {isOngoing?"-":durStr}
-                    </span>
-                    <span style={{color:outcomeColor,fontSize:10,fontWeight:700,fontFamily:"'Poppins',sans-serif",letterSpacing:".2px"}}>
-                      {outcome||"-"}
-                    </span>
-                    <div>
-                      {(entry.status==="Site Comment"||entry.status==="Inbound Email")&&caseNum&&!isOngoing&&isLatestForCase?(
-                    <button
-                          className="session-log-edit-btn"
-                          disabled={breakActive || isMinimised || !isLatestForCase}
-                          onClick={() => {
-                            // If suspended, continue via dbDrafts matched by caseNum
-                            if (outcome === "Suspended" || outcome === "Suspended Completed") {
-                              const draft = dbDrafts?.find(d => d.caseNum === caseNum);
-                              if (draft) enterMode(draft._mode, true, draft._id);
-                              else alert(`Could not find saved draft for case #${caseNum}`);
-                            } else {
-                              // Normal edit for completed cases
-                              enterEditFromLog(entry);
-                            }
-                          }}
-                          style={{
-                            opacity: breakActive || isMinimised ? 0.45 : 1,
-                            cursor: breakActive || isMinimised ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {outcome === "Suspended" || outcome === "Suspended Completed"
-                            ? "Continue Suspended"
-                            : "Edit"}
-                        </button>
-                      ):<span style={{color:"var(--muted)",fontSize:10}}></span>}
-                    </div>
-                  </div>
-                );
-              })}
+  const caseNumCounts=sessionLog.reduce((acc,e)=>{
+    const key=(e.caseNum||"").trim();
+    if(key) acc[key]=(acc[key]||0)+1;
+    return acc;
+  },{});
+  
+  // FIX 2: Create a unique color map for each duplicated case number
+  const dupColors = [
+    { border: "#f59e0b", bg: "rgba(245,158,11,.15)" }, // amber
+    { border: "#10b981", bg: "rgba(16,185,129,.15)" }, // green
+    { border: "#3b82f6", bg: "rgba(59,130,246,.15)" }, // blue
+    { border: "#8b5cf6", bg: "rgba(139,92,246,.15)" }, // violet
+    { border: "#ec4899", bg: "rgba(236,72,153,.15)" }, // pink
+    { border: "#06b6d4", bg: "rgba(6,182,212,.15)" }   // cyan
+  ];
+  
+  let dupIndex = 0;
+  const dupColorMap = {};
+  Object.entries(caseNumCounts).forEach(([num, count]) => {
+    if (count > 1) {
+      dupColorMap[num] = dupColors[dupIndex % dupColors.length];
+      dupIndex++;
+    }
+  });
+  
+  // Find the latest entry per case by endedAt time
+  const caseNumLastIdx={};
+  sessionLog.forEach((e,idx)=>{
+    const key=(e.caseNum||"").trim();
+    if(!key) return;
+    if(!e.endedAt) return;
+    if(caseNumLastIdx[key]===undefined){
+      caseNumLastIdx[key]=idx;
+    }else{
+      const currentLatest=sessionLog[caseNumLastIdx[key]];
+      if(e.endedAt > currentLatest.endedAt){
+        caseNumLastIdx[key]=idx;
+      }
+    }
+  });
+  
+  const hasDuplicateCases=Object.values(caseNumCounts).some(v=>v>1);
+  return <>
+    {hasDuplicateCases&&<div style={{padding:"10px 16px",background:"rgba(245,158,11,.1)",borderBottom:"1px solid rgba(245,158,11,.2)",fontSize:11,fontWeight:700,color:"var(--amber)",fontFamily:"'Poppins',sans-serif"}}>⚠ Duplicate case numbers — only the latest entry per case can be edited.</div>}
+    
+    <div className="session-log-table-head">
+      <span>Case Number</span><span> Status</span><span>Started</span><span>Ended</span><span>Duration</span><span>Outcome</span><span>Actions</span>
+    </div>
+    
+    {sessionLog.map((entry,i)=>{
+      const start=new Date(entry.startedAt);
+      const end=entry.endedAt?new Date(entry.endedAt):null;
+      const durMs=end?(entry.endedAt-entry.startedAt):null;
+      const h=durMs!=null?Math.floor(durMs/3600000):0;
+      const m=durMs!=null?Math.floor((durMs%3600000)/60000):0;
+      const s=durMs!=null?Math.floor((durMs%60000)/1000):0;
+      const durStr=durMs!=null?(h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`):"–";
+      const fmtT=(d)=>d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      
+      const statusColors={
+        "Time In":"#7c3aed","Time Out":"#6b7280",
+        "Ongoing":"var(--amber)",
+        "Site Comment":"#0176D3","Inbound Email":"#7c3aed",
+        "Break":"var(--green)",
+      };
+      
+      const outcomeColors={
+        "Case Completed":"var(--green)",
+        "Draft Completed":"var(--green)",
+        "Suspended":"var(--red)",
+        "Continued Draft Saved":"var(--amber)",
+        "Draft Saved":"var(--amber)",
+        "Break Ended":"var(--amber)",
+        "Open Hour Ended":"var(--accent)",
+        "Cancelled":"var(--red)",
+        "On going":"var(--blue)",
+        "Suspended Completed":"var(--green)"
+      };
+      
+      const col=statusColors[entry.status]||"var(--text)";
+      const isOngoing=!end;
+      const outcome=entry.outcome||"";
+      const caseNum=entry.caseNum||"";
+      
+      // Determine if duplicate and get unique color
+      const isDuplicate=!!caseNum&&caseNumCounts[caseNum]>1;
+      const activeDupColor = isDuplicate ? dupColorMap[caseNum] : null;
+
+      const outcomeColor=outcome?outcomeColors[outcome]||"var(--muted)":"var(--muted)";
+      const isLatestForCase=!!caseNum&&caseNumLastIdx[caseNum.trim()]===i;
+      const editButtonDisabled = !!editCase && (editCase._mode === "siteComment" || editCase._mode === "inbound");
+      
+      const hasSuspendedDraft = !!dbDrafts?.find(d => d.caseNum === caseNum);
+      const isSuspended = outcome === "Suspended" || outcome === "Suspended Completed";
+      
+      const isCaseEntry = entry.status==="Site Comment" || 
+                          entry.status==="Inbound Email" || 
+                          (entry.status==="Ongoing" && caseNum && outcome);
+      
+      const showButton = isCaseEntry && 
+                         caseNum && 
+                         !isOngoing && 
+                         (!isDuplicate || isLatestForCase);
+      
+      const isContinueSuspended = isSuspended && hasSuspendedDraft;
+      const buttonText = isContinueSuspended ? "Continue Suspended" : "Edit";
+   
+      return (
+        <div key={entry.id} className="session-log-row" style={{
+          background: i%2===0?"var(--none)":"transparent",
+          borderLeft: isDuplicate ? `3px solid ${activeDupColor.border}` : "3px solid transparent"
+        }}>
+          
+          {/* Duplicate Case Number UI styling */}
+          <span style={{
+            color: isDuplicate ? activeDupColor.border : (caseNum ? "var(--text)" : "var(--muted)"),
+            fontFamily: "monospace",
+            fontSize: 12,
+            fontWeight: caseNum ? 700 : 400,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: isDuplicate ? activeDupColor.bg : "transparent",
+            padding: isDuplicate ? "2px 8px" : "0",
+            borderRadius: isDuplicate ? "4px" : "0"
+          }}>
+            {caseNum ? `#${caseNum}` : "-"}
+            {isDuplicate && <span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}></span>}
+          </span>
+          
+          <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
+            <span className={`session-log-status-dot${isOngoing?" ongoing-dot":""}`} style={{background:col,boxShadow:`0 0 6px ${col}55`,width:7,height:7,borderRadius:"50%",flexShrink:0}}/>
+            {entry.status}
+          </div>
+          
+          <span style={{color:"var(--text)",fontFamily:"monospace",fontSize:11}}>{fmtT(start)}</span>
+          <span style={{color:end?"var(--text)":"var(--accent)",fontFamily:"monospace",fontSize:11}}>
+            {end?fmtT(end):<span className="session-log-ongoing">-</span>}
+          </span>
+          <span style={{color:isOngoing?"var(--accent)":"var(--muted)",fontSize:11,fontFamily:"monospace",fontWeight:isOngoing?700:400}}>
+            {isOngoing?"-":durStr}
+          </span>
+          <span style={{color:outcomeColor,fontSize:10,fontWeight:700,fontFamily:"'Poppins',sans-serif",letterSpacing:".2px"}}>
+            {outcome||"-"}
+          </span>
+          <div>
+            {showButton?(
+              <button
+                className="session-log-edit-btn"
+                disabled={breakActive || isMinimised || editButtonDisabled}
+                onClick={() => {
+                  const draft = dbDrafts?.find(d => d.caseNum === caseNum);
+                  if (draft && isSuspended) {
+                    enterMode(draft._mode, true, draft._id);
+                  } else {
+                    enterEditFromLog(entry);
+                  }
+                }}
+                style={{
+                  opacity: (breakActive || isMinimised || editButtonDisabled) ? 0.45 : 1,
+                  cursor: (breakActive || isMinimised || editButtonDisabled) ? "not-allowed" : "pointer",
+                }}
+              >
+                {buttonText}
+              </button>
+            ):<span style={{color:"var(--muted)",fontSize:10}}></span>}
+          </div>
+        </div>
+      );
+    })}
                   {(()=>{
                     const totalMs=sessionLog.reduce((acc,e)=>{
                       if(!e.endedAt) return acc;
@@ -5269,6 +5400,8 @@ function App() {
 // SESSION LOG PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 function SessionLogPage({ user, refreshKey=0 }) {
+  const isSuspended = entry.outcome === "Suspended" || entry.status === "Suspended";
+const displayStatus = isSuspended ? "Suspended Completed" : (entry.outcome || "Case Completed");
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().slice(0,10));
