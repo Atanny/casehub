@@ -1827,44 +1827,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [modal,setModal] = useState(null);
   const [toast,showToast] = useToast();
   const [copiedAll,setCopiedAll] = useState(false);
-  const [autoSaved,setAutoSaved] = useState(null);
   const [draftSaving,setDraftSaving] = useState(false);
   // ── Drag: track by entry ID not index ──
   const dragFromId  = useRef(null);
   const dragToId    = useRef(null);
   const [dragActiveId, setDragActiveId] = useState(null);
 
-  // ── Auto-save every 30s — uses silent save, NO session log entries ──
-  useEffect(()=>{
-    const saveFn = onAutoSaveDraft || onSaveDraftDirect;
-    if(!saveFn)return;
-    const interval=setInterval(()=>{
-      const f=formRef.current;
-      if(!f.caseNum&&!f.accountNum&&!f.entries?.some(e=>e.note||e.clarification||e.number))return;
-      const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
-      const clean=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-      const cleanForm={...f,images:clean(f.images),backupImages:clean(f.backupImages),_elapsedAtSave:elapsed};
-      saveFn(cleanForm).then(()=>setAutoSaved(new Date().toLocaleTimeString())).catch(()=>{});
-    },30000);
-    return()=>clearInterval(interval);
-  },[onAutoSaveDraft,onSaveDraftDirect]);
-
-  // ── Save draft on page refresh/close ──
-  useEffect(()=>{
-    const handleUnload=()=>{
-      const f=formRef.current;
-      // Only save if there's something worth saving
-      if(!f.caseNum&&!f.accountNum&&!f.entries?.some(e=>e.note||e.clarification||e.number))return;
-      const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);
-      const clean=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-      const cleanForm={...f,images:clean(f.images),backupImages:clean(f.backupImages),_elapsedAtSave:elapsed,_mode:mode};
-      // sendBeacon is the only reliable way to fire a request on page unload
-      const payload=JSON.stringify({userEmail:user?.email,mode,draftData:cleanForm});
-      navigator.sendBeacon("/api/drafts",new Blob([payload],{type:"application/json"}));
-    };
-    window.addEventListener("beforeunload",handleUnload);
-    return()=>window.removeEventListener("beforeunload",handleUnload);
-  },[mode,user]);
+  // Auto-save removed — only user can decide to suspend/draft via the Suspend Case button.
 
   const setF=(patch)=>setForm(f=>({...f,...patch}));
 
@@ -1954,11 +1923,12 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
-          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:e.target.value})}/></div>
-          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})}/></div>
-          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})}/></div>)}
-          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})}/></div>
-          <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
+          {(isDraft||isEditMode)&&<div style={{fontSize:12,color:"var(--muted)",marginBottom:10,padding:"8px 12px",background:"rgba(1,118,211,.07)",border:"1px solid rgba(1,118,211,.2)",borderRadius:8,fontFamily:"'Poppins',sans-serif"}}>🔒 Case information is locked and cannot be changed.</div>}
+          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
+          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
+          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>)}
+          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
+          <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})} disabled={isDraft||isEditMode}/>In-Progress Salesforce</label>
         </StepCard>
 
          
@@ -2143,7 +2113,6 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
               </div>
 
               <div className="action-group action-group-right">
-                  {autoSaved&&<span style={{fontSize:11,color:"var(--muted)",alignSelf:"center"}}>✓ {autoSaved}</span>}
                 <button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>
                 <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
               </div>
@@ -2445,16 +2414,18 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [showLog,setShowLog]=useState(true);
   const [editingCase,setEditingCase]=useState(null); // {savedCase, mode} — for editing from session log
   const [isMinimised,setIsMinimised]=useState(false); // true when a form is minimised (paused)
+  const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
   const handledResumeTick=useRef(0);
 
-  const enterMode=(m, withDraft=false)=>{
+  const enterMode=(m, withDraft=false, draftId=null)=>{
     if(breakActive){
       showToast("Finish your break first before opening an amend form","error");
       return;
     }
     setMode(m);
     setUseDraft(withDraft);
+    setActiveDraftId(draftId||null);
     setIsMinimised(false);
     if(typeof window!=="undefined"){
       localStorage.setItem("ch_active_form_mode",m);
@@ -2470,6 +2441,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const exitMode=()=>{
     setMode(null);
     setUseDraft(false);
+    setActiveDraftId(null);
     setEditingCase(null);
     setIsMinimised(false);
     if(typeof window!=="undefined"){
@@ -2590,9 +2562,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     }
   },[resumeTick]);
 
-  // Only load draft when user explicitly clicked "Continue Draft" — never on new form button
+  // Only load draft when user explicitly clicked "Continue Suspended" — never on new form button
   // When editing from session log, use the savedCase as the form's initial data
-  const currentDraft=editingCase?editingCase.savedCase:useDraft?(dbDrafts?.find(d=>d._mode===mode)||null):null;
+  const currentDraft=editingCase?editingCase.savedCase:useDraft?(activeDraftId?dbDrafts?.find(d=>d._id===activeDraftId):dbDrafts?.find(d=>d._mode===mode)||null):null;
   const isEditingFromLog=!!editingCase;
 
   // ── hooks must be before any conditional return ──
@@ -2611,13 +2583,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       <div>
         <div className="page-header">
           <button className="back-btn" onClick={()=>setBackConfirm(true)}>← Back</button>
-          <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
-          <div className="page-sub">{isEditingFromLog?"Editing saved case — save to update the record.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+          <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
+          <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
         <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog}
-          onAutoSaveDraft={async(fd)=>{
-            await onSaveDraft(mode,{...fd,_mode:mode});
-          }}
           onSave={f=>{
             const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
             if(isEditingFromLog){
@@ -2629,7 +2598,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               onSaveCase&&onSaveCase(rec);
             }
             onTimerReset&&onTimerReset();
-            const outcomeLabel=isEditingFromLog?"Case Updated":currentDraft?._id?"Suspended Completed":"Case Completed";
+            const outcomeLabel=isEditingFromLog?"Case Updated":"Case Completed";
             // Close current entry with outcome + immediately add fresh Ongoing in same state update
             const nowMs=Date.now();
             setSessionLog&&setSessionLog(prev=>{
@@ -2817,7 +2786,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
       {dbDrafts&&dbDrafts.length>0&&(
         <div style={{marginBottom:22}}>
-          <div className="section-title">Suspended Cases <span style={{fontSize:11,color:"var(--muted)",fontWeight:400}}>(auto-saved)</span></div>
+          <div className="section-title">Suspended Cases</div>
           {dbDrafts.map((d,i)=>(
             <div key={d._id||i} className="draft-row">
               <div className="draft-dot"/>
@@ -2826,7 +2795,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-              <button className="draft-resume" disabled={breakActive||isMinimised} onClick={()=>enterMode(d._mode, true)} style={{opacity:(breakActive||isMinimised)?.45:1,cursor:(breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue Suspended</button>
+              <button className="draft-resume" disabled={breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(breakActive||isMinimised)?.45:1,cursor:(breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue Suspended</button>
               <button
                 className="entry-del"
                 title="Delete"
@@ -2958,13 +2927,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                           className="session-log-edit-btn"
                           disabled={breakActive || isMinimised || !isLatestForCase}
                           onClick={() => {
-                            // If draft, continue via dbDrafts
+                            // If suspended, continue via dbDrafts matched by caseNum
                             if (outcome === "Suspended" || outcome === "Suspended Completed") {
-                              const draft = dbDrafts?.find(d => d.caseNum === caseNum || d._id === entry.id);
-                              if (draft) enterMode(draft._mode, true);
+                              const draft = dbDrafts?.find(d => d.caseNum === caseNum);
+                              if (draft) enterMode(draft._mode, true, draft._id);
                               else alert(`Could not find saved draft for case #${caseNum}`);
                             } else {
-                              // Normal edit for non-draft
+                              // Normal edit for completed cases
                               enterEditFromLog(entry);
                             }
                           }}
