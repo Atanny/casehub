@@ -11,9 +11,39 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { userEmail, mode, draftData } = req.body
       if (!userEmail || !mode) return res.status(400).json({ error: 'userEmail and mode required' })
-      const { data, error } = await supabase.from('drafts')
-        .upsert([{ user_email: userEmail, mode, draft_data: draftData, saved_at: new Date().toISOString() }], { onConflict: 'user_email,mode' })
-        .select().single()
+      const savedAt = new Date().toISOString()
+      const caseNum = String(draftData?.caseNum || '').trim()
+      let existingId = null
+
+      if (caseNum) {
+        const { data: existingDrafts, error: lookupError } = await supabase
+          .from('drafts')
+          .select('id, mode, draft_data')
+          .eq('user_email', userEmail)
+        if (lookupError) throw lookupError
+        const sameCase = (existingDrafts || []).find(r => String(r?.draft_data?.caseNum || '').trim() === caseNum)
+        if (sameCase?.id) existingId = sameCase.id
+      }
+
+      if (!existingId) {
+        const { data: sameModeDraft, error: modeLookupError } = await supabase
+          .from('drafts')
+          .select('id')
+          .eq('user_email', userEmail)
+          .eq('mode', mode)
+          .maybeSingle()
+        if (modeLookupError) throw modeLookupError
+        if (sameModeDraft?.id) existingId = sameModeDraft.id
+      }
+
+      const query = existingId
+        ? supabase.from('drafts')
+            .update({ user_email: userEmail, mode, draft_data: draftData, saved_at: savedAt })
+            .eq('id', existingId)
+        : supabase.from('drafts')
+            .insert([{ user_email: userEmail, mode, draft_data: draftData, saved_at: savedAt }])
+
+      const { data, error } = await query.select().single()
       if (error) throw error
       return res.status(200).json({ ...data.draft_data, _id: data.id, _mode: data.mode, draftAt: new Date(data.saved_at).toLocaleString() })
     }
