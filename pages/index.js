@@ -1574,18 +1574,41 @@ function EntryCard({ entry, label, index, onChange, onDelete, showNumber, onDrag
 function CopyRow({ label, value }) {
   const [c,setC]=useState(false);
   const empty = !value || !value.trim();
+  const handleClick = () => {
+    if(empty) return;
+    copyToClipboard(value).then(()=>{setC(true);setTimeout(()=>setC(false),1800);});
+  };
   return (
-    <div className="copy-row-wrap">
-      <div className="copy-row-label">{label}</div>
+    <div
+      className="copy-row-wrap"
+      onClick={handleClick}
+      title={empty ? undefined : "Click to copy"}
+      style={{cursor: empty ? "default" : "pointer", userSelect:"none", position:"relative"}}
+    >
+      <div className="copy-row-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span>{label}</span>
+        {!empty && <span style={{fontSize:10,opacity:c?1:0.45,color:c?"var(--green)":"var(--muted)",transition:"opacity .2s",fontWeight:700}}>{c?"✓ Copied":"📋"}</span>}
+      </div>
       {empty ? (
         <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",padding:"3px 0"}}>—</div>
       ) : (
-        <div className="copy-row-inner">
-          <div className="copy-row-val">{value}</div>
-          <button className={cls("copy-row-btn",c&&"done")} onClick={()=>copyToClipboard(value).then(()=>{setC(true);setTimeout(()=>setC(false),1800);})}>{c?"✓":"📋"}</button>
-        </div>
+        <div className="copy-row-val">{value}</div>
       )}
     </div>
+  );
+}
+
+// ── CopyCaseBtn — tiny inline copy icon for session log case numbers ──
+function CopyCaseBtn({ caseNum }) {
+  const [copied,setCopied]=useState(false);
+  const handleClick=(e)=>{
+    e.stopPropagation();
+    copyToClipboard(caseNum).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);});
+  };
+  return (
+    <button onClick={handleClick} title="Copy case number" style={{background:"none",border:"none",cursor:"pointer",padding:"0 2px",color:copied?"var(--green)":"var(--muted)",fontSize:10,lineHeight:1,transition:"color .2s",flexShrink:0,display:"inline-flex",alignItems:"center"}}>
+      {copied?"✓":"📋"}
+    </button>
   );
 }
 
@@ -1805,7 +1828,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, externalFormRef=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1816,19 +1839,29 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
   const [form,setForm] = useState(()=> draftData ? {...emptyBase(),...draftData} : emptyBase());
   const formRef = useRef(form);
-  useEffect(()=>{formRef.current=form;},[form]);
+  useEffect(()=>{formRef.current=form; if(externalFormRef) externalFormRef.current=form;},[form]);
 
-  const startTimeRef = useRef(globalTimeIn || (draftData?._startTime) || Date.now());
+  // Prefer draftData._startTime (resuming minimised/suspended) over globalTimeIn (shift start) over now
+  // Prefer draftData._startTime (resuming minimised/suspended) over a fresh Date.now().
+  // Never use globalTimeIn as case start — that's the shift start, not the case start.
+  const startTimeRef = useRef((draftData?._startTime) || Date.now());
 
   // isDraft: true if this is a resumed draft with real content — unlock steps accordingly
   const isDraft = !!(draftData && (draftData.caseNum || draftData.accountNum || draftData._elapsedAtSave));
 
   const [openStep,setOpenStep] = useState(1);
   const [modal,setModal] = useState(null);
+  const [saveOutcomeType,setSaveOutcomeType] = useState("completed"); // "completed" | "clarification"
   const [toast,showToast] = useToast();
   const [copiedAll,setCopiedAll] = useState(false);
   const [draftSaving,setDraftSaving] = useState(false);
   const [breakConfirmData,setBreakConfirmData] = useState(null); // {label,mins} for break confirmation
+  // Footer timer — ticks every second for the action-bar elapsed display
+  const [footerElapsed,setFooterElapsed] = useState(()=>Math.floor((Date.now()-startTimeRef.current)/1000));
+  useEffect(()=>{
+    const t=setInterval(()=>setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000)),1000);
+    return()=>clearInterval(t);
+  },[]);
   // ── Drag: track by entry ID not index ──
   const dragFromId  = useRef(null);
   const dragToId    = useRef(null);
@@ -2078,7 +2111,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],...(!isSC?[["closeInboundCase","Close Inbound Case?"]]:[[]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -2113,6 +2146,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           ← Back
         </button>
         <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
+        <div style={{display:"flex",flexDirection:"column",marginLeft:6,lineHeight:1.2,borderLeft:"1px solid var(--border)",paddingLeft:10}}>
+          <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(footerElapsed)}</span>
+          <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Started {new Date(startTimeRef.current).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>
+        </div>
       </div>
 
       <div className="action-group action-group-center">
@@ -2137,7 +2174,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 </div>
 
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
-        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");onSave&&onSave(formRef.current);}}>✅ Save Case</button></div></div></div>)}
+        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const f={...formRef.current,_saveOutcome:saveOutcomeType};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
           <h3 style={{marginBottom:8}}>Save as Draft?</h3>
@@ -2491,6 +2528,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
   const handledResumeTick=useRef(0);
+  const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
 
   const enterMode = (m, withDraft = false, draftId = null) => {
     if (breakActive) {
@@ -2510,36 +2548,32 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
     const isResumingMinimised = minimisedFormData && minimisedFormData._mode === m && !withDraft;
     
-    // FIX: Update session log for both new cases AND resumed suspended drafts
-    if (!isResumingMinimised) {
-      const label = m === "siteComment" ? "Site Comment" : "Inbound Email";
-      
-      if (withDraft && draftId) {
-        // We are resuming a draft. Get the case number so we can attach it to the log.
-        const draft = dbDrafts?.find(d => d._id === draftId);
-        const draftCaseNum = draft?.caseNum || "";
+    // Only update session log when resuming a suspended draft — not for new forms or minimised resume.
+    // Status rename (Site Comment / Inbound Email) happens on Save or Suspend, not on open.
+    if (!isResumingMinimised && withDraft && draftId) {
+      // We are resuming a draft. Get the case number so we can attach it to the log.
+      const draft = dbDrafts?.find(d => d._id === draftId);
+      const draftCaseNum = draft?.caseNum || "";
 
-        setSessionLog && setSessionLog(prev => {
-          let next = [...prev];
-          const hasOpen = next.some(e => !e.endedAt);
-          
-          if (hasOpen) {
-            // Rename the active "Ongoing" entry to the specific status and attach the Case Number
-            next = next.map((e, i) => i === next.length - 1 && !e.endedAt
-              ? { ...e, status: label, caseNum: draftCaseNum }
-              : e);
-          } else {
-            // If no open entry exists for some reason, create a fresh one
-            const nowMs = Date.now();
-            next = [...next, { id: nowMs, status: label, note: "Resumed draft", startedAt: nowMs, endedAt: null, outcome: "", caseNum: draftCaseNum, endNote: "" }];
-          }
-          if (typeof window !== "undefined") localStorage.setItem("ch_session_log", JSON.stringify(next));
-          return next;
-        });
-      } else if (addSessionLog) {
-        // Standard logic for completely new forms
-        addSessionLog(label, "Form opened", "renameOngoing");
-      }
+      setSessionLog && setSessionLog(prev => {
+        let next = [...prev];
+        const hasOpen = next.some(e => !e.endedAt);
+        
+        if (hasOpen) {
+          // Rename the active "Ongoing" entry to the specific status and attach the Case Number
+          const label = m === "siteComment" ? "Site Comment" : "Inbound Email";
+          next = next.map((e, i) => i === next.length - 1 && !e.endedAt
+            ? { ...e, status: label, caseNum: draftCaseNum }
+            : e);
+        } else {
+          // If no open entry exists for some reason, create a fresh one
+          const label = m === "siteComment" ? "Site Comment" : "Inbound Email";
+          const nowMs = Date.now();
+          next = [...next, { id: nowMs, status: label, note: "Resumed draft", startedAt: nowMs, endedAt: null, outcome: "", caseNum: draftCaseNum, endNote: "" }];
+        }
+        if (typeof window !== "undefined") localStorage.setItem("ch_session_log", JSON.stringify(next));
+        return next;
+      });
     }
   };
   const exitMode=()=>{
@@ -2646,8 +2680,17 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       exitMode();
       return;
     }
-    // For ALL cancels (new form, or resumed draft/suspended): do nothing to the session log.
-    // Just exit the mode — no new entries, no closing entries, no timer reset.
+    // If we were resuming a suspended draft (which renamed the log entry), revert it back to Ongoing.
+    if(useDraft){
+      setSessionLog&&setSessionLog(prev=>{
+        const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt
+          ?{...e,status:"Ongoing",caseNum:""}
+          :e);
+        if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+        return next;
+      });
+    }
+    // For all other cancels (new form, minimised resume): status was never changed, just exit.
     exitMode();
   };
 
@@ -2692,7 +2735,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
           <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
-        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog}
+        <PostLiveForm mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} externalFormRef={sharedFormRef}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
@@ -2708,13 +2751,15 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
   onTimerReset&&onTimerReset();
   
-  // FIX 1: Set outcome to 'Suspended Completed' if it was resumed from a draft
-  const outcomeLabel = isEditingFromLog ? "Case Updated" : (useDraft ? "Suspended Completed" : "Case Completed");
+  // Set outcome based on save type (clarification / completed) and whether it was a draft
+  const rawOutcome = f._saveOutcome === "clarification" ? "Clarification" : "Case Completed";
+  const outcomeLabel = isEditingFromLog ? "Case Updated" : (useDraft ? "Suspended Completed" : rawOutcome);
+  const statusLabel = mode === "siteComment" ? "Site Comment" : "Inbound Email";
   
-  // Close current entry with outcome + immediately add fresh Ongoing in same state update
+  // Stamp the correct status + outcome on the open entry, then add fresh Ongoing
   const nowMs=Date.now();
   setSessionLog&&setSessionLog(prev=>{
-    const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
+    const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:isEditingFromLog?e.status:statusLabel,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
     const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
     const next=[...closed,fresh];
     if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
@@ -2729,9 +2774,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             if(typeof window!=="undefined") localStorage.removeItem("ch_minimised_form");
             onTimerReset&&onTimerReset();
             const nowMs=Date.now();
+            const statusLabel = mode === "siteComment" ? "Site Comment" : "Inbound Email";
             setSessionLog&&setSessionLog(prev=>{
-              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:"Suspended",caseNum:fd.caseNum||e.caseNum||""}:e);
-              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:"asdsa"};
+              const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:statusLabel,endedAt:nowMs,outcome:"Suspended",caseNum:fd.caseNum||e.caseNum||""}:e);
+              const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
               const next=[...closed,fresh];
               if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
               return next;
@@ -2782,13 +2828,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                         className="btn btn-primary" 
                         style={{ flex: 1 }}
                         onClick={() => {
-                          // FIX: Check if formRef exists in this scope
-                          if (typeof formRef !== 'undefined' && formRef.current) {
-                              minimiseMode(formRef.current);
-                          } else {
-                              // Fallback: If formRef isn't in scope, just trigger minimize
-                              minimiseMode && minimiseMode();
-                          }
+                          minimiseMode(sharedFormRef.current || undefined);
                         }}
                       >
                         Minimize
@@ -2900,7 +2940,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       </div>}
       {isMinimised&&!breakActive&&<div style={{fontSize:12,color:"var(--amber)",marginTop:-16,marginBottom:24,fontFamily:"'Poppins',sans-serif",padding:"10px 14px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.35)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
         <span style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>🗕</span> A form is currently <strong style={{color:"var(--amber)"}}>minimised</strong> — resume or cancel it before starting a new one.</span>
-        <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:6,color:"var(--amber)",borderColor:"rgba(245,158,11,.4)"}} onClick={()=>{const m=typeof window!=="undefined"?localStorage.getItem("ch_active_form_mode"):null;if(m==="siteComment"||m==="inbound"){setMode(m);setIsMinimised(false);onFormInFields&&onFormInFields(true);}}}> Resume</button>
+        <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px",borderRadius:6,color:"var(--amber)",borderColor:"rgba(245,158,11,.4)"}} onClick={()=>{const m=minimisedFormData?._mode||(typeof window!=="undefined"?localStorage.getItem("ch_active_form_mode"):null);if(m==="siteComment"||m==="inbound"){setMode(m);setIsMinimised(false);onFormActive&&onFormActive(true);onFormInFields&&onFormInFields(true);}}}> Resume</button>
       </div>}
 
       {/* Session Time Log */}
@@ -2917,11 +2957,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-              <button className="draft-resume" disabled={breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(breakActive||isMinimised)?.45:1,cursor:(breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue Suspended</button>
+              <button className="draft-resume" disabled={!timedIn||breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(!timedIn||breakActive||isMinimised)?.45:1,cursor:(!timedIn||breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue Suspended</button>
               <button
                 className="entry-del"
                 title="Delete"
-                disabled={breakActive||isMinimised}
+                disabled={!timedIn||breakActive||isMinimised}
                 onClick={() => setDeleteDraftConfirm({ id: d._id, mode: d._mode })}
                 style={{
                   marginLeft: 4,
@@ -2929,16 +2969,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                   backgroundColor: "var(--red)",
                   padding: "10px 10px",
                   border: "white 1px solid",
-                  cursor: (breakActive||isMinimised)?"not-allowed":"pointer",
+                  cursor: (!timedIn||breakActive||isMinimised)?"not-allowed":"pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   transition: "all 0.2s ease",
-                  opacity: (breakActive||isMinimised)?0.45:1,
+                  opacity: (!timedIn||breakActive||isMinimised)?0.45:1,
                   fontSize: "clamp(12px, 1vw, 14px)"
                 }}
                 onMouseEnter={(e) => {
-                  if(!breakActive&&!isMinimised) e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(255, 0, 0, 0.14)";
+                  if(!(!timedIn||breakActive||isMinimised)) e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(255, 0, 0, 0.14)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = "none";
@@ -2994,7 +3034,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     }
   });
   
-  // Find the latest entry per case by endedAt time
+  // Display: open Time In entry pinned first, rest reversed (newest first)
+  const openEntry = sessionLog.find(e => e.status === "Time In" && !e.endedAt);
+  const otherEntries = sessionLog.filter(e => !(e.status === "Time In" && !e.endedAt));
+  const displayLog = openEntry ? [openEntry, ...[...otherEntries].reverse()] : [...sessionLog].reverse();
+
+  // Find the latest entry per case by endedAt time (on original sessionLog for correctness)
   const caseNumLastIdx={};
   sessionLog.forEach((e,idx)=>{
     const key=(e.caseNum||"").trim();
@@ -3009,7 +3054,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       }
     }
   });
-  
+  // Remap caseNumLastIdx to displayLog indices
+  const displayCaseNumLastIdx={};
+  displayLog.forEach((e,idx)=>{
+    const key=(e.caseNum||"").trim();
+    if(!key||!e.endedAt) return;
+    if(displayCaseNumLastIdx[key]===undefined){
+      displayCaseNumLastIdx[key]=idx;
+    }else{
+      const currentLatest=displayLog[displayCaseNumLastIdx[key]];
+      if(e.endedAt > currentLatest.endedAt){
+        displayCaseNumLastIdx[key]=idx;
+      }
+    }
+  });
+
   const hasDuplicateCases=Object.values(caseNumCounts).some(v=>v>1);
   return <>
     {hasDuplicateCases&&<div style={{padding:"10px 16px",background:"rgba(245,158,11,.1)",borderBottom:"1px solid rgba(245,158,11,.2)",fontSize:11,fontWeight:700,color:"var(--amber)",fontFamily:"'Poppins',sans-serif"}}>⚠ Duplicate case numbers — only the latest entry per case can be edited.</div>}
@@ -3018,7 +3077,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       <span>Case Number</span><span> Status</span><span>Started</span><span>Ended</span><span>Duration</span><span>Outcome</span><span>Actions</span>
     </div>
     
-    {sessionLog.map((entry,i)=>{
+    {displayLog.map((entry,i)=>{
       const start=new Date(entry.startedAt);
       const end=entry.endedAt?new Date(entry.endedAt):null;
       const durMs=end?(entry.endedAt-entry.startedAt):null;
@@ -3037,6 +3096,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       
       const outcomeColors={
         "Case Completed":"var(--green)",
+        "Clarification":"var(--amber)",
         "Draft Completed":"var(--green)",
         "Suspended":"var(--red)",
         "Continued Draft Saved":"var(--amber)",
@@ -3058,7 +3118,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       const activeDupColor = isDuplicate ? dupColorMap[caseNum] : null;
 
       const outcomeColor=outcome?outcomeColors[outcome]||"var(--muted)":"var(--muted)";
-      const isLatestForCase=!!caseNum&&caseNumLastIdx[caseNum.trim()]===i;
+      const isLatestForCase=!!caseNum&&displayCaseNumLastIdx[caseNum.trim()]===i;
       const editButtonDisabled = !!editCase && (editCase._mode === "siteComment" || editCase._mode === "inbound");
       
       const hasSuspendedDraft = !!dbDrafts?.find(d => d.caseNum === caseNum);
@@ -3090,13 +3150,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
             fontWeight: caseNum ? 700 : 400,
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
+            gap: 4,
             background: isDuplicate ? activeDupColor.bg : "transparent",
             padding: isDuplicate ? "2px 8px" : "0",
             borderRadius: isDuplicate ? "4px" : "0"
           }}>
             {caseNum ? `#${caseNum}` : "-"}
             {isDuplicate && <span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}></span>}
+            {caseNum && <CopyCaseBtn caseNum={caseNum}/>}
           </span>
           
           <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
@@ -4795,8 +4856,8 @@ function App() {
       if(start<=now) start.setDate(start.getDate()+1);
       const alarmAt=new Date(start.getTime()-shiftStartWarnMins*60*1000);
       const delay=alarmAt-now;
-      if(delay<=0){ startAlarmLoop("case"); return null; }
-      return setTimeout(()=>startAlarmLoop("case"),delay);
+      if(delay<=0){ startAlarmLoop("shift_start"); return null; }
+      return setTimeout(()=>startAlarmLoop("shift_start"),delay);
     };
     const t=schedule();
     return()=>{ if(t) clearTimeout(t); };
@@ -4814,8 +4875,8 @@ function App() {
       if(end<=now) end.setDate(end.getDate()+1);
       const alarmAt=new Date(end.getTime()-shiftWarnMins*60*1000);
       const delay=alarmAt-now;
-      if(delay<=0){ startAlarmLoop("case"); return null; }
-      return setTimeout(()=>startAlarmLoop("case"),delay);
+      if(delay<=0){ startAlarmLoop("shift_end"); return null; }
+      return setTimeout(()=>startAlarmLoop("shift_end"),delay);
     };
     const t=schedule();
     return()=>{ if(t) clearTimeout(t); };
@@ -4835,7 +4896,7 @@ function App() {
       try{
         const ctx=new (window.AudioContext||window.webkitAudioContext)();
         alarmCtxRef.current=ctx;
-        const isWarn=type==="warn";
+        const isWarn=type==="warn"||type==="shift_start"||type==="shift_end";
         const beeps=isWarn?2:3;
         const freq=isWarn?880:1046;
         const gap=isWarn?0.45:0.35;
@@ -4891,13 +4952,20 @@ function App() {
           // Auto-close the break log entry and push fresh Ongoing
           const nowMs=Date.now();
           setSessionLog(prev=>{
-            const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:""}:e);
+            const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:nowMs,outcome:"Break Ended"}:e);
             const freshOngoing={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
             const next=[...closed,freshOngoing];
             if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
             return next;
           });
           if(typeof window!=="undefined") localStorage.removeItem("ch_break");
+          // Auto-hide the bar after 1.5s — alarm modal stays until user dismisses it
+          setTimeout(()=>{
+            setBreakTimer(null);
+            const t=Date.now();
+            setGlobalTimeIn(t);
+            if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(t));
+          },1500);
           return {...bt,ended:true,secsLeft:0};
         }
         return {...bt,secsLeft:Math.max(0,secsLeft)};
@@ -4951,19 +5019,28 @@ function App() {
     if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
   }
   function stopBreak(){
-    // Close the Break entry, stamp the outcome, reset timer, add fresh Ongoing
-    const now=Date.now();
-    setSessionLog(prev=>{
-      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome:"Break Ended"}:e);
-      const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,outcome:"",endNote:""};
-      const next=[...closed,freshOngoing];
-      if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
-      return next;
+    // If the timer already auto-ended (bt.ended=true), the session log was already updated
+    // by the tick — just clear the timer state without adding another Ongoing entry.
+    setBreakTimer(bt=>{
+      if(bt?.ended){
+        // Already ended — session log already has fresh Ongoing from the tick, skip it
+        return null;
+      }
+      // Manual end mid-break: close the Break entry and add fresh Ongoing
+      const now=Date.now();
+      setSessionLog(prev=>{
+        const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,endedAt:now,outcome:"Break Ended"}:e);
+        const freshOngoing={id:now+1,status:"Ongoing",note:"",startedAt:now,endedAt:null,outcome:"",endNote:""};
+        const next=[...closed,freshOngoing];
+        if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
+        return next;
+      });
+      // Reset the session timer on manual end only
+      setGlobalTimeIn(now);
+      if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
+      return null;
     });
-    // Reset the session timer
-    setGlobalTimeIn(now);
-    if(typeof window!=="undefined") localStorage.setItem("ch_timein",String(now));
-    setBreakTimer(null); stopAlarmLoop(); setActiveAlarm(null);
+    stopAlarmLoop(); setActiveAlarm(null);
     if(typeof window!=="undefined") localStorage.removeItem("ch_break");
     setCancelBreakConfirm(false);
   }
@@ -5402,20 +5479,25 @@ function App() {
       {activeAlarm&&(
         <div className="alarm-overlay">
           <div className="alarm-modal">
-            <span className="alarm-icon">{<Icon name={activeAlarm==="warn"?"timer":activeAlarm==="case"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
+            <span className="alarm-icon">{<Icon name={activeAlarm==="case"?"timer":activeAlarm==="shift_start"?"clock":activeAlarm==="shift_end"?"bell":activeAlarm==="warn"?"timer":"bell"} size={56} color="var(--accent)"/>}</span>
             <div className="alarm-title">
-              {activeAlarm==="warn"?"5 Minutes Left!":activeAlarm==="case"?`${timerLimit} Minutes on Case!`:"Break Over!"}
+              {activeAlarm==="warn"?"5 Minutes Left!"
+               :activeAlarm==="case"?`${timerLimit} Minutes on Case!`
+               :activeAlarm==="shift_start"?"Shift Starting Soon!"
+               :activeAlarm==="shift_end"?"Shift Ending Soon!"
+               :"Break Over!"}
             </div>
             <div className="alarm-sub">
               {activeAlarm==="warn"?"Your break is almost up — wrap it up!"
                :activeAlarm==="case"?`You've been on this case for ${timerLimit} minutes.`
+               :activeAlarm==="shift_start"?`Your shift starts in ${shiftStartWarnMins} minute${shiftStartWarnMins!==1?"s":""} — get ready to clock in!`
+               :activeAlarm==="shift_end"?`Your shift ends in ${shiftWarnMins} minute${shiftWarnMins!==1?"s":""} — wrap up your current case!`
                :"Your break has ended. Time to get back to work!"}
             </div>
             <div className="alarm-btns">
-              {activeAlarm!=="warn"&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
+              {(activeAlarm==="case"||activeAlarm==="shift_start"||activeAlarm==="shift_end")&&<button className="alarm-snooze" onClick={snoozeAlarm}><Icon name="snooze" size={14} style={{marginRight:6}}/>Snooze 5 min</button>}
               <button className="alarm-dismiss" onClick={dismissAlarm}>✅ {activeAlarm==="warn"?"Got it!":"I'm Aware"}</button>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       )}
 
