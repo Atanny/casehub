@@ -1841,9 +1841,9 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const formRef = useRef(form);
   useEffect(()=>{formRef.current=form; if(externalFormRef) externalFormRef.current=form;},[form]);
 
-  // Prefer draftData._startTime (resuming minimised/suspended) over globalTimeIn (shift start) over now
-  // Priority: draftData._startTime (suspended/minimised) → caseStartTime (shared across form-type switches) → now
-  const startTimeRef = useRef((draftData?._startTime) || caseStartTime || Date.now());
+  // Always use caseStartTime (globalTimeIn passed from session) so the form timer is consistent
+  // with the session active timer — whether opening fresh, continuing suspended, or editing.
+  const startTimeRef = useRef(caseStartTime || (draftData?._startTime) || Date.now());
 
   // isDraft: true only for resumed *suspended* drafts — locks case info fields.
   // Minimised resume is NOT a draft lock — user should be able to edit case info.
@@ -1929,7 +1929,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const getCleanForm = () => {
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
     const strip=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-    return {...formRef.current,images:strip(formRef.current.images),backupImages:strip(formRef.current.backupImages),_elapsedAtSave:elapsed};
+    return {...formRef.current,images:strip(formRef.current.images),backupImages:strip(formRef.current.backupImages),_elapsedAtSave:elapsed,_startTime:startTimeRef.current};
   };
 
  
@@ -2111,7 +2111,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(!isSC?[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]:[[]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>setF({checklist:{...form.checklist,[k]:e.target.checked}})}/>{l}</label>))}
           </div>
         </StepCard>
 
@@ -2557,8 +2557,10 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       // Resuming minimised — restore its start time
       caseStartTimeRef.current = minimisedFormData._startTime;
     } else if (withDraft && draftId) {
-      // Resuming a suspended draft — start time will come from draftData._startTime in PostLiveForm
-      // Leave caseStartTimeRef as-is; PostLiveForm will use draftData._startTime directly
+      // Resuming a suspended draft — use globalTimeIn so the form timer matches the session active timer
+      const t = globalTimeIn || Date.now();
+      caseStartTimeRef.current = t;
+      if(typeof window !== "undefined") localStorage.setItem("ch_case_start_time", String(t));
     }
     // If mode is already set (switching between siteComment ↔ inbound), keep existing caseStartTimeRef
 
@@ -2671,6 +2673,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
     });
+
+    // Stamp globalTimeIn so edit mode timer matches the session active timer
+    const editT = globalTimeIn || Date.now();
+    caseStartTimeRef.current = editT;
+    if(typeof window!=="undefined") localStorage.setItem("ch_case_start_time", String(editT));
 
     setEditingCase({savedCase:foundCase,mode:editModeVal});
     setMode(editModeVal);
