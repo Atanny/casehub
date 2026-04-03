@@ -1841,7 +1841,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -2261,7 +2261,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       </div>
 
       <div className="action-group action-group-right">
-        {!useDraft&&<button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>}
+        {!isResumingDraft&&<button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>}
         <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
       </div>
     </>
@@ -2291,7 +2291,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <h3 style={{marginBottom:6}}>Starting {breakConfirmData.label} Break</h3>
           <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>How would you like to save your current case before going on break?</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
-            {!useDraft&&(<button
+            {!isResumingDraft&&(<button
               className="btn btn-draft"
               style={{borderRadius:8,justifyContent:"flex-start",padding:"12px 16px",textAlign:"left",display:"flex",alignItems:"center",gap:10}}
               onClick={async()=>{
@@ -2864,7 +2864,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
           <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
-        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef}
+        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
