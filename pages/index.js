@@ -108,10 +108,13 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .sidebar-divider,
 .sidebar .nav-custom-link,
 .sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;}
-.sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
-.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;}
-.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;border-radius:30px;}
+.sidebar.collapsed .sidebar-profile{justify-content:center;padding:10px 0;border-radius:30px;margin-bottom:4px;}
+.sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;border-radius:30px;margin-top:auto;margin-bottom:6px;}
+.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;padding-bottom:20px;}
+.sidebar.collapsed .db-status{justify-content:center;padding:8px 0;}
+.sidebar.collapsed .break-btns{padding:8px 0 4px;}
+.sidebar.collapsed .sidebar-shift-timer{display:none;}
 .sidebar-collapse-btn{
   position:absolute;top:50%;right:-12px;transform:translateY(-50%);
   width:24px;height:24px;border-radius:30px;
@@ -858,6 +861,8 @@ select.inp{cursor:pointer;}
 /* Break buttons in sidebar */
 .break-btns{display:flex;flex-direction:column;gap:4px;padding:8px 0 4px;}
 .break-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border);cursor:pointer;transition:.18s;width:100%;text-align:left;font-family:'Poppins',sans-serif;}
+.sidebar.collapsed .break-btn{justify-content:center;padding:10px 0;gap:0;border-radius:30px;}
+.sidebar.collapsed .break-btn span,.sidebar.collapsed .break-btn svg:not(:first-child){display:none;}
 .break-btn:hover{background:var(--card2);color:var(--text);border-color:var(--accent);}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
 
@@ -1862,12 +1867,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
   // For suspended/edit: store how long elapsed before this resume so we can show "Before: X / Now: Y"
   // For suspended: prevElapsedSecs = _elapsedAtSave (time on case before suspend)
-  // For edit: prevElapsedSecs = session elapsed at the moment edit was opened (caseStartTime → now)
-  const prevElapsedSecs = isDraftResumed
-    ? (isEditMode
-        ? Math.floor((Date.now() - (caseStartTime || Date.now())) / 1000)
-        : (draftData?._elapsedAtSave || 0))
-    : 0;
+  // For edit: snapshot elapsed at mount time — static, does not tick
   // resumeStartRef = wall-clock when this resume/edit session began — persisted so refresh doesn't reset it
   const _resumeInit = typeof window!=="undefined" ? (() => { const v=localStorage.getItem("ch_resume_start"); return v?Number(v):Date.now(); })() : Date.now();
   const resumeStartRef = useRef(_resumeInit);
@@ -1877,6 +1877,15 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       localStorage.setItem("ch_resume_start",String(resumeStartRef.current));
     }
   },[]);
+
+  // For suspended/edit: store how long elapsed before this resume so we can show "Before: X / Now: Y"
+  // For suspended: prevElapsedSecs = _elapsedAtSave (time on case before suspend)
+  // For edit: snapshot elapsed at mount time — static, does not tick
+  const prevElapsedSecs = isDraftResumed
+    ? (isEditMode
+        ? Math.floor((_resumeInit - (caseStartTime || _resumeInit)) / 1000)
+        : (draftData?._elapsedAtSave || 0))
+    : 0;
 
   // Phase 2 timer: starts when Combined Tracker checkbox is first checked
   // Persist/restore from localStorage so refresh doesn't reset it
@@ -2252,7 +2261,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       </div>
 
       <div className="action-group action-group-right">
-        <button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>
+        {!useDraft&&<button className="btn btn-draft" style={{borderRadius:8}} onClick={handleDraft}>💾 Suspend Case</button>}
         <button className="btn btn-save" style={{borderRadius:8}} onClick={handleSave}>✅ Save Case</button>
       </div>
     </>
@@ -2282,7 +2291,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <h3 style={{marginBottom:6}}>Starting {breakConfirmData.label} Break</h3>
           <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>How would you like to save your current case before going on break?</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
-            <button
+            {!useDraft&&(<button
               className="btn btn-draft"
               style={{borderRadius:8,justifyContent:"flex-start",padding:"12px 16px",textAlign:"left",display:"flex",alignItems:"center",gap:10}}
               onClick={async()=>{
@@ -2305,7 +2314,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                 <div style={{fontWeight:700,fontSize:13}}>Save as Suspended / Draft</div>
                 <div style={{fontSize:11,opacity:.75,fontWeight:400}}>Requires Case Information (Step 1)</div>
               </div>
-            </button>
+            </button>)}
             <button
               className="btn btn-save"
               style={{borderRadius:8,justifyContent:"flex-start",padding:"12px 16px",textAlign:"left",display:"flex",alignItems:"center",gap:10}}
@@ -2863,7 +2872,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
     setEditingCase(null);
   } else {
-    if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode);
+    if(currentDraft?._id) onDeleteDraft&&onDeleteDraft(currentDraft._id,mode,true);
     onSaveCase&&onSaveCase(rec);
   }
   // Clear minimised form data since it's now saved
@@ -5311,14 +5320,15 @@ function App() {
     if(!res.ok) throw new Error(saved.error||"Failed to Suspend Case");
     setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);
   };
-  const deleteDraft=async(id,mode)=>{
+  const deleteDraft=async(id,mode,skipDeleteLog=false)=>{
     // Find the draft being deleted to get its caseNum
     const draft=drafts.find(d=>d._id===id||d._mode===mode);
     const deletedCaseNum=draft?.caseNum||"";
     try{await fetch(`/api/drafts/${id}`,{method:"DELETE"});}catch(e){console.error(e);}
     setDrafts(ds=>ds.filter(d=>d._id!==id&&d._mode!==mode));
-    // Mark matching session log "Suspended" entries as "Deleted"
-    if(deletedCaseNum){
+    // Only mark session log "Suspended" entries as "Deleted" when user explicitly deletes
+    // (not when completing/saving a suspended case)
+    if(deletedCaseNum&&!skipDeleteLog){
       setSessionLog(prev=>{
         const updated=prev.map(e=>{
           if((e.caseNum||"")===(deletedCaseNum||"")&&e.outcome==="Suspended"){
