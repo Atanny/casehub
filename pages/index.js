@@ -429,9 +429,11 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 .pl-type-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Poppins',sans-serif;}
 
 /* Form layout */
-.form-cols{display:flex;gap:20px;align-items:flex-start;}
-.form-left{flex:1;min-width:0;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
-.form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
+.form-cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
+.form-left{flex:1;min-width:300px;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
+.form-right{width:280px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
+@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;}}
+@media(max-width:900px){.form-left{min-width:0;width:100%;}.form-cols{flex-direction:column;}.form-right{width:100%;position:relative;max-height:none;}}
 
 /* Right panel */
 .right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);}
@@ -1633,6 +1635,7 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
   // Build the filled message — radio picks which number(s) to insert
   const buildMsg=(m)=>{
     const b=(m.base||m.template||"Hi po Ms. Tina, magpapacheck lang po").trim();
+    if(m.fillType==="none")        return b;
     if(m.fillType==="siteComment") return `${b} Site Comment #${caseNum||"—"}`;
     if(m.fillType==="caseNum")     return `${b} Case #${caseNum||"—"}`;
     if(m.fillType==="inbound")     return `${b} Inbound #${inboundNum||"—"}`;
@@ -1651,10 +1654,16 @@ function GreetingRow({ greetingMessages, caseNum, inboundNum, isSC }) {
       <div className="copy-row-label">Messages</div>
       <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4,marginBottom:4}}>
         {msgs.map(m=>(
-          <div key={m.id} className="copy-row-wrap" style={{marginBottom:0}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:4}}>
-              <div className="copy-row-label" style={{margin:0}}>{m.label||"Message"}</div>
-              <button className={copiedId===m.id?"copy-row-btn done":"copy-row-btn"} onClick={()=>copy(m)} style={{flexShrink:0}}>{copiedId===m.id?"✓":"📋"}</button>
+          <div
+            key={m.id}
+            className="copy-row-wrap"
+            style={{marginBottom:0,cursor:"pointer",userSelect:"none"}}
+            onClick={()=>copy(m)}
+            title="Click to copy"
+          >
+            <div className="copy-row-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:0,marginBottom:4}}>
+              <span>{m.label||"Message"}</span>
+              <span style={{fontSize:10,opacity:copiedId===m.id?1:0.45,color:copiedId===m.id?"var(--green)":"var(--muted)",transition:"opacity .2s",fontWeight:700}}>{copiedId===m.id?"✓ Copied":"📋"}</span>
             </div>
             <div className="copy-row-val">{buildMsg(m)}</div>
           </div>
@@ -1847,9 +1856,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const isDraftResumed = isEditMode || (!isMinimisedResume && !!(draftData && draftData._elapsedAtSave));
 
   // For suspended/edit: store how long elapsed before this resume so we can show "Before: X / Now: Y"
-  // prevElapsedSecs = seconds already elapsed before this resume session (from _elapsedAtSave or 0)
-  const prevElapsedSecs = (isDraftResumed && !isEditMode && draftData?._elapsedAtSave) ? draftData._elapsedAtSave : 0;
-  // resumeStartRef = wall-clock when this resume session began (always Date.now() on mount for resumed cases)
+  // For suspended: prevElapsedSecs = _elapsedAtSave (time on case before suspend)
+  // For edit: prevElapsedSecs = session elapsed at the moment edit was opened (caseStartTime → now)
+  const prevElapsedSecs = isDraftResumed
+    ? (isEditMode
+        ? Math.floor((Date.now() - (caseStartTime || Date.now())) / 1000)
+        : (draftData?._elapsedAtSave || 0))
+    : 0;
+  // resumeStartRef = wall-clock when this resume/edit session began
   const resumeStartRef = useRef(Date.now());
 
   // Phase 2 timer: starts when Combined Tracker checkbox is first checked
@@ -2168,7 +2182,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
           {isDraftResumed ? (<>
             <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Before suspended</span>
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{isEditMode?"Session elapsed":"Before suspended"}</span>
               <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(prevElapsedSecs)}</span>
             </div>
             <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
@@ -2213,7 +2227,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   )}
 </div>
 
-        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
+        {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
         {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const f={...formRef.current,_saveOutcome:saveOutcomeType};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
@@ -2804,7 +2818,6 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     return (
       <div>
         <div className="page-header">
-          <button className="back-btn" onClick={()=>setBackConfirm(true)}>← Back</button>
           <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
           <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
         </div>
@@ -4282,6 +4295,7 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
           // Auto-build preview from base + fillType
           const buildPreview=(base,ft)=>{
             const b=base||"Hi po Ms. Tina, magpapacheck lang po";
+            if(ft==="none")        return b;
             if(ft==="siteComment") return `${b} Site Comment #12345`;
             if(ft==="caseNum")     return `${b} Case #12345`;
             if(ft==="inbound")     return `${b} Inbound #67890`;
@@ -4301,15 +4315,16 @@ function ProfilePage({ user, setUser, onLogout, timerLimit, saveTimerLimit, shif
             </div>
             <div className="field" style={{marginBottom:10}}>
               <label>Message</label>
-              <input className="inp" value={m.base||""} onChange={e=>updateMsg({base:e.target.value})} placeholder="Hi po Ms. Tina, magpapacheck lang po"/>
+              <textarea className="inp" rows={3} value={m.base||""} onChange={e=>updateMsg({base:e.target.value})} placeholder="Hi po Ms. Tina, magpapacheck lang po" style={{resize:"vertical",minHeight:68,lineHeight:1.6}}/>
             </div>
             <div className="field" style={{marginBottom:8}}>
-              <label style={{marginBottom:6,display:"block"}}>Which number to use</label>
+              <label style={{marginBottom:6,display:"block"}}>Append number <span style={{fontWeight:400,opacity:.6,textTransform:"none",fontSize:10}}>(optional)</span></label>
               <div className="radio-group">
                 {[
-                  {v:"siteComment", l:"Site Comment #", cls:"selected-complete"},
-                  {v:"caseNum",     l:"Case #",          cls:"selected-clarif"},
-                  {v:"inbound",     l:"Inbound #",        cls:"selected-complete"},
+                  {v:"none",        l:"None",             cls:""},
+                  {v:"siteComment", l:"Site Comment #",   cls:"selected-complete"},
+                  {v:"caseNum",     l:"Case #",            cls:"selected-clarif"},
+                  {v:"inbound",     l:"Inbound #",         cls:"selected-complete"},
                 ].map(({v,l,cls:sc})=>(
                   <label key={v} className={cls("radio-label",m.fillType===v&&sc)}>
                     <input type="radio" name={`fillType-${m.id}`} checked={m.fillType===v} onChange={()=>updateMsg({fillType:v})} style={{display:"none"}}/>
