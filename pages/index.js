@@ -95,7 +95,19 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .break-btns,
 .sidebar.collapsed .sidebar-divider,
 .sidebar.collapsed .nav-custom-link,
-.sidebar.collapsed .sidebar-shift-timer{display:none;}
+.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;width:0;overflow:hidden;transition:opacity .22s ease,width .22s ease;}
+.sidebar .logo-text,
+.sidebar .nav-group,
+.sidebar .nav-label,
+.sidebar .profile-name,
+.sidebar .profile-role,
+.sidebar .theme-toggle .toggle-label,
+.sidebar .toggle-track,
+.sidebar .db-status,
+.sidebar .break-btns,
+.sidebar .sidebar-divider,
+.sidebar .nav-custom-link,
+.sidebar .sidebar-shift-timer{opacity:1;transition:opacity .22s ease,width .22s ease;}
 .sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;gap:0;}
 .sidebar.collapsed .sidebar-profile{justify-content:center;padding:8px 0;}
 .sidebar.collapsed .theme-toggle{justify-content:center;padding:10px 0;gap:0;}
@@ -418,7 +430,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 
 /* Form layout */
 .form-cols{display:flex;gap:20px;align-items:flex-start;}
-.form-left{flex:1;min-width:0;padding-bottom:120px;}
+.form-left{flex:1;min-width:0;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
 .form-right{width:300px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 64px);overflow-y:auto;}
 
 /* Right panel */
@@ -821,8 +833,8 @@ select.inp{cursor:pointer;}
 .break-time{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--accent);min-width:60px;}
 .break-bar.warn .break-time{color:var(--amber);}
 .break-bar.ended .break-time{color:var(--green);}
-.break-progress{flex:1;height:6px;background:var(--border);}
-.break-progress-fill{height:100%;background:var(--btn-save-bg);transition:width .5s linear;}
+.break-progress{flex:1;height:6px;background:var(--border);border-radius:0;}
+.break-progress-fill{height:100%;background:var(--btn-save-bg);transition:width .5s linear;border-radius:0;}
 .break-bar.warn .break-progress-fill{background:linear-gradient(90deg,var(--amber),#d97706);}
 .break-bar.ended .break-progress-fill{background:linear-gradient(90deg,var(--green),#059669);}
 .break-stop{background:none;border:1.5px solid var(--border);color:var(--muted);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Poppins',sans-serif;}
@@ -877,7 +889,7 @@ select.inp{cursor:pointer;}
 
 /* Live summary panel */
 .right-panel{border-radius:14px;overflow:hidden;}
-.right-panel-header{font-size:14px;font-weight:800;padding:14px 18px;border-radius:30px;letter-spacing:-.2px;background:linear-gradient(135deg,rgba(1,118,211,.12),rgba(1,84,160,.08));}
+.right-panel-header{font-size:14px;font-weight:800;padding:14px 18px;letter-spacing:-.2px;background:var(--card);border-bottom:1px solid var(--border);}
 .meta-stack{border-bottom:1px solid var(--border);}
 .meta-row{padding:12px 14px;transition:.15s;}
 .meta-row:hover{background:var(--card2);}
@@ -1675,11 +1687,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         <span style={{fontSize:16,marginRight:8}}>📊</span> Live Summary
         {f.caseNum&&<span style={{marginLeft:"auto",fontSize:11,fontWeight:600,color:"var(--accent)",background:"var(--entry-accent-bg)",padding:"2px 10px",borderRadius:20,border:"1px solid rgba(1,118,211,.2)"}}>#{f.caseNum}</span>}
       </div>
-      <div className="meta-stack">
-        {timerLimitSecs&&elapsed>0&&<div style={{width:"100%",height:4,background:"var(--border)",overflow:"hidden"}}>
-          <div style={{height:"100%",background:elapsed/timerLimitSecs>0.8?"var(--red)":elapsed/timerLimitSecs>0.6?"var(--amber)":"var(--accent)",width:Math.min(100,(elapsed/timerLimitSecs)*100)+"%",transition:"width .5s linear,background .3s"}}/>
-        </div>}
-      </div>
+
       <div className="summary-panel">
         <CopyRow label="Case #" value={f.caseNum}/>
         <CopyRow label="Account #" value={f.accountNum}/>
@@ -1771,12 +1779,12 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
   const steps=[
     {num:1,label:"Case Info"},
     {num:2,label:"Before Name"},
-    {num:3,label:"Device Check"},
+    {num:3,label:"Extra Backups"},
     {num:4,label:isSC?"Amends Notepad":"Assumptions"},
-    {num:"4b",label:"Extra Backups"},
-    {num:5,label:"After Name"},
-    {num:6,label:"Before/After"},
-    {num:7,label:"Checklist"},
+    {num:5,label:"Device Check"},
+    {num:6,label:"After Name"},
+    {num:7,label:"B/A Backup"},
+    {num:8,label:"Checklist"},
   ];
   return (
     <div className="toc-card">
@@ -2122,6 +2130,11 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         </StepCard>
 
   
+      {timerLimitSecs&&footerElapsed>0&&(
+        <div style={{position:"fixed",left:0,right:0,bottom:60,zIndex:949,height:3,background:"var(--border)",overflow:"hidden"}}>
+          <div style={{height:"100%",background:footerElapsed/timerLimitSecs>0.8?"var(--red)":footerElapsed/timerLimitSecs>0.6?"var(--amber)":"var(--accent)",width:Math.min(100,(footerElapsed/timerLimitSecs)*100)+"%",transition:"width 1s linear,background .3s"}}/>
+        </div>
+      )}
       <div className="action-bar">
   {isEditMode ? (
     <>
@@ -2152,26 +2165,30 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           ← Back
         </button>
         <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
-        <div style={{display:"flex",flexDirection:"column",marginLeft:6,lineHeight:1.3,borderLeft:"1px solid var(--border)",paddingLeft:10,gap:1}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
           {isDraftResumed ? (<>
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Before:</span>
-              <span style={{fontSize:12,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-.3px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(prevElapsedSecs)}</span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Before suspended</span>
+              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(prevElapsedSecs)}</span>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Now:</span>
-              <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(resumeElapsed)}</span>
+            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+              <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed now</span>
+              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
             </div>
-          </>) : (<>
-            <span style={{fontSize:15,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(footerElapsed)}</span>
-            <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Session elapsed</span>
-          </>)}
-          {phase2Elapsed !== null && (
-            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2,borderTop:"1px solid var(--border)",paddingTop:2}}>
-              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".4px",whiteSpace:"nowrap"}}>Phase 2:</span>
-              <span style={{fontSize:12,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-.3px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(phase2Elapsed)}</span>
+          </>) : (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed</span>
+              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(footerElapsed)}</span>
             </div>
           )}
+          {phase2Elapsed !== null && (<>
+            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
+              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
+              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
+            </div>
+          </>)}
         </div>
       </div>
 
@@ -2274,13 +2291,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         specialRequestors={specialRequestors}
         doneMap={{
           1:step1Done,
-          2:form._beforeCopied,
-          3:step4Done,
+          2:!!form._beforeCopied,
+          3:!!(form.backupImages&&form.backupImages.length>0),
           4:step3Done,
-          "4b":form.backupImages&&form.backupImages.length>0,
-          5:form._afterCopied,
-          6:!!form._screenshotCopied||form.images?.length>0,
-          7:step7Done,
+          5:step4Done,
+          6:!!form._afterCopied,
+          7:!!form._screenshotCopied||!!(form.images?.length>0),
+          8:step7Done,
         }}
       />
 
