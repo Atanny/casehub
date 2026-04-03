@@ -84,7 +84,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   box-shadow:var(--glass-shadow);transition:width .25s cubic-bezier(.4,0,.2,1),padding .25s cubic-bezier(.4,0,.2,1);
 }
 /* ── Sidebar collapsed: same padding as expanded, icons only, text hidden ── */
-.sidebar.collapsed{width:64px;padding:20px 6px;overflow-x:hidden;overflow-y:auto;}
+.sidebar.collapsed{width:64px;padding:20px 6px;overflow-x:hidden;overflow-y:hidden;}
 /* Fade out all text/label elements */
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-group,
@@ -117,7 +117,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .sidebar-profile{justify-content:center;gap:0;}
 .sidebar.collapsed .sidebar-profile .profile-text{display:none;}
 .sidebar.collapsed .theme-toggle{justify-content:center;gap:0;}
-.sidebar.collapsed .logo{justify-content:center;padding-left:0;padding-right:0;}
+.sidebar.collapsed .logo{justify-content:center;gap:0;padding-left:0;padding-right:0;}
 .sidebar.collapsed .db-status{justify-content:center;}
 .sidebar.collapsed .sidebar-shift-timer{display:none;}
 /* nav-badge-dot: keep positioned on icon even when centered */
@@ -206,13 +206,14 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .nav-active-dot{display:block;}
 .sidebar.collapsed .profile-text{display:none;}
 
-/* TOC nav card — sticky column between sidebar and form */
+/* TOC nav card — fixed height column between sidebar and form */
 .toc-card{
   width:148px;flex-shrink:0;
-  position:sticky;top:20px;align-self:flex-start;
-  background:var(--glass-bg);border:1px solid var(--glass-border);
+  align-self:stretch;
+  background:var(--glass-bg);
+  border-left:1px solid var(--glass-border);
   backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);overflow:hidden;
+  overflow-y:auto;overflow-x:hidden;
 }
 .toc-card-header{
   padding:10px 12px 8px;border-bottom:1px solid var(--border);
@@ -221,8 +222,8 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   display:flex;align-items:center;gap:6px;
 }
 .toc-item{
-  display:flex;align-items:center;justify-content:center;width:100%;text-align:center;background:none;border:none;
-  padding:7px 12px;font-size:11px;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:flex-start;width:100%;text-align:left;background:none;border:none;
+  padding:7px 10px;font-size:11px;color:var(--muted);cursor:pointer;
   font-family:'Poppins',sans-serif;transition:.12s;line-height:1.4;border-left:2px solid transparent;
   gap:6px;
 }
@@ -236,7 +237,8 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .toc-req-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;font-family:'Poppins',sans-serif;}
 .toc-req-chip{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px;font-weight:600;color:var(--accent);}
 .toc-req-avatar{width:18px;height:18px;border-radius:50%;background:var(--btn-save-bg);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;flex-shrink:0;}
-.toc-num{font-size:9px;opacity:.5;font-variant-numeric:tabular-nums;flex-shrink:0;width:14px;}
+.toc-num{font-size:9px;opacity:.5;font-variant-numeric:tabular-nums;flex-shrink:0;width:12px;text-align:center;}
+.toc-label{flex:0 1 auto;text-align:center;}
 .form-progress-pill{
   position:fixed;bottom:24px;right:24px;z-index:900;
   display:flex;align-items:center;justify-content:flex-start;gap:10px;
@@ -262,6 +264,16 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 }
 .nav-custom-link:hover{background:var(--card2);color:var(--accent);}
 .main-area{flex:1;overflow-y:auto;padding:32px;height:100vh;}
+
+/* ── Form Mode: main-area fills exactly, no outer scroll ── */
+.main-area.form-mode{overflow:hidden;padding:0;display:flex;flex-direction:column;}
+.main-area.form-mode > div{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;padding-bottom:68px;}
+.main-area.form-mode .form-cols{flex:1;min-height:0;overflow:hidden;}
+.main-area.form-mode .page-header{margin-bottom:0;background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);flex-shrink:0;}
+/* Live Summary and Steps col: flush, square, same glass bg */
+.main-area.form-mode .right-panel{border-radius:0;border:none;box-shadow:none;background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);}
+.main-area.form-mode .right-panel-header{border-radius:0;background:rgba(255,255,255,.03);}
+.main-area.form-mode .toc-card{border-radius:0;border:none;border-right:1px solid var(--glass-border);background:var(--glass-bg);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);}
 
 /* Theme toggle */
 .theme-toggle{
@@ -295,6 +307,8 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 
 /* Page header */
 .page-header{margin-bottom:28px;}
+.main-area.form-mode .page-header{display:flex;flex-direction:row;align-items:center;gap:0;justify-content:space-between;flex-wrap:wrap;}
+.main-area.form-mode .page-header>div:first-child{flex:1;min-width:0;}
 .page-title{font-size:26px;font-weight:800;letter-spacing:-.4px;}
 .page-sub{color:var(--muted);font-size:13px;margin-top:5px;font-family:'Poppins',sans-serif;}
 .back-btn{
@@ -437,23 +451,74 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 .pl-type-icon{width:46px;height:46px;background:var(--entry-accent-bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pl-type-title{font-size:14px;font-weight:700;}
 .pl-type-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'Poppins',sans-serif;}
-
 /* Form layout */
-.form-cols{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
-.form-left{flex:1;min-width:300px;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;}
-.form-right{width:280px;flex-shrink:0;position:sticky;top:16px;align-self:flex-start;max-height:calc(100vh - 100px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:16px;}
-.summary-panel{padding:14px 16px;overflow-y:auto;flex:1;}
-@media(max-width:1366px){.form-right{width:100%;position:relative;max-height:none;flex-shrink:1;top:0;padding-bottom:0;}}
-@media(max-width:900px){.form-left{min-width:0;width:100%;}.form-cols{flex-direction:column;}.form-right{width:100%;position:relative;max-height:none;top:0;}}
-@media(max-width:600px){.form-cols{flex-direction:column;gap:12px;}.form-right{width:100%;max-height:none;overflow-y:visible;position:relative;top:0;}}
+.form-cols{display:flex;gap:0;align-items:stretch;flex-wrap:nowrap;}
+.form-left{flex:1;min-width:0;padding-bottom:140px;overflow-wrap:break-word;word-break:break-word;overflow-y:auto;padding-right:12px;padding-left:32px;padding-top:16px;}
+.form-right{
+  width:280px;
+  flex-shrink:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  border-right:1px solid var(--glass-border);
+  padding:0;
+}
+.summary-panel{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;}
+
+@media(max-width:1366px){
+  .form-right{
+    width:260px;
+  }
+}
+@media(max-width:900px){
+  .form-cols{flex-direction:column;flex-wrap:nowrap;}
+  .form-right{
+    width:100%;
+    height:38vh;
+    flex-shrink:0;
+    border-right:none;
+    border-bottom:1px solid var(--glass-border);
+    padding:0;
+  }
+  .form-left{min-width:0;width:100%;padding-left:16px;padding-right:16px;padding-top:12px;}
+  .main-area.form-mode .toc-card{display:none;}
+}
+@media(max-width:600px){
+  .form-right{height:33vh;}
+  .form-left{padding-left:12px;padding-right:12px;}
+}
 
 /* Right panel */
-.right-panel{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:var(--glass-shadow);display:flex;flex-direction:column;max-height:calc(100vh - 120px);}
+.right-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+
+  overflow: hidden;
+
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+
+  display: flex;
+  flex-direction: column;
+
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
 .right-panel-header{
-  padding:16px 18px;border-bottom:1px solid var(--border);
-  font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
+  padding:16px 18px;
+  border-bottom:1px solid var(--border);
+  font-size:15px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  gap:10px;
   background:linear-gradient(135deg,rgba(245,148,92,.1),rgba(212,114,74,.08));
-  font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.2px;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  letter-spacing:-.2px;
   border-radius:var(--radius) var(--radius) 0 0;
   flex-shrink:0;
 }
@@ -464,8 +529,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 .meta-row .meta-val{color:var(--text);font-weight:700;font-size:11px;font-family:'Poppins',sans-serif;line-height:1.3;text-align:center;}
 .meta-row .timer-val{color:var(--accent);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
 .summary-panel{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;}
-.summary-locked{text-align:center;padding:24px 0;}
-.summary-locked-icon{font-size:32px;margin-bottom:8px;}
+.main-area.form-mode .summary-panel{padding-bottom:16px;}
 
 /* Copy row */
 .copy-row-wrap{margin-bottom:8px;background:var(--sum-bg);border:1px solid var(--border);border-radius:30px;padding:10px 14px;transition:.15s;}
@@ -1066,8 +1130,8 @@ body.light .sidebar-divider{background:rgba(180,90,40,.1);}
 .announcement-card{border-radius:10px;}
 .link-card{border-radius:10px;}
 .activity-row{border-radius:8px;}
-.right-panel{border-radius:12px;}
-.toc-card{border-radius:12px;}
+.right-panel{border-radius:12px;}  /* overridden to 0 in form-mode */
+.toc-card{border-radius:12px;}    /* overridden to 0 in form-mode */
 .auth-card{border-radius:16px;}
 .profile-card{border-radius:12px;}
 .entry-card{border-radius:10px;}
@@ -1400,9 +1464,26 @@ function CopyName({ name, onCopy }) {
 // Step card — single-open: receives openStep/setOpenStep from parent
 function StepCard({ num, title, children, done, locked, openStep, setOpenStep }) {
   const isOpen = openStep === num;
+  const handleToggle = () => {
+    if(locked) return;
+    const opening = !isOpen;
+    setOpenStep(opening ? num : null);
+    if(opening){
+      setTimeout(()=>{
+        const el=document.getElementById(`step-${num}`);
+        const container=document.querySelector('.form-left');
+        if(el && container){
+          const offset=el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+          container.scrollTo({top: Math.max(0, offset - 12), behavior:'smooth'});
+        } else if(el){
+          el.scrollIntoView({behavior:"smooth",block:"start"});
+        }
+      },40);
+    }
+  };
   return (
     <div id={`step-${num}`} className={cls("step-card", locked?"locked":"unlocked", done&&"done", isOpen&&!locked&&"open")}>
-      <div className="step-header" onClick={()=>{ if(!locked) setOpenStep(isOpen ? null : num); }}>
+      <div className="step-header" onClick={handleToggle}>
         <div className="step-num" style={{position:"relative"}}>
           {done ? <span style={{fontSize:14}}>✓</span> : <span>{num}</span>}
           {!done&&!locked&&isOpen&&<span style={{position:"absolute",inset:-4,borderRadius:"50%",border:"2px solid var(--accent)",opacity:.4,animation:"pulse-ring 1.5s ease-in-out infinite"}}/>}
@@ -1621,7 +1702,7 @@ function CopyRow({ label, value }) {
     >
       <div className="copy-row-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>{label}</span>
-        {!empty && <span style={{fontSize:10,opacity:c?1:0.45,color:c?"var(--green)":"var(--muted)",transition:"opacity .2s",fontWeight:700}}>{c?"✓ Copied":"📋"}</span>}
+        {!empty && <span style={{fontSize:10,opacity:c?1:0.45,color:c?"var(--green)":"var(--muted)",transition:"opacity .2s",fontWeight:700}}>{c?"✓ Copied":"Copy"}</span>}
       </div>
       {empty ? (
         <div style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",padding:"3px 0"}}>—</div>
@@ -1641,7 +1722,7 @@ function CopyCaseBtn({ caseNum }) {
   };
   return (
     <button onClick={handleClick} title="Copy case number" style={{background:"none",border:"none",cursor:"pointer",padding:"0 2px",color:copied?"var(--green)":"var(--muted)",fontSize:10,lineHeight:1,transition:"color .2s",flexShrink:0,display:"inline-flex",alignItems:"center"}}>
-      {copied?"✓":"📋"}
+      {copied?"✓":"Copy"}
     </button>
   );
 }
@@ -1800,12 +1881,55 @@ const emptyBase  = ()=>({
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
   checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,emailSales:false,trackerChecklist:false,completeStatus:false},
+  trackerChecklistLink:"",
   images:[],backupImages:[],emailAddress:"",emailType:"clarification",
   _startTime: Date.now(), _elapsedAtSave: 0
 });
 
 
 // ── Table of Contents / Outline Panel — sticky card column ──────────────────
+
+// ── TimerBar — compact inline timer display for the form header ──────────────
+function TimerBar({ footerElapsed, resumeElapsed, phase2Elapsed, isDraftResumed, isEditMode, prevElapsedSecs, originalTotalSecs, originalOutcome, fmtElapsed }) {
+  const sep = <span style={{color:"var(--glass-border)",fontSize:16,fontWeight:300,margin:"0 4px"}}>|</span>;
+  const block = (label, val, color) => (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1.1}}>
+      <span style={{fontSize:8,color:color||"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",opacity:.8}}>{label}</span>
+      <span style={{fontSize:18,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:color||"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(val)}</span>
+    </div>
+  );
+
+  if(isDraftResumed){
+    if(isEditMode){
+      // Edit mode: show total hours spent on this case (from session log) + elapsed now
+      const totalLabel = "Total Time Spent";
+      return (
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
+          {block(totalLabel, originalTotalSecs, "var(--muted)")}
+          {sep}
+          {block("Elapsed now", footerElapsed, "var(--accent)")}
+          {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+        </div>
+      );
+    }
+    // Suspended resume: show time before suspend + elapsed now (synced to session timer)
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
+        {block("Before suspended", prevElapsedSecs, "var(--muted)")}
+        {sep}
+        {block("Elapsed now", footerElapsed, "var(--accent)")}
+        {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+      </div>
+    );
+  }
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8}}>
+      {block("Elapsed", footerElapsed, "var(--accent)")}
+      {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+    </div>
+  );
+}
+
 function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialRequestors=[] }) {
   if(page!=="postlive") return null;
   const steps=[
@@ -1831,11 +1955,17 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
               setOpenStep(s.num);
               setTimeout(()=>{
                 const el=document.getElementById(`step-${s.num}`);
-                if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
+                const container=document.querySelector('.form-left');
+                if(el && container){
+                  const offset=el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+                  container.scrollTo({top: Math.max(0, offset - 12), behavior:'smooth'});
+                } else if(el){
+                  el.scrollIntoView({behavior:"smooth",block:"start"});
+                }
               },50);
             }}>
             <span className="toc-num">{s.num}</span>
-            <span style={{flex:1,textAlign:"center"}}>{s.label}</span>
+            <span style={{flex:'0 1 auto',textAlign:'center',minWidth:0}}>{s.label}</span>
             {done&&<span className="toc-check">✓</span>}
           </button>
         );
@@ -1854,7 +1984,7 @@ function TocPanel({ openStep, setOpenStep, isSC, page, doneMap={}, specialReques
     </div>
   );
 }
-function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0 }) {
+function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, onAutoSaveDraft, onStartBreak, draftData, user, onTimerEnd, specialRequestors, timerLimitSecs, globalTimeIn, isEditMode=false, isMinimisedResume=false, caseStartTime=null, externalFormRef=null, isResumingDraft=false, originalOutcome="", originalTotalSecs=0, containerStyle={}, onTimerTick=null }) {
   const isSC = mode==="siteComment";
   const entryLabel = isSC?"Site Comment":"Assumption";
   const rawName = user?.name || "User";
@@ -1922,14 +2052,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const [resumeElapsed,setResumeElapsed] = useState(0); // seconds since this resume started
   useEffect(()=>{
     const t=setInterval(()=>{
-      // Once phase2 starts, freeze footerElapsed and resumeElapsed — phase2 timer takes over
-      if(phase2StartRef.current===null){
-        setFooterElapsed(Math.floor((Date.now()-startTimeRef.current)/1000));
-        setResumeElapsed(Math.floor((Date.now()-resumeStartRef.current)/1000));
-      }
-      if(phase2StartRef.current!==null){
-        setPhase2Elapsed(Math.floor((Date.now()-phase2StartRef.current)/1000));
-      }
+      const fe=Math.floor((Date.now()-startTimeRef.current)/1000);
+      const re=Math.floor((Date.now()-resumeStartRef.current)/1000);
+      const p2=phase2StartRef.current!==null?Math.floor((Date.now()-phase2StartRef.current)/1000):null;
+      setFooterElapsed(fe);
+      setResumeElapsed(re);
+      if(p2!==null) setPhase2Elapsed(p2);
+      if(onTimerTick) onTimerTick({footerElapsed:fe,resumeElapsed:re,phase2Elapsed:p2,isDraftResumed,isEditMode,prevElapsedSecs,originalTotalSecs,originalOutcome});
     },1000);
     return()=>clearInterval(t);
   },[]);
@@ -2000,7 +2129,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const getCleanForm = () => {
     const elapsed = Math.floor((Date.now() - startTimeRef.current)/1000);
     const strip=(imgs)=>(imgs||[]).map(({_file,url,name,id,path,_inDB})=>({url,name,id,path:path||id,_inDB:_inDB||false}));
-    return {...formRef.current,images:strip(formRef.current.images),backupImages:strip(formRef.current.backupImages),_elapsedAtSave:elapsed,_startTime:startTimeRef.current};
+    return {...formRef.current,images:strip(formRef.current.images),backupImages:strip(formRef.current.backupImages),_elapsedAtSave:elapsed,_startTime:startTimeRef.current,trackerChecklistLink:formRef.current.trackerChecklistLink||""};
   };
 
  
@@ -2020,8 +2149,8 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const stepProps = {openStep, setOpenStep};
 
   return (
-    <div className="form-cols">
-      <div className="form-right" style={{width:280}}>
+    <div className="form-cols" style={containerStyle}>
+      <div className="form-right">
         <StickyPanel startTimeRef={startTimeRef} form={form} isSC={isSC} buildEntriesText={buildEntriesText} buildEmailText={buildEmailText} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={timerLimitSecs} greetingMessages={user?.greetingMessages}/>
       </div>
 
@@ -2184,23 +2313,37 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(<label key={k} className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{
-              const newChecklist={...form.checklist,[k]:e.target.checked};
-              // Phase 2 starts when backup + caseComment + combinedTracker are all checked
-              if(phase2StartRef.current===null){
-                const allThree=newChecklist.backup&&newChecklist.caseComment&&newChecklist.combinedTracker;
-                if(allThree){
-                  const t=Date.now();
-                  phase2StartRef.current=t;
-                  if(typeof window!=="undefined") localStorage.setItem("ch_phase2_start",String(t));
-                  // Freeze elapsed at current value
-                  setFooterElapsed(f=>f);
-                  setResumeElapsed(r=>r);
-                  setPhase2Elapsed(0);
-                }
-              }
-              setF({checklist:newChecklist});
-            }}/>{l}</label>))}
+            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(
+              <div key={k}>
+                <label className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{
+                  const newChecklist={...form.checklist,[k]:e.target.checked};
+                  if(phase2StartRef.current===null){
+                    const allThree=newChecklist.backup&&newChecklist.caseComment&&newChecklist.combinedTracker;
+                    if(allThree){
+                      const t=Date.now();
+                      phase2StartRef.current=t;
+                      if(typeof window!=="undefined") localStorage.setItem("ch_phase2_start",String(t));
+                      setFooterElapsed(f=>f);
+                      setResumeElapsed(r=>r);
+                      setPhase2Elapsed(0);
+                    }
+                  }
+                  setF({checklist:newChecklist});
+                }}/>{l}</label>
+
+              </div>
+            ))}
+          </div>
+          <div className="field" style={{marginTop:14,marginBottom:0}}>
+            <label style={{fontSize:10,fontWeight:700,color:"var(--accent)",marginBottom:4,display:"block",textTransform:"uppercase",letterSpacing:".7px"}}>🔗 Tracker Link</label>
+            <input
+              className="inp"
+              type="url"
+              placeholder="https://..."
+              value={form.trackerChecklistLink||""}
+              onChange={e=>setF({trackerChecklistLink:e.target.value})}
+              style={{fontSize:12}}
+            />
           </div>
         </StepCard>
 
@@ -2216,32 +2359,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         >
           ✕ Cancel Edit
         </button>
-        {(()=>{
-          const o = originalOutcome.toLowerCase();
-          const isSusp = o==="suspended";
-          const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
-          const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
-          return (
-            <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-                <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
-                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(originalTotalSecs)}</span>
-              </div>
-              <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-                <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed Now</span>
-                <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
-              </div>
-              {phase2Elapsed !== null && (<>
-                <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-                  <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
-                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
-                </div>
-              </>)}
-            </div>
-          );
-        })()}
+
       </div>
       <div className="action-group action-group-center"/>
       <div className="action-group action-group-right">
@@ -2260,39 +2378,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           ← Back
         </button>
         <button className="btn btn-ghost" style={{borderRadius:8}} onClick={() => setModal("clear")}>🧹 Clear</button>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:6,borderLeft:"1px solid var(--border)",paddingLeft:10,flexWrap:"wrap"}}>
-          {isDraftResumed ? (<>
-            {(()=>{
-              const o = originalOutcome.toLowerCase();
-              const isSusp = o==="suspended";
-              const isComp = o==="completed"||o==="clarification"||o==="suspended completed"||o==="case completed"||o==="draft completed";
-              const totalLabel = isSusp ? "Total Suspended Used" : isComp ? "Total Completed Used" : "Total Hours Used";
-              return (<>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-                  <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>{totalLabel}</span>
-                  <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--muted)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(originalTotalSecs)}</span>
-                </div>
-                <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-              </>);
-            })()}
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--accent)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed now</span>
-              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(resumeElapsed)}</span>
-            </div>
-          </>) : (
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Elapsed</span>
-              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(footerElapsed)}</span>
-            </div>
-          )}
-          {phase2Elapsed !== null && (<>
-            <span style={{color:"var(--border)",fontSize:18,fontWeight:300,margin:"0 2px"}}>|</span>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:0}}>
-              <span style={{fontSize:9,color:"var(--green)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>Phase 2</span>
-              <span style={{fontSize:20,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:"var(--green)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmtElapsed(phase2Elapsed)}</span>
-            </div>
-          </>)}
-        </div>
+
       </div>
 
       <div className="action-group action-group-center">
@@ -2317,7 +2403,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 </div>
 
         {modal==="clear"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="clear" size={40} color="var(--red)"/></div><h3>Clear All Fields?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>All entered data will be cleared. The form stays open and the timer keeps running.</p><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-danger" onClick={()=>{setForm(emptyBase());resumeStartRef.current=Date.now();if(typeof window!=="undefined"){localStorage.setItem("ch_resume_start",String(Date.now()));localStorage.removeItem("ch_phase2_start");}phase2StartRef.current=null;setPhase2Elapsed(null);setModal(null);showToast("All fields cleared","info");}}>Clear All</button></div></div></div>)}
-        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);const p2=phase2Elapsed!==null?phase2Elapsed:0;const totalSecs=elapsed+(isEditMode?0:p2);const f={...formRef.current,_saveOutcome:saveOutcomeType,_elapsedAtSave:elapsed,_phase2Elapsed:p2,_totalElapsed:totalSecs};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
+        {modal==="save"&&(<div className="modal-bg"><div className="modal"><div style={{marginBottom:14}}><Icon name="save" size={40} color="var(--accent)"/></div><h3>Save Case?</h3><p style={{color:"var(--muted)",fontSize:13,marginBottom:16,lineHeight:1.6}}>Case <strong style={{color:"var(--text)"}}>#{form.caseNum}</strong> — confirm everything is complete. The timer will reset.</p><div style={{marginBottom:18}}><div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",fontFamily:"'Poppins',sans-serif",marginBottom:8}}>Case Outcome</div><div style={{display:"flex",gap:10}}><button onClick={()=>setSaveOutcomeType("completed")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="completed"?"var(--accent)":"var(--border)"}`,background:saveOutcomeType==="completed"?"var(--entry-accent-bg)":"var(--card)",color:saveOutcomeType==="completed"?"var(--accent)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>✅</span>Completed</button><button onClick={()=>setSaveOutcomeType("clarification")} style={{flex:1,padding:"10px 12px",borderRadius:10,border:`2px solid ${saveOutcomeType==="clarification"?"var(--amber)":"var(--border)"}`,background:saveOutcomeType==="clarification"?"rgba(245,158,11,.1)":"var(--card)",color:saveOutcomeType==="clarification"?"var(--amber)":"var(--muted)",fontWeight:700,fontSize:12,fontFamily:"'Poppins',sans-serif",cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><span style={{fontSize:18}}>🔄</span>Clarification</button></div></div><div className="modal-btns"><button className="btn btn-ghost" onClick={()=>setModal(null)}>Go Back</button><button className="btn btn-primary" onClick={()=>{setModal(null);showToast("Case saved! ✅");const elapsed=Math.floor((Date.now()-startTimeRef.current)/1000);const p2=phase2Elapsed!==null?phase2Elapsed:0;const totalSecs=elapsed+(isEditMode?0:p2);const f={...formRef.current,_saveOutcome:saveOutcomeType,_elapsedAtSave:elapsed,_phase2Elapsed:p2,_totalElapsed:totalSecs,trackerChecklistLink:formRef.current.trackerChecklistLink||""};onSave&&onSave(f);}}>✅ Save Case</button></div></div></div>)}
         {modal==="draft"&&(<div className="modal-bg"><div className="modal">
           <div style={{marginBottom:14}}><Icon name="draft" size={44} color="var(--amber)"/></div>
           <h3 style={{marginBottom:8}}>Save as Draft?</h3>
@@ -2373,7 +2459,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
                 const data=breakConfirmData;
                 setModal(null);
                 setBreakConfirmData(null);
-                onSave&&onSave(formRef.current);
+                onSave&&onSave({...formRef.current,trackerChecklistLink:formRef.current.trackerChecklistLink||""});
                 setTimeout(()=>onStartBreak&&onStartBreak(data.label.replace(/[☕🧘🍱]/g,"").trim()+" break",data.mins),80);
               }}
             >
@@ -2566,12 +2652,15 @@ function Dashboard({ savedCases, setPage, specialRequestors, addRequestor, remov
       {savedCases.length>0&&(<>
         <div className="section-title">Recent Cases</div>
         {[...savedCases].slice(0,6).map((c,i)=>(
-          <div key={i} className="activity-row">
+          <div key={i} className="activity-row" style={{cursor:"pointer"}} onClick={()=>setPage("history")}>
             <div className={cls("act-dot",c._mode==="siteComment"?"blue":"purple")}/>
             <div className="act-info"><div className="act-title">Case #{c.caseNum} — {c.accountNum}</div><div className="act-sub">{c.amendType} · {c.savedAt}</div></div>
             <span className={cls("act-badge",c._mode==="siteComment"?"site":"email")}>{c._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
           </div>
         ))}
+        <div style={{textAlign:"right",marginTop:8}}>
+          <button className="h-btn" style={{fontSize:11,padding:"5px 12px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={()=>setPage("history")}>View All in History →</button>
+        </div>
       </>)}
       {savedCases.length===0&&(<div style={{textAlign:"center",color:"var(--muted)",padding:"40px 0",fontSize:14}}><div style={{marginBottom:16}}><Icon name="empty" size={52} color="var(--muted)"/></div>No cases saved yet. Start by creating a Post-Live Amend!</div>)}
       <Toast msg={toast.msg} type={toast.type}/>
@@ -2609,6 +2698,21 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
             </div>
           ))}
           {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}><Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>{c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5,fontFamily:"'Poppins',sans-serif"}}>🔗 Tracker Link</div>
+            {c.trackerChecklistLink ? (
+              <a href={c.trackerChecklistLink} target="_blank" rel="noopener noreferrer"
+                style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,fontWeight:600,color:"var(--accent)",wordBreak:"break-all",padding:"5px 10px",background:"var(--entry-accent-bg)",border:"1px solid rgba(1,118,211,.2)",borderRadius:8,textDecoration:"none",transition:".15s",maxWidth:"100%"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(1,118,211,.18)"}
+                onMouseLeave={e=>e.currentTarget.style.background="var(--entry-accent-bg)"}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                {c.trackerChecklistLink}
+              </a>
+            ) : (
+              <span style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",fontFamily:"'Poppins',sans-serif"}}>—</span>
+            )}
+          </div>
           {allImages.length>0&&(
             <div style={{marginTop:10}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:8}}>Screenshots ({allImages.length})</div>
@@ -2672,6 +2776,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [toast,showToast]=useToast();
   const handledResumeTick=useRef(0);
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
+  const [headerTimerState,setHeaderTimerState]=useState({footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""});
   // Tracks when the current case was started — persists across Site Comment ↔ Inbound switches
   const caseStartTimeRef=useRef((()=>{
     if(typeof window==="undefined") return globalTimeIn||Date.now();
@@ -2700,10 +2805,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       // Resuming minimised — restore its start time
       caseStartTimeRef.current = minimisedFormData._startTime;
     } else if (withDraft && draftId) {
-      // Resuming a suspended draft — use globalTimeIn so the form timer matches the session active timer
+      // Resuming a suspended draft — use globalTimeIn so the form timer matches the session active timer.
+      // Also clear ch_resume_start so the form's "Elapsed now" timer starts fresh.
       const t = globalTimeIn || Date.now();
       caseStartTimeRef.current = t;
-      if(typeof window !== "undefined") localStorage.setItem("ch_case_start_time", String(t));
+      if(typeof window !== "undefined"){
+        localStorage.setItem("ch_case_start_time", String(t));
+        localStorage.removeItem("ch_resume_start");
+      }
     }
     // If mode is already set (switching between siteComment ↔ inbound), keep existing caseStartTimeRef
 
@@ -2819,10 +2928,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       return next;
     });
 
-    // Stamp globalTimeIn so edit mode timer matches the session active timer
+    // Stamp globalTimeIn so edit mode timer matches the session active timer.
+    // Also clear ch_resume_start so the form's "Elapsed now" timer starts fresh.
     const editT = globalTimeIn || Date.now();
     caseStartTimeRef.current = editT;
-    if(typeof window!=="undefined") localStorage.setItem("ch_case_start_time", String(editT));
+    if(typeof window!=="undefined"){
+      localStorage.setItem("ch_case_start_time", String(editT));
+      localStorage.removeItem("ch_resume_start");
+    }
 
     setEditingCase({savedCase:foundCase,mode:editModeVal});
     setMode(editModeVal);
@@ -2907,27 +3020,35 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
   if(mode==="siteComment"||mode==="inbound"){
     return (
-      <div>
-        <div className="page-header">
-          <div className="page-title">{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
-          <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+      <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",minHeight:0}}>
+        <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:0,justifyContent:"space-between"}}>
+          <div>
+            <div className="page-title" style={{fontSize:20}}>{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
+            <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+          </div>
+          <TimerBar {...headerTimerState} fmtElapsed={fmtElapsed}/>
         </div>
-        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft}
+        <PostLiveForm key={`${mode}-${activeDraftId||"new"}-${isEditingFromLog?"edit":"new"}`} mode={mode} draftData={currentDraft} user={user} onTimerEnd={onTimerEnd} specialRequestors={specialRequestors} timerLimitSecs={alarmMins*60} isEditMode={isEditingFromLog} isMinimisedResume={isResumingMinimised} caseStartTime={caseStartTimeRef.current} externalFormRef={sharedFormRef} isResumingDraft={useDraft} onTimerTick={t=>setHeaderTimerState(t)}
           originalOutcome={isEditingFromLog?(editingCase.savedCase._saveOutcome||""):useDraft?"Suspended":""}
           originalTotalSecs={(()=>{
             const targetCase = isEditingFromLog ? editingCase.savedCase : currentDraft;
             const caseNum = (targetCase?.caseNum||"").trim();
-            // Sum all closed session log entries for this caseNum (all durations, handles duplicates)
+            // Use only the LATEST closed entry for this caseNum to avoid double-counting duplicates
             if(caseNum && sessionLog?.length){
-              const total = sessionLog.filter(e=>
+              const entries = sessionLog.filter(e=>
                 e.endedAt && (e.caseNum||"").trim()===caseNum &&
                 e.status!=="Time In" && e.status!=="Time Out" && e.status!=="Break"
-              ).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
-              if(total>0) return Math.floor(total/1000);
+              );
+              if(entries.length>0){
+                const latest = entries.reduce((a,b)=>b.endedAt>a.endedAt?b:a);
+                const ms = latest.endedAt - latest.startedAt;
+                if(ms>0) return Math.floor(ms/1000);
+              }
             }
             // Fallback: use stored _totalElapsed on the saved case
             return targetCase?._totalElapsed || targetCase?._elapsedAtSave || 0;
           })()}
+          containerStyle={{flex:1,overflow:"hidden",minHeight:0}}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   if(isEditingFromLog){
@@ -3081,16 +3202,38 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
             </div>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-              
-              <span style={{ fontSize: 10, color: "var(--muted)" }}>Start your session</span>
+            <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  gap: "10px"
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--muted)",
+                    lineHeight: 1
+                  }}
+                >
+                  Start your session
+                </span>
 
-              <button className="btn btn-save timein-btn" onClick={()=>onTimeIn&&onTimeIn()}>
-                <Icon name="play" size={14} style={{ marginRight: 7 }} />
-                Clock In
-              </button>
-
-            </div>
+                <button
+                  className="btn btn-save timein-btn"
+                  onClick={() => onTimeIn && onTimeIn()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <Icon name="play" size={14} />
+                  Clock In
+                </button>
+              </div>
           )}
         </div>
 
@@ -3149,7 +3292,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
-              <button className="draft-resume" disabled={!timedIn||breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(!timedIn||breakActive||isMinimised)?.45:1,cursor:(!timedIn||breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue Suspended</button>
+              <button className="draft-resume" disabled={!timedIn||breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(!timedIn||breakActive||isMinimised)?.45:1,cursor:(!timedIn||breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue</button>
               <button
                 className="entry-del"
                 title="Delete"
@@ -3329,7 +3472,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       
       const isContinueSuspended = outcome === "Suspended";
       const isDeleted = outcome === "Deleted";
-      const buttonText = isContinueSuspended ? "Continue Suspended" : "Edit";
+      const buttonText = isContinueSuspended ? "Continue" : "Edit";
    
       return (
         <div key={entry.id} className="session-log-row" style={{
@@ -3372,7 +3515,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           </span>
           <div>
             {isDeleted?(
-              <span style={{fontSize:10,fontWeight:700,color:"#f43f5e",fontFamily:"'Poppins',sans-serif",background:"rgba(244,63,94,.12)",padding:"3px 8px",borderRadius:20,border:"1px solid rgba(244,63,94,.3)"}}>🗑 Deleted</span>
+              <span style={{fontSize:10,fontWeight:700,color:"#f43f5e",fontFamily:"'Poppins',sans-serif",background:"rgba(244,63,94,.12)",padding:"3px 8px",borderRadius:2,border:"1px solid rgba(244,63,94,.3)"}}>🗑 Deleted</span>
             ):showButton?(
               <button
                 className="session-log-edit-btn"
@@ -3398,8 +3541,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       );
     })}
                   {(()=>{
-                    // Sum durations: for cases with caseNum, only count the latest entry per case
-                    // to avoid double-counting resumed/continued cases
+                    // Sum case durations: for cases with caseNum, only count the latest entry per case
                     const latestPerCase={};
                     sessionLog.forEach(e=>{
                       if(!e.endedAt) return;
@@ -3411,14 +3553,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                         }
                       }
                     });
-                    const totalMs=Object.values(latestPerCase).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
+                    const caseMs=Object.values(latestPerCase).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
+                    // Also sum all break durations
+                    const breakMs=sessionLog.filter(e=>e.status==="Break"&&e.endedAt).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
+                    const totalMs=caseMs+breakMs;
                     const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000),s=Math.floor((totalMs%60000)/1000);
+                    const bh=Math.floor(breakMs/3600000),bm=Math.floor((breakMs%3600000)/60000),bs=Math.floor((breakMs%60000)/1000);
                     return (
                       <div className="session-log-total">
                         <span style={{fontWeight:800,fontSize:11,color:"var(--accent)",fontFamily:"'Poppins',sans-serif"}}>⏱ Total tracked time</span>
-                        <span/><span/><span/><span/>
+                        <span/><span/><span/>
+                        <span style={{fontSize:10,color:"var(--muted)",fontFamily:"'Poppins',sans-serif",fontStyle:"italic"}}>
+                          {breakMs>0&&`☕ ${bh>0?`${bh}h `:""}${bm}m ${bs}s breaks`}
+                        </span>
                         <span/>
-                          <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
+                        <span style={{fontWeight:800,fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{h>0?`${h}h `:""}{m}m {s}s</span>
                       </div>
                     );
                   })()}
@@ -3606,6 +3755,7 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
       checklist:{...(c.checklist||{})},
       images:[...(c.images||[])],
       backupImages:[...(c.backupImages||[])],
+      trackerChecklistLink:c.trackerChecklistLink||"",
     });
     setEditMode(true);
     setIsOpen(true);
@@ -3860,15 +4010,62 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
                 </>
               ) : (
                 allImages.length===0
-                  ? <div style={{color:"var(--muted)",fontSize:12,padding:"8px 0"}}>No screenshots</div>
+                  ? <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0"}}>
+                      <span style={{color:"var(--muted)",fontSize:12}}>No screenshots</span>
+                      <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={startEdit}>＋ Add via Edit</button>
+                    </div>
                   : <>
                       <div className="case-imgs">
                         {allImages.map(img=>(<div key={img.id||img.name} className="case-img-thumb" title={img.name} onClick={()=>onLightbox(img.url)}><img src={img.url} alt={img.name}/></div>))}
                       </div>
-                      <div style={{fontSize:11,color:"var(--muted)",marginTop:8}}>Click to enlarge</div>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginTop:8}}>
+                        <span style={{fontSize:11,color:"var(--muted)"}}>Click to enlarge</span>
+                        <button className="h-btn" style={{fontSize:11,padding:"4px 10px",borderColor:"var(--accent)",color:"var(--accent)"}} onClick={startEdit}>＋ Add / Edit</button>
+                      </div>
                     </>
               )}
             </div>
+
+            {/* ── TRACKER LINK ── */}
+            {(true) && (
+              <div className="case-section">
+                <div className="case-section-title">🔗 Tracker Link</div>
+                {editMode ? (
+                  <div className="field" style={{marginBottom:0}}>
+                    <input
+                      className="inp"
+                      type="url"
+                      placeholder="https://..."
+                      value={D.trackerChecklistLink||""}
+                      onChange={e=>setD({trackerChecklistLink:e.target.value})}
+                      style={{fontSize:12}}
+                    />
+                  </div>
+                ) : (
+                  c.trackerChecklistLink ? (
+                    <a
+                      href={c.trackerChecklistLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display:"inline-flex",alignItems:"center",gap:6,
+                        fontSize:13,fontWeight:600,color:"var(--accent)",
+                        wordBreak:"break-all",padding:"6px 10px",
+                        background:"var(--entry-accent-bg)",
+                        border:"1px solid rgba(1,118,211,.2)",
+                        borderRadius:8,textDecoration:"none",
+                        transition:".15s",maxWidth:"100%",
+                      }}
+                      onMouseEnter={e=>e.currentTarget.style.background="rgba(1,118,211,.18)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="var(--entry-accent-bg)"}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      {c.trackerChecklistLink}
+                    </a>
+                  ) : <span style={{fontSize:12,color:"var(--muted)",fontStyle:"italic",fontFamily:"'Poppins',sans-serif"}}>— No tracker link saved</span>
+                )}
+              </div>
+            )}
 
             {/* ── ACTIONS ── */}
             <div className="case-actions">
@@ -5342,6 +5539,7 @@ function App() {
         images:uploadedImages,
         backupImages:uploadedBackup,
         entries:(c.entries||[]).map(({_file,...rest})=>rest),
+        trackerChecklistLink:c.trackerChecklistLink||"",
       };
       const res=await fetch("/api/cases",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const saved=await res.json();
@@ -5362,6 +5560,7 @@ function App() {
         images:cleanImgs(updated.images),
         backupImages:cleanImgs(updated.backupImages),
         entries:(updated.entries||[]).map(({_file,...rest})=>rest),
+        trackerChecklistLink:updated.trackerChecklistLink||"",
       };
       const res=await fetch(`/api/cases/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const saved=await res.json();
@@ -5581,23 +5780,28 @@ function App() {
           </>)}
 
           <div className="sidebar-divider" style={{height:1,background:"var(--border)",margin:"12px 0 10px"}}/>
-          {/* ── Shift Timer ── */}
-          {timedIn&&globalTimeIn&&<SidebarShiftTimer globalTimeIn={globalTimeIn} shiftEndTime={shiftEndTime}/>}
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
-            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>(
-              <button key={mins} className={cls("break-btn",breakTimer&&breakTimer.mins===mins&&"active")} disabled={breakTimer&&breakTimer.mins!==mins} style={{opacity:breakTimer&&breakTimer.mins!==mins?.35:1,cursor:breakTimer&&breakTimer.mins!==mins?"not-allowed":"pointer"}}
-                onClick={()=>breakTimer?.mins===mins?setCancelBreakConfirm(true):setBreakPending({label,mins})}>
-                <Icon name={icon} size={14} color={breakTimer?.mins===mins?"var(--accent)":"var(--muted)"}/>
+            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>{
+              const isActiveBreak = breakTimer&&breakTimer.mins===mins;
+              const isOtherBreak = breakTimer&&breakTimer.mins!==mins;
+              const disabledByForm = formInFields && !isActiveBreak;
+              const disabled = isOtherBreak || disabledByForm;
+              return (
+              <button key={mins} className={cls("break-btn",isActiveBreak&&"active")} disabled={disabled} style={{opacity:disabled?.35:1,cursor:disabled?"not-allowed":"pointer",position:"relative"}}
+                onClick={()=>isActiveBreak?setCancelBreakConfirm(true):setBreakPending({label,mins})}>
+                <Icon name={icon} size={14} color={isActiveBreak?"var(--accent)":"var(--muted)"}/>
                 <span style={{flex:1}}>{label}</span>
-                {breakTimer?.mins===mins&&<Icon name="play" size={9} color="var(--accent)"/>}
+                {isActiveBreak&&<Icon name="play" size={9} color="var(--accent)"/>}
+                {disabledByForm&&!isActiveBreak&&<span style={{fontSize:8,position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",color:"var(--muted)",opacity:.7}}>🔒</span>}
               </button>
-            ))}
+            );})}
           {timedIn&&!breakTimer&&(
-            <button className="break-btn" style={{borderColor:"rgba(124,58,237,.4)",color:"var(--accent2)"}} onClick={()=>setOpenHourPending(true)}>
+            <button className="break-btn" style={{borderColor:"rgba(124,58,237,.4)",color:"var(--accent2)",opacity:formInFields?.35:1,cursor:formInFields?"not-allowed":"pointer"}} disabled={!!formInFields} onClick={()=>!formInFields&&setOpenHourPending(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span style={{flex:1}}>Open Hour</span>
+              {formInFields&&<span style={{fontSize:8,marginLeft:"auto",color:"var(--muted)",opacity:.7}}>🔒</span>}
             </button>
           )}
           </div>
@@ -5633,7 +5837,7 @@ function App() {
         </aside>
         </div>
 
-        <main className="main-area" style={{paddingBottom:breakTimer?80:32}}>
+        <main className={cls("main-area", formInFields&&"form-mode")} style={{paddingBottom: formInFields ? 0 : (breakTimer?80:32)}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
 
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
