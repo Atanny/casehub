@@ -4973,10 +4973,6 @@ function App() {
   });
   const sidebarDragRef=useRef(null);
   const sidebarElRef=useRef(null);
-  // Scroll sidebar back to top whenever it collapses so reopening always starts fresh
-  useEffect(()=>{
-    if(sidebarIsCollapsed&&sidebarElRef.current) sidebarElRef.current.scrollTop=0;
-  },[sidebarIsCollapsed]);
   const [pendingPage,setPendingPage]=useState(null);
   const [navConfirm,setNavConfirm]=useState(false);
   const dbStatus = useDbStatus();
@@ -5219,6 +5215,10 @@ function App() {
   };
   const [sidebarHoverOpen,setSidebarHoverOpen]=useState(false);
   const sidebarIsCollapsed=!sidebarHoverOpen;
+  // Scroll sidebar back to top whenever it collapses so reopening always starts at the top
+  useEffect(()=>{
+    if(sidebarIsCollapsed&&sidebarElRef.current) sidebarElRef.current.scrollTop=0;
+  },[sidebarIsCollapsed]);
   const [lightMode,setLightMode]=useState(()=>{
     if(typeof window!=="undefined"){return localStorage.getItem("ch_theme")==="light";}
     return false;
