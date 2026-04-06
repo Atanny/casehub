@@ -3137,12 +3137,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               </p>
 
               {/* BUTTONS */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
 
-                <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", width: "100%" }}>
                   <button
                     className="btn btn-ghost"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, justifyContent: "center" }}
                     onClick={() => setBackConfirm(false)}
                   >
                     Keep Editing
@@ -3150,7 +3150,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
                  <button 
                         className="btn btn-primary" 
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, justifyContent: "center" }}
                         onClick={() => {
                           minimiseMode(sharedFormRef.current || undefined);
                         }}
@@ -3161,7 +3161,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
                 <button
                   className="btn btn-danger"
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", justifyContent: "center" }}
                   onClick={cancelMode}
                 >
                   Cancel
