@@ -150,7 +150,7 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   font-size:10px;color:var(--muted);font-family:monospace;
 }
 .sidebar-shift-elapsed{
-  font-size:clamp(18px,2vw,22px);font-weight:800;letter-spacing:-1px;
+  font-size:clamp(24px,2.5vw,30px);font-weight:800;letter-spacing:-1.5px;
   font-family:monospace;line-height:1;word-break:break-word;
 }
 .logo{
@@ -527,7 +527,7 @@ body.light .action-bar{background:rgba(255,248,243,.92);}
 .meta-row:last-child{border-right:none;}
 .meta-row .meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap;}
 .meta-row .meta-val{color:var(--text);font-weight:700;font-size:11px;font-family:'Poppins',sans-serif;line-height:1.3;text-align:center;}
-.meta-row .timer-val{color:var(--accent);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
+.meta-row .timer-val{color:var(--accent);font-weight:800;font-size:32px;font-variant-numeric:tabular-nums;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;line-height:1.1;}
 .summary-panel{padding:14px 16px;overflow-y:auto;flex:1;min-height:0;}
 .main-area.form-mode .summary-panel{padding-bottom:16px;}
 
@@ -1805,6 +1805,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.customerName&&<CopyRow label="Customer Name" value={f.customerName}/>}
         {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail}/>}
+        {f.businessName&&<CopyRow label="Business Name" value={f.businessName}/>}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {f.caseNum&&(
           <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
@@ -1877,7 +1878,7 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
 const emptyEntry = ()=>({id:String(Date.now()+Math.random()),number:"",note:"",clarification:""});
 const emptyBase  = ()=>({
   caseNum:"",accountNum:"",amendType:"",inProgress:false,inboundNum:"",
-  customerName:"",customerEmail:"",
+  customerName:"",customerEmail:"",businessName:"",
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
   checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,emailSales:false,trackerChecklist:false,completeStatus:false},
@@ -1894,8 +1895,8 @@ function TimerBar({ footerElapsed, resumeElapsed, phase2Elapsed, isDraftResumed,
   const sep = <span style={{color:"var(--glass-border)",fontSize:16,fontWeight:300,margin:"0 4px"}}>|</span>;
   const block = (label, val, color) => (
     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1.1}}>
-      <span style={{fontSize:8,color:color||"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",opacity:.8}}>{label}</span>
-      <span style={{fontSize:18,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:color||"var(--accent)",letterSpacing:"-1px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(val)}</span>
+      <span style={{fontSize:9,color:color||"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",opacity:.8}}>{label}</span>
+      <span style={{fontSize:28,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:color||"var(--accent)",letterSpacing:"-1.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(val)}</span>
     </div>
   );
 
@@ -2071,6 +2072,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
   const setF=(patch)=>setForm(f=>({...f,...patch}));
 
+  // Auto-fill emailAddress from customerEmail whenever customerEmail changes (inbound only)
+  useEffect(()=>{
+    if(!isSC && form.customerEmail && !form._emailAddressManuallySet){
+      setForm(f=>({...f, emailAddress: form.customerEmail}));
+    }
+  },[form.customerEmail]);
+
   const step1Done = !!(form.caseNum&&form.accountNum&&form.amendType&&(isSC||form.inboundNum));
   const step2Done = !!form._beforeCopied;
   const step3Done = isSC
@@ -2164,6 +2172,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
           <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
           <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
+          <div className="field"><label>Business Name</label><input className="inp" placeholder="e.g. Acme Corp" value={form.businessName||""} onChange={e=>setF({businessName:e.target.value})}/></div>
           <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})} disabled={isDraft||isEditMode}/>In-Progress Salesforce</label>
         </StepCard>
 
@@ -2276,7 +2285,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           {isSC&&<button className="add-entry-btn" onClick={addEntry}>＋ Add New Site Comment</button>}
           {!isSC&&(
             <div style={{marginTop:16,padding:"15px",background:"var(--code-bg)",borderRadius:10,border:"1.5px solid var(--border)"}}>
-              <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value})}/></div>
+              <div className="field"><label>Email Address <span className="req">*</span></label><input className="inp" type="email" placeholder="client@email.com" value={form.emailAddress} onChange={e=>setF({emailAddress:e.target.value,_emailAddressManuallySet:true})}/>{form.customerEmail&&!form.emailAddress&&<div style={{fontSize:10,color:"var(--accent)",marginTop:4,fontFamily:"'Poppins',sans-serif"}}>↑ Will auto-fill from Customer Email in Step 1</div>}</div>
               <div className="field" style={{marginBottom:0}}><label>Email Type <span className="req">*</span></label>
                 <div className="radio-group">
                   <label className={cls("radio-label",form.emailType==="clarification"&&"selected-clarif")}><input type="radio" name="emailType" value="clarification" checked={form.emailType==="clarification"} onChange={()=>setF({emailType:"clarification"})} style={{display:"none"}}/>Clarification</label>
@@ -3194,7 +3203,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                   {globalTimeIn ? new Date(globalTimeIn).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}) : ""}
                 </span>
 
-                <span style={{ fontSize: 20, fontWeight: 800, color: "var(--green)" }}>
+                <span style={{ fontSize: 28, fontWeight: 800, color: "var(--green)", letterSpacing:"-1px", fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
                   {fmtElapsed(elapsed)}
                 </span>
               </div>
@@ -3546,25 +3555,9 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       );
     })}
                   {(()=>{
-                    // ── Total time: all closed entries except Time In / Time Out ──
-                    // For entries WITH a caseNum: count only the LATEST closed entry per case (avoids
-                    // double-counting when a suspended case is resumed and completed).
-                    // For entries WITHOUT a caseNum (Ongoing, Break, Open Hour, etc.): count every one.
-                    const latestPerCase={};
-                    const noCaseEntries=[];
-                    sessionLog.forEach(e=>{
-                      if(!e.endedAt) return;
-                      if(e.status==="Time In"||e.status==="Time Out") return;
-                      const key=(e.caseNum||"").trim();
-                      if(key){
-                        if(!latestPerCase[key]||e.endedAt>latestPerCase[key].endedAt) latestPerCase[key]=e;
-                      } else {
-                        noCaseEntries.push(e);
-                      }
-                    });
-                    const caseMs=Object.values(latestPerCase).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
-                    const otherMs=noCaseEntries.reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
-                    const totalMs=caseMs+otherMs;
+                    // ── Total time: sum ALL closed entries (every row in the table is a sequential,
+                    // non-overlapping block, so plain addition gives the real wall-clock total) ──
+                    const totalMs=sessionLog.filter(e=>e.endedAt).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
 
                     // ── Break total (for display) ──
                     const breakMs=sessionLog.filter(e=>e.status==="Break"&&e.endedAt).reduce((acc,e)=>acc+(e.endedAt-e.startedAt),0);
@@ -4979,6 +4972,11 @@ function App() {
     return "dashboard";
   });
   const sidebarDragRef=useRef(null);
+  const sidebarElRef=useRef(null);
+  // Scroll sidebar back to top whenever it collapses so reopening always starts fresh
+  useEffect(()=>{
+    if(sidebarIsCollapsed&&sidebarElRef.current) sidebarElRef.current.scrollTop=0;
+  },[sidebarIsCollapsed]);
   const [pendingPage,setPendingPage]=useState(null);
   const [navConfirm,setNavConfirm]=useState(false);
   const dbStatus = useDbStatus();
@@ -5765,7 +5763,7 @@ function App() {
       <style>{CSS}</style>
       <div className={cls("shell",sidebarIsCollapsed&&"sidebar-collapsed")}>
         <div className="sidebar-wrap" onMouseEnter={()=>setSidebarHoverOpen(true)} onMouseLeave={()=>setSidebarHoverOpen(false)}>
-        <aside className={cls("sidebar",sidebarIsCollapsed&&"collapsed")}>
+        <aside ref={sidebarElRef} className={cls("sidebar",sidebarIsCollapsed&&"collapsed")}>
           <div className="logo">
             <div className="logo-icon">
               <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
@@ -5853,7 +5851,7 @@ function App() {
             </div>
             <div className="profile-text"><div className="profile-name">{user.name}</div><div className="profile-role">{user.role||"User"}</div></div>
           </div>
-          <button className="sidebar-logout-btn" onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"10px 12px",borderRadius:30,cursor:"pointer",color:"var(--red)",fontSize:13,fontWeight:500,fontFamily:"'Poppins',sans-serif",transition:".18s",marginTop:0}} onMouseOver={e=>e.currentTarget.style.background="rgba(244,63,94,.1)"} onMouseOut={e=>e.currentTarget.style.background="none"}>
+          <button className="sidebar-logout-btn" onClick={()=>logout()} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"1.5px solid rgba(244,63,94,.4)",padding:"10px 12px",borderRadius:8,cursor:"pointer",color:"var(--red)",fontSize:13,fontWeight:600,fontFamily:"'Poppins',sans-serif",transition:".18s",marginTop:0}} onMouseOver={e=>{e.currentTarget.style.background="rgba(244,63,94,.1)";e.currentTarget.style.borderColor="rgba(244,63,94,.7)";}} onMouseOut={e=>{e.currentTarget.style.background="none";e.currentTarget.style.borderColor="rgba(244,63,94,.4)";}}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span className="nav-label">Sign Out</span>
           </button>
