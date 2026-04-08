@@ -1,0 +1,13 @@
+import supabase from '../../../lib/supabase'
+export default async function handler(req, res) {
+  if (req.method !== 'DELETE') return res.status(405).end()
+  try {
+    const { path } = req.body
+    if (!path) return res.status(400).json({ error: 'path required' })
+    const { error } = await supabase.storage.from('case-images').remove([path])
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
