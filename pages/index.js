@@ -11,6 +11,7 @@ const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakart
 const CSS = `
 ${FONTS}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.4);}}
 
 /* ══════════════════════ DARK THEME (default) ══════════════════════ */
 :root{
@@ -73,22 +74,42 @@ body.light ::-webkit-scrollbar-thumb{background:rgba(212,114,74,.2);}
 body.light ::-webkit-scrollbar-thumb:hover{background:rgba(212,114,74,.45);}
 *{scrollbar-width:thin;scrollbar-color:rgba(245,148,92,.25) transparent;}
 body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
-
 /* ── Shell ── */
 .shell{display:flex;min-height:100vh;}
+
 .sidebar{
-  width:240px;background:var(--glass-bg);border-right:1px solid var(--glass-border);
-  display:flex;flex-direction:column;padding:20px 14px;gap:2px;
-  position:sticky;top:0;height:100vh;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
-  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  box-shadow:var(--glass-shadow);transition:width .25s cubic-bezier(.4,0,.2,1),padding .25s cubic-bezier(.4,0,.2,1);
+  width:240px;
+  background:var(--glass-bg);
+  border-right:1px solid var(--glass-border);
+  display:flex;
+  flex-direction:column;
+  padding:20px 14px;
+  gap:2px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  flex-shrink:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  box-shadow:var(--glass-shadow);
+  transition:width .25s cubic-bezier(.4,0,.2,1),
+              padding .25s cubic-bezier(.4,0,.2,1);
 }
-/* ── Sidebar collapsed: same padding as expanded, icons only, text hidden ── */
-.sidebar.collapsed{width:64px;padding:20px 6px;overflow-x:hidden;overflow-y:hidden;}
-/* Fade out all text/label elements */
+
+/* ── Sidebar collapsed ── */
+.sidebar.collapsed{
+  width:64px;
+  padding:20px 6px;
+  overflow-x:hidden;
+  overflow-y:hidden;
+}
+
+/* ❌ ORIGINAL GLOBAL TEXT HIDING (UNCHANGED EXCEPT nav-label FIX) */
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-group,
-.sidebar.collapsed .nav-label,
+/* ❌ REMOVED FROM HERE: .nav-label (FIXED BELOW) */
 .sidebar.collapsed .profile-name,
 .sidebar.collapsed .profile-role,
 .sidebar.collapsed .theme-toggle .toggle-label,
@@ -97,7 +118,17 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar.collapsed .break-btns,
 .sidebar.collapsed .sidebar-divider,
 .sidebar.collapsed .nav-custom-link,
-.sidebar.collapsed .sidebar-shift-timer{opacity:0;pointer-events:none;max-width:0;overflow:hidden;white-space:nowrap;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
+.sidebar.collapsed .sidebar-shift-timer{
+  opacity:0;
+  pointer-events:none;
+  max-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  transition:opacity .2s ease,
+              max-width .25s cubic-bezier(.4,0,.2,1);
+}
+
+/* KEEP ORIGINAL EXPANDED STATE */
 .sidebar .logo-text,
 .sidebar .nav-group,
 .sidebar .nav-label,
@@ -109,111 +140,292 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 .sidebar .break-btns,
 .sidebar .sidebar-divider,
 .sidebar .nav-custom-link,
-.sidebar .sidebar-shift-timer{opacity:1;max-width:200px;transition:opacity .2s ease,max-width .25s cubic-bezier(.4,0,.2,1);}
-/* Center icons — keep same vertical padding as expanded */
-.sidebar.collapsed .nav-item{justify-content:center;gap:0;padding-left:6px;padding-right:6px;}
+.sidebar .sidebar-shift-timer{
+  opacity:1;
+  max-width:200px;
+  transition:opacity .2s ease,
+              max-width .25s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Center icons ── */
+.sidebar.collapsed .nav-item{
+  justify-content:center;
+  gap:0;
+  padding-left:6px;
+  padding-right:6px;
+}
+
 .sidebar.collapsed .nav-badge{display:none !important;}
 .sidebar.collapsed .nav-inprogress{display:none !important;}
-.sidebar.collapsed .sidebar-profile{justify-content:center;gap:0;}
-.sidebar.collapsed .sidebar-profile .profile-text{display:none;}
-.sidebar.collapsed .theme-toggle{justify-content:center;gap:0;}
-.sidebar.collapsed .logo{justify-content:center;gap:0;padding-left:0;padding-right:0;}
-.sidebar.collapsed .db-status{justify-content:center;}
-.sidebar.collapsed .sidebar-shift-timer{display:none;}
-/* nav-badge-dot: keep positioned on icon even when centered */
-.sidebar.collapsed .nav-icon-wrap{display:inline-flex;position:relative;}
-.sidebar-collapse-btn{
-  position:absolute;top:50%;right:-12px;transform:translateY(-50%);
-  width:24px;height:24px;border-radius:30px;
-  background:var(--accent);border:none;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.28);
-  transition:background .15s;padding:0;flex-shrink:0;
+
+.sidebar.collapsed .sidebar-profile{
+  justify-content:center;
+  gap:0;
 }
-.sidebar-collapse-btn:hover{background:var(--accent2);}
-.sidebar-wrap{position:relative;flex-shrink:0;}
-.sidebar-shift-timer{
-  margin:0 2px 10px;padding:10px 12px;
-  background:var(--entry-bg);border:1px solid var(--border);border-radius:10px;
-  transition:border-color .3s,transform .2s;
-}
-.sidebar-shift-row{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  gap:8px;margin-bottom:6px;flex-wrap:wrap;
-}
-.sidebar-shift-label{
-  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
-  font-family:'Poppins',sans-serif;
-}
-.sidebar-shift-meta{
-  display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;
-  font-size:10px;color:var(--muted);font-family:monospace;
-}
-.sidebar-shift-elapsed{
-  font-size:clamp(24px,2.5vw,30px);font-weight:800;letter-spacing:-1.5px;
-  font-family:monospace;line-height:1;word-break:break-word;
-}
-.logo{
-  font-size:18px;font-weight:800;color:var(--text);
-  padding:4px 10px 20px;letter-spacing:-.5px;
-  display:flex;align-items:center;gap:9px;
-}
-.logo-icon{
-  width:30px;height:30px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-}
-.logo-text span{color:var(--accent);}
-.nav-group{
-  font-family:'Poppins',sans-serif;
-  font-size:9px;font-weight:700;color:var(--muted);
-  text-transform:uppercase;letter-spacing:1.5px;
-  padding:14px 10px 4px;
-}
-.nav-item{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;border-radius:30px;
-  font-size:13px;font-weight:500;color:var(--muted);
-  border:none;background:none;width:100%;text-align:left;
-  transition:.18s;position:relative;
-  font-family:'Poppins',sans-serif;
-}
-.nav-item:hover{background:var(--card2);color:var(--text);}
-.nav-item.active{
-  background:var(--nav-active-bg);color:var(--accent);
-  border:1px solid var(--nav-active-border);font-weight:600;
-}
-.nav-badge{
-  margin-left:auto;background:var(--accent);color:#fff;
-  border-radius:30px;font-size:10px;font-weight:700;
-  padding:1px 7px;line-height:1.6;
-}
-.nav-icon-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
-.nav-badge-dot{
-  position:absolute;top:-5px;right:-6px;
-  min-width:14px;height:14px;border-radius:7px;
-  background:var(--accent);color:#fff;
-  font-size:8px;font-weight:700;line-height:14px;text-align:center;
-  padding:0 3px;pointer-events:none;
+
+.sidebar.collapsed .sidebar-profile .profile-text{
   display:none;
 }
-.sidebar.collapsed .nav-badge-dot{display:block;}
+
+.sidebar.collapsed .theme-toggle{
+  justify-content:center;
+  gap:0;
+}
+
+.sidebar.collapsed .logo{
+  justify-content:center;
+  gap:0;
+  padding-left:0;
+  padding-right:0;
+}
+
+.sidebar.collapsed .db-status{
+  justify-content:center;
+}
+
+.sidebar.collapsed .sidebar-shift-timer{
+  display:none;
+}
+
+/* ── icon wrapper ── */
+.sidebar.collapsed .nav-icon-wrap{
+  display:inline-flex;
+  position:relative;
+}
+
+/* ── collapse button ── */
+.sidebar-collapse-btn{
+  position:absolute;
+  top:50%;
+  right:-12px;
+  transform:translateY(-50%);
+  width:24px;
+  height:24px;
+  border-radius:30px;
+  background:var(--accent);
+  border:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index:200;
+  box-shadow:0 2px 8px rgba(0,0,0,.28);
+  transition:background .15s;
+  padding:0;
+  flex-shrink:0;
+}
+
+.sidebar-collapse-btn:hover{
+  background:var(--accent2);
+}
+
+.sidebar-wrap{
+  position:relative;
+  flex-shrink:0;
+}
+
+/* ── shift timer ── */
+.sidebar-shift-timer{
+  margin:0 2px 10px;
+  padding:10px 12px;
+  background:var(--entry-bg);
+  border:1px solid var(--border);
+  border-radius:10px;
+  transition:border-color .3s,
+              transform .2s;
+}
+
+.sidebar-shift-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+  flex-wrap:wrap;
+}
+
+.sidebar-shift-label{
+  font-size:9px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  font-family:'Poppins',sans-serif;
+}
+
+.sidebar-shift-meta{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:4px;
+  flex-wrap:wrap;
+  font-size:10px;
+  color:var(--muted);
+  font-family:monospace;
+}
+
+.sidebar-shift-elapsed{
+  font-size:clamp(24px,2.5vw,30px);
+  font-weight:800;
+  letter-spacing:-1.5px;
+  font-family:monospace;
+  line-height:1;
+  word-break:break-word;
+}
+
+/* ── logo ── */
+.logo{
+  font-size:18px;
+  font-weight:800;
+  color:var(--text);
+  padding:4px 10px 20px;
+  letter-spacing:-.5px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.logo-icon{
+  width:30px;
+  height:30px;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.logo-text span{
+  color:var(--accent);
+}
+
+/* ── nav group ── */
+.nav-group{
+  font-family:'Poppins',sans-serif;
+  font-size:9px;
+  font-weight:700;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1.5px;
+  padding:14px 10px 4px;
+}
+
+/* ── nav item ── */
+.nav-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:30px;
+  font-size:13px;
+  font-weight:500;
+  color:var(--muted);
+  border:none;
+  background:none;
+  width:100%;
+  text-align:left;
+  transition:.18s;
+  position:relative;
+  font-family:'Poppins',sans-serif;
+}
+
+.nav-item:hover{
+  background:var(--card2);
+  color:var(--text);
+}
+
+.nav-item.active{
+  background:var(--nav-active-bg);
+  color:var(--accent);
+  border:1px solid var(--nav-active-border);
+  font-weight:600;
+}
+
+/* ── badges ── */
+.nav-badge{
+  margin-left:auto;
+  background:var(--accent);
+  color:#fff;
+  border-radius:30px;
+  font-size:10px;
+  font-weight:700;
+  padding:1px 7px;
+  line-height:1.6;
+}
+
+.nav-icon-wrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+
+.nav-badge-dot{
+  position:absolute;
+  top:-5px;
+  right:-6px;
+  min-width:14px;
+  height:14px;
+  border-radius:7px;
+  background:var(--accent);
+  color:#fff;
+  font-size:8px;
+  font-weight:700;
+  line-height:14px;
+  text-align:center;
+  padding:0 3px;
+  pointer-events:none;
+  display:none;
+}
+
+.sidebar.collapsed .nav-badge-dot{
+  display:block;
+}
+
 .nav-active-dot{
-  position:absolute;top:-3px;right:-3px;
-  width:7px;height:7px;border-radius:50%;
-  background:var(--accent);display:none;
+  position:absolute;
+  top:-3px;
+  right:-3px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--accent);
+  display:none;
   animation:pulse-dot 1.4s ease-in-out infinite;
 }
-.sidebar.collapsed .nav-active-dot{display:block;}
-.sidebar.collapsed .profile-text{display:none;}
 
-/* TOC nav card — fixed height column between sidebar and form */
-.toc-card{
-  width:148px;flex-shrink:0;
-  align-self:stretch;
-  background:var(--glass-bg);
-  border-left:1px solid var(--glass-border);
-  backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-  overflow-y:auto;overflow-x:hidden;
+.sidebar.collapsed .nav-active-dot{
+  display:block;
+}
+
+.sidebar.collapsed .profile-text{
+  display:none;
+}
+
+/* ── ✅ FIX: NAV TEXT CLIPPING (NEW ADDITION) ── */
+.nav-text{
+  display:inline-block;
+  white-space:nowrap;
+  overflow:hidden;
+
+  max-width:200px;
+  opacity:1;
+  transform:translateX(0);
+
+  transition:
+    max-width .25s cubic-bezier(.4,0,.2,1),
+    opacity .2s ease,
+    transform .25s ease;
+}
+
+.sidebar.collapsed .nav-text{
+  max-width:0;
+  opacity:0;
+  transform:translateX(-6px);
+  pointer-events:none;
+}
+
+.nav-text{
+  will-change:opacity, transform;
 }
 .toc-card-header{
   padding:10px 12px 8px;border-bottom:1px solid var(--border);
@@ -1537,7 +1749,7 @@ async function uploadPendingImages(images) {
 
 // immediateUpload=true  → upload to Storage right away (editing an already-saved case)
 // immediateUpload=false → keep in RAM as blob (new unsaved form — upload on case save)
-function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[] }) {
+function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, initialImages=[], caseNum="" }) {
   const [images,setImages] = useState(()=>initialImages||[]);
   const [drag,setDrag] = useState(false);
   const [uploading,setUploading] = useState(false);
@@ -1591,7 +1803,13 @@ function ImageUpload({ baseName, multiple, onImages, immediateUpload=false, init
     const fileName = `${baseName}.${safeExt}`;
     if (window.showDirectoryPicker) {
       try {
-        const dir = await window.showDirectoryPicker({ mode:"readwrite", startIn:"downloads" });
+        const rootDir = await window.showDirectoryPicker({ mode:"readwrite", startIn:"downloads" });
+        // If we have a case number, save into a subfolder named after the case
+        let dir = rootDir;
+        if (caseNum) {
+          const folderName = `Case_${caseNum}`;
+          dir = await rootDir.getDirectoryHandle(folderName, { create: true });
+        }
         const fh = await dir.getFileHandle(fileName, { create:true });
         const wr = await fh.createWritable();
         const r = await fetch(img.url); const blob = await r.blob();
@@ -1890,40 +2108,42 @@ const emptyBase  = ()=>({
 // ── TimerBar — compact inline timer display for the form header ──────────────
 function TimerBar({ footerElapsed, resumeElapsed, phase2Elapsed, isDraftResumed, isEditMode, prevElapsedSecs, originalTotalSecs, originalOutcome, fmtElapsed }) {
   const sep = <span style={{color:"var(--glass-border)",fontSize:16,fontWeight:300,margin:"0 4px"}}>|</span>;
-  const block = (label, val, color) => (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1.1}}>
-      <span style={{fontSize:9,color:color||"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",opacity:.8}}>{label}</span>
+  const block = (label, val, color, extra={}) => (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1.1,...(extra.style||{})}}>
+      <span style={{fontSize:9,color:color||"var(--muted)",fontFamily:"'Poppins',sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",opacity:.8,display:"flex",alignItems:"center",gap:4}}>
+        {label}
+        {extra.pulsing&&<span style={{width:6,height:6,borderRadius:"50%",background:"var(--green)",display:"inline-block",animation:"pulse-dot 1.2s infinite"}}/>}
+        {extra.paused&&<span style={{fontSize:8,color:"var(--muted)",fontWeight:600,opacity:.7}}>⏸ paused</span>}
+      </span>
       <span style={{fontSize:28,fontWeight:800,fontFamily:"'Plus Jakarta Sans',sans-serif",color:color||"var(--accent)",letterSpacing:"-1.5px",fontVariantNumeric:"tabular-nums"}}>{fmtElapsed(val)}</span>
     </div>
   );
+  const phase2Active = phase2Elapsed !== null;
 
   if(isDraftResumed){
     if(isEditMode){
-      // Edit mode: show total hours spent on this case (from session log) + elapsed now
-      const totalLabel = "Total Time Spent";
       return (
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
-          {block(totalLabel, originalTotalSecs, "var(--muted)")}
+          {block("Total Time Spent", originalTotalSecs, "var(--muted)")}
           {sep}
-          {block("Elapsed now", footerElapsed, "var(--accent)")}
-          {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+          {block("Elapsed now", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+          {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
         </div>
       );
     }
-    // Suspended resume: show time before suspend + elapsed now (synced to session timer)
     return (
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8,flexWrap:"wrap"}}>
         {block("Before suspended", prevElapsedSecs, "var(--muted)")}
         {sep}
-        {block("Elapsed now", footerElapsed, "var(--accent)")}
-        {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+        {block("Elapsed now", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+        {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
       </div>
     );
   }
   return (
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 16px",borderLeft:"1px solid var(--glass-border)",marginLeft:8}}>
-      {block("Elapsed", footerElapsed, "var(--accent)")}
-      {phase2Elapsed !== null && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)")}</>}
+      {block("Elapsed", footerElapsed, phase2Active?"var(--muted)":"var(--accent)", {paused:phase2Active})}
+      {phase2Active && <>{sep}{block("Phase 2", phase2Elapsed, "var(--green)", {pulsing:true})}</>}
     </div>
   );
 }
@@ -2048,11 +2268,20 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   // Footer timer — ticks every second for the action-bar elapsed display
   const [footerElapsed,setFooterElapsed] = useState(()=>Math.floor((Date.now()-startTimeRef.current)/1000));
   const [resumeElapsed,setResumeElapsed] = useState(0); // seconds since this resume started
+  // Freeze the main elapsed value the moment Phase 2 starts — it won't tick further
+  const frozenElapsedRef = useRef(null);
+  const frozenResumeRef  = useRef(null);
   useEffect(()=>{
     const t=setInterval(()=>{
-      const fe=Math.floor((Date.now()-startTimeRef.current)/1000);
-      const re=Math.floor((Date.now()-resumeStartRef.current)/1000);
-      const p2=phase2StartRef.current!==null?Math.floor((Date.now()-phase2StartRef.current)/1000):null;
+      const phase2Active = phase2StartRef.current !== null;
+      // Once Phase 2 starts, freeze the main timer at the value it had when Phase 2 began
+      if(phase2Active && frozenElapsedRef.current === null){
+        frozenElapsedRef.current = Math.floor((Date.now()-startTimeRef.current)/1000);
+        frozenResumeRef.current  = Math.floor((Date.now()-resumeStartRef.current)/1000);
+      }
+      const fe = phase2Active ? frozenElapsedRef.current : Math.floor((Date.now()-startTimeRef.current)/1000);
+      const re = phase2Active ? frozenResumeRef.current  : Math.floor((Date.now()-resumeStartRef.current)/1000);
+      const p2 = phase2Active ? Math.floor((Date.now()-phase2StartRef.current)/1000) : null;
       setFooterElapsed(fe);
       setResumeElapsed(re);
       if(p2!==null) setPhase2Elapsed(p2);
@@ -2162,15 +2391,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
       <div className="form-left">
 
         <StepCard num={1} title="Case Information" done={step1Done} locked={false} {...stepProps}>
-          {(isDraft||isEditMode)&&<div style={{fontSize:12,color:"var(--muted)",marginBottom:10,padding:"8px 12px",background:"rgba(1,118,211,.07)",border:"1px solid rgba(1,118,211,.2)",borderRadius:8,fontFamily:"'Poppins',sans-serif"}}>🔒 Case information is locked and cannot be changed.</div>}
-          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
-          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
-          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>)}
-          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})} disabled={isDraft||isEditMode} style={{opacity:(isDraft||isEditMode)?.65:1,cursor:(isDraft||isEditMode)?"not-allowed":"text"}}/></div>
+          <div className="field"><label>Case Number <span className="req">*</span></label><input className="inp" placeholder="e.g. 1234567" value={form.caseNum} onChange={e=>setF({caseNum:e.target.value})}/></div>
+          <div className="field"><label>Account Number <span className="req">*</span></label><input className="inp" placeholder="e.g. ACC-9876" value={form.accountNum} onChange={e=>setF({accountNum:e.target.value})}/></div>
+          {!isSC&&(<div className="field"><label>Inbound Number <span className="req">*</span></label><input className="inp" placeholder="Enter inbound number" value={form.inboundNum||""} onChange={e=>setF({inboundNum:e.target.value})}/></div>)}
+          <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})}/></div>
           <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
           <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
           <div className="field"><label>Business Name</label><input className="inp" placeholder="e.g. Acme Corp" value={form.businessName||""} onChange={e=>setF({businessName:e.target.value})}/></div>
-          <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})} disabled={isDraft||isEditMode}/>In-Progress Salesforce</label>
+          <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
         </StepCard>
 
          
@@ -2184,7 +2412,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
           <StepCard num={3} title={`Additional Backup Screenshots${form.backupImages?.length>0?" ("+form.backupImages.length+")":""}`} done={form.backupImages?.length>0} locked={!step2Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:11}}>Each renamed <span style={{color:"var(--accent)",fontWeight:600}}>backup-screenshot-N</span> on download.</p>
-          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]}/>
+          <ImageUpload baseName="backup-screenshot" multiple onImages={imgs=>setF({backupImages:imgs,checklist:{...formRef.current.checklist}})} immediateUpload={false} initialImages={form.backupImages||[]} caseNum={form.caseNum||""}/>
         </StepCard>
 
         
@@ -2312,7 +2540,7 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
            <StepCard num={7} title="Before/After Backup" done={!!form._screenshotCopied||form.images?.length>0} locked={!step6Done&&!isDraft} {...stepProps}>
           <p style={{fontSize:13,color:"var(--muted)",marginBottom:9}}>Upload screenshot — renamed automatically on download.</p>
           <CopyName name={screenshotName} onCopy={()=>setF({_screenshotCopied:true})}/>
-          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]}/></div>
+          <div style={{marginTop:12}}><ImageUpload baseName={screenshotName} multiple={false} onImages={imgs=>{setF({images:imgs,_screenshotCopied:imgs&&imgs.length>0?true:form._screenshotCopied});}} immediateUpload={false} initialImages={form.images||[]} caseNum={form.caseNum||""}/></div>
         </StepCard>
 
      
@@ -2780,6 +3008,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   });
   const [activeDraftId,setActiveDraftId]=useState(null); // tracks which specific draft to resume
   const [toast,showToast]=useToast();
+  const [bundleModal,setBundleModal]=useState(false); // bundle linking modal
+  const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
   const handledResumeTick=useRef(0);
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   const [headerTimerState,setHeaderTimerState]=useState({footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""});
@@ -2790,7 +3020,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     return v?Number(v):(globalTimeIn||Date.now());
   })());
 
-  const enterMode = (m, withDraft = false, draftId = null) => {
+  const enterMode = (m, withDraft = false, draftId = null, bundleCaseNum = null) => {
     if (breakActive) {
       showToast("Finish your break first before opening an amend form", "error");
       return;
@@ -2829,6 +3059,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     if (typeof window !== "undefined") {
       localStorage.setItem("ch_active_form_mode", m);
       localStorage.setItem("ch_active_form_use_draft", withDraft ? "1" : "0");
+      if(bundleCaseNum) localStorage.setItem("ch_bundle_case_num", bundleCaseNum);
+      else localStorage.removeItem("ch_bundle_case_num");
     }
     onFormActive && onFormActive(true);
     onFormInFields && onFormInFields(true);
@@ -3035,7 +3267,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         <div className="page-header" style={{padding:"12px 32px 10px",flexShrink:0,borderBottom:"1px solid var(--glass-border)",margin:0,display:"flex",alignItems:"center",gap:0,justifyContent:"space-between"}}>
           <div>
             <div className="page-title" style={{fontSize:20}}>{isEditingFromLog?`Editing Case #${editingCase.savedCase.caseNum}`:currentDraft&&!isResumingMinimised?`Continuing Suspended Case #${currentDraft.caseNum||""}`:mode==="siteComment"?"Post-Live — Site Comment":"Post-Live — Inbound Email"}</div>
-            <div className="page-sub">{isEditingFromLog?"Editing saved case — case information is locked.":currentDraft&&!isResumingMinimised?"Resuming suspended case — case information is locked.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
+            <div className="page-sub">{isEditingFromLog?"Editing saved case — all fields are editable.":currentDraft&&!isResumingMinimised?"Resuming suspended case — all fields are editable.":mode==="siteComment"?"Fill in each step. Steps unlock as you progress.":"Assumption-based format with email details."}</div>
           </div>
           <TimerBar {...headerTimerState} fmtElapsed={fmtElapsed}/>
         </div>
@@ -3062,6 +3294,20 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           containerStyle={{flex:1,overflow:"hidden",minHeight:0}}
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
+  // Check if this case was started as a bundle
+  const bundledWith = typeof window!=="undefined" ? (localStorage.getItem("ch_bundle_case_num")||"") : "";
+  if(bundledWith) {
+    rec._bundledWith = bundledWith;
+    // Also mark the existing case as bundled with this one
+    const existingCase = allSavedCases.find(c=>c.caseNum===bundledWith);
+    if(existingCase) {
+      const existingBundles = existingCase._bundledWith ? (Array.isArray(existingCase._bundledWith)?existingCase._bundledWith:[existingCase._bundledWith]) : [];
+      if(!existingBundles.includes(rec.caseNum||"")) {
+        onUpdateCase&&onUpdateCase(existingCase._id,{...existingCase,_bundledWith:[...existingBundles,rec.caseNum||""].filter(Boolean)});
+      }
+    }
+    if(typeof window!=="undefined") localStorage.removeItem("ch_bundle_case_num");
+  }
   if(isEditingFromLog){
     // Editing an existing case — update it, don't create new
     onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
@@ -3140,17 +3386,18 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
 
                 <div style={{ display: "flex", gap: 10, justifyContent: "center", width: "100%" }}>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ flex: 1, justifyContent: "center" }}
-                    onClick={() => setBackConfirm(false)}
-                  >
-                    Keep Editing
-                  </button>
+                
+                   <button
+                  className="btn btn-danger"
+                  style={{ flex: 1, justifyContent: "center"  }}
+                  onClick={cancelMode}
+                >
+                  Cancel Case Form
+                </button>
 
                  <button 
                         className="btn btn-primary" 
-                        style={{ flex: 1, justifyContent: "center" }}
+                        style={{ }}
                         onClick={() => {
                           minimiseMode(sharedFormRef.current || undefined);
                         }}
@@ -3159,14 +3406,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                       </button>
                 </div>
 
-                <button
-                  className="btn btn-danger"
-                  style={{ width: "100%", justifyContent: "center" }}
-                  onClick={cancelMode}
-                >
-                  Cancel
-                </button>
-
+               
+                  <button
+                    className="btn btn-ghost"
+                    style={{ width: "100%", justifyContent: "center"}}
+                    onClick={() => setBackConfirm(false)}
+                  >
+                    Keep Editing
+                  </button>
               </div>
 
             </div>
@@ -3277,7 +3524,47 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           </div>
           <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
         </button>
+        <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>{setBundleForm({type:"site",caseNum:""});setBundleModal(true);}} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220,borderColor:"rgba(16,185,129,.3)"}}>
+          <div className="pl-type-icon" style={{background:"rgba(16,185,129,.12)",borderColor:"rgba(16,185,129,.25)"}}><span style={{fontSize:22}}>🔗</span></div>
+          <div style={{flex:1}}>
+            <div className="pl-type-title">Bundle</div>
+            <div className="pl-type-sub">Link cases together</div>
+          </div>
+          <Icon name="back" size={14} color="var(--muted)" style={{transform:"rotate(180deg)",opacity:.5}}/>
+        </button>
       </div>
+
+      {/* Bundle Modal */}
+      {bundleModal&&(
+        <div className="modal-bg"><div className="modal" style={{maxWidth:420}}>
+          <div style={{marginBottom:14,fontSize:36}}>🔗</div>
+          <h3 style={{marginBottom:6}}>Bundle Cases</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:18,lineHeight:1.6}}>Link this case to an existing case number. A bundle badge will appear on both cases in Case History.</p>
+          <div className="field">
+            <label>Bundle Type</label>
+            <div className="radio-group">
+              <label className={cls("radio-label",bundleForm.type==="site"&&"selected-clarif")}><input type="radio" checked={bundleForm.type==="site"} onChange={()=>setBundleForm(f=>({...f,type:"site"}))}/>Site Comment</label>
+              <label className={cls("radio-label",bundleForm.type==="inbound"&&"selected-complete")}><input type="radio" checked={bundleForm.type==="inbound"} onChange={()=>setBundleForm(f=>({...f,type:"inbound"}))}/>Inbound Email</label>
+            </div>
+          </div>
+          <div className="field">
+            <label>Existing Case Number to Bundle With <span className="req">*</span></label>
+            <input className="inp" placeholder="e.g. 1234567" value={bundleForm.caseNum} onChange={e=>setBundleForm(f=>({...f,caseNum:e.target.value}))} autoFocus/>
+          </div>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setBundleModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={()=>{
+              if(!bundleForm.caseNum.trim()){showToast("Enter a case number to bundle","error");return;}
+              const existingCase=allSavedCases.find(c=>c.caseNum===bundleForm.caseNum.trim());
+              if(!existingCase){showToast("Case #"+bundleForm.caseNum+" not found in history","error");return;}
+              // We'll open the new form and mark it as a bundle after save — for now enter the mode
+              setBundleModal(false);
+              enterMode(bundleForm.type==="inbound"?"inbound":"siteComment",false,null,bundleForm.caseNum.trim());
+              showToast("Bundle set — save the new case to link both","info");
+            }}>🔗 Start Bundled Case</button>
+          </div>
+        </div></div>
+      )}
       {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-16,marginBottom:24,fontFamily:"'Poppins',sans-serif",padding:"10px 14px",background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:8,display:"flex",alignItems:"center",gap:8}}>
         <span style={{fontSize:16}}>⏰</span> Click <strong style={{color:"var(--text)"}}>Clock In</strong> above to start your session and unlock amend types.
       </div>}
@@ -3850,7 +4137,21 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
           <div className="case-meta-main">{c.accountNum||"—"} &nbsp;·&nbsp; {c.amendType||"—"}</div>
           <div className="case-meta-sub">
             <span className={cls("act-badge",isSC?"site":"email")} style={{fontSize:10,padding:"2px 8px",marginRight:6}}>{isSC?"Site Comment":"Inbound Email"}</span>
+            {(()=>{
+              const bundled = c._bundledWith;
+              if(!bundled) return null;
+              const nums = Array.isArray(bundled) ? bundled : [bundled];
+              if(!nums.length) return null;
+              return <span style={{marginLeft:4,fontSize:10,padding:"2px 9px",borderRadius:20,background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",color:"#10b981",fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>🔗 Bundled w/ #{nums.join(", #")}</span>;
+            })()}
             {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:600}}> · Done {c.endedAt}</span>}
+            {(()=>{
+              const secs=c._totalElapsed||c._elapsedAtSave||0;
+              if(!secs) return null;
+              const h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60),s=secs%60;
+              const dur=h>0?`${h}h ${m}m ${s}s`:m>0?`${m}m ${s}s`:`${s}s`;
+              return <span style={{marginLeft:8,color:"var(--accent)",fontFamily:"monospace",fontWeight:700,fontSize:10}}>⏱ {dur}</span>;
+            })()}
             {allImages.length>0&&<span style={{marginLeft:8,opacity:.7}}>{allImages.length} img</span>}
             {c.checklist&&<span style={{marginLeft:8,color:checkDone===checkTotal?"var(--green)":"var(--amber)"}}>✓ {checkDone}/{checkTotal}</span>}
           </div>
@@ -4142,7 +4443,7 @@ function CaseHistory({ cases, onUpdate, onDelete }) {
   return (
     <div>
       <div className="page-header">
-        <div className="page-title">📂 Case History</div>
+        <div className="page-title">Case History</div>
         <div className="page-sub">{cases.length} case{cases.length!==1?"s":""} saved — click ✏️ Edit to modify any field</div>
       </div>
 
@@ -5689,18 +5990,27 @@ function App() {
     setSpecialRequestors(s=>s.filter(x=>x!==name));
   };
 
-  const handleNav=(id)=>{
-    if(id==="postlive"){
-      setFormInFields(false);
-      setPage("postlive");
-      if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");
-      return;
-    }
-    if(id===page)return;
-    if(formActive&&id!=="postlive") setFormInFields(false);
-    setPage(id);
-    if(typeof window!=="undefined") localStorage.setItem("ch_page",id);
-  };
+ const handleNav = (id) => {
+  const restricted = ["build", "prelive", "postlive"].includes(id);
+
+  // 🚫 ONLY block these 3 pages
+  if (restricted && formActive && page !== id) {
+    return;
+  }
+
+  if (id === "postlive") {
+    setFormInFields(false);
+    setPage("postlive");
+    if (typeof window !== "undefined") localStorage.setItem("ch_page", "postlive");
+    return;
+  }
+
+  if (id === page) return;
+
+  // ✅ allow ALL other pages (dashboard, history, etc.)
+  setPage(id);
+  if (typeof window !== "undefined") localStorage.setItem("ch_page", id);
+};
 
   const logout=()=>{
     // If session is active, time out first
@@ -5773,26 +6083,60 @@ function App() {
             <div className="logo-text">Case<span>Hub</span></div>
           </div>
 
-          {coreNav.map((n,i)=>
-            n.group
-              ?<div key={i} className="nav-group">{n.group}</div>
-              :<button key={n.id} className={cls("nav-item",page===n.id&&"active")} onClick={()=>handleNav(n.id)}>
-                <span className="nav-icon-wrap">
-                  <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
-                  {n.id==="history"&&allCases.length>0&&<span className="nav-badge-dot">{allCases.length}</span>}
-                  {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge-dot">{announcements.length}</span>}
-                  {n.id==="postlive"&&formActive&&page!=="postlive"&&<span className="nav-active-dot"/>}
-                </span>
-                <span className="nav-label">{n.label}</span>
-                {n.id==="postlive"&&formActive&&page!=="postlive"&&(
-                  <span className="nav-inprogress nav-label" title="Form in progress">
-                    <Icon name="inprogress" size={11} color="var(--accent)"/>
-                  </span>
-                )}
-                {n.id==="history"&&allCases.length>0&&<span className="nav-badge nav-label">{allCases.length}</span>}
-                {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge nav-label">{announcements.length}</span>}
-              </button>
-          )}
+          {coreNav.map((n,i)=>{
+  const isRestricted = ["build","prelive","postlive"].includes(n.id);
+  const isDisabled = isRestricted && formActive && page !== n.id;
+
+  return n.group
+    ? <div key={i} className="nav-group">{n.group}</div>
+    : <button
+        key={n.id}
+        className={cls("nav-item", page===n.id && "active")}
+        onClick={()=> !isDisabled && handleNav(n.id)}
+        disabled={isDisabled}
+        style={{
+          opacity: isDisabled ? 0.4 : 1,
+          cursor: isDisabled ? "not-allowed" : "pointer"
+        }}
+      >
+        <span className="nav-icon-wrap">
+          <Icon name={n.icon} size={15} color={page===n.id?"var(--accent)":"var(--muted)"}/>
+          
+          {n.id==="history"&&allCases.length>0&&<span className="nav-badge-dot">{allCases.length}</span>}
+          {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge-dot">{announcements.length}</span>}
+          
+          {/* Active form indicator */}
+          {n.id==="postlive"&&formActive&&page!=="postlive"&&<span className="nav-active-dot"/>}
+        </span>
+
+        <span className="nav-text nav-label">{n.label}</span>
+
+
+        {/* In-progress indicator */}
+        {n.id==="postlive"&&formActive&&page!=="postlive"&&(
+          <span className="nav-inprogress nav-label" title="Form in progress">
+            <Icon name="inprogress" size={11} color="var(--accent)"/>
+          </span>
+        )}
+
+        {/* Badges */}
+        {n.id==="history"&&allCases.length>0&&<span className="nav-badge nav-label">{allCases.length}</span>}
+        {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge nav-label">{announcements.length}</span>}
+
+        {/* 🔒 Lock indicator when disabled */}
+        {isDisabled && (
+          <span
+            style={{
+              fontSize: 10,
+              marginLeft: "auto",
+              opacity: 0.7
+            }}
+          >
+           
+          </span>
+        )}
+      </button>
+})}
 
           {links.length>0&&(<>
             <div className="nav-group">Custom Links</div>
@@ -5835,7 +6179,7 @@ function App() {
           {timedIn&&!breakTimer&&(
             <button className="break-btn" style={{borderColor:"rgba(124,58,237,.4)",color:"var(--accent2)",opacity:formInFields?.35:1,cursor:formInFields?"not-allowed":"pointer"}} disabled={!!formInFields} onClick={()=>!formInFields&&setOpenHourPending(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span style={{flex:1}}>Open Hour</span>
+              <span style={{flex:1}}>Open Hour/Meeting</span>
               {formInFields&&<span style={{fontSize:8,marginLeft:"auto",color:"var(--muted)",opacity:.7}}>🔒</span>}
             </button>
           )}
@@ -6288,7 +6632,10 @@ function FileNameGeneratorPage() {
   const [copied,setCopied]         = useState(null);
   const [copiedAll,setCopiedAll]   = useState(null);
   const [editingFormat,setEditingFormat] = useState(false);
-  const [format,setFormat]         = useState(DEFAULT_FORMAT);
+  const [format,setFormat]         = useState(()=>{
+    if(typeof window==="undefined") return DEFAULT_FORMAT;
+    try{ const v=localStorage.getItem("ch_fng_format"); return v?{...DEFAULT_FORMAT,...JSON.parse(v)}:DEFAULT_FORMAT; }catch{ return DEFAULT_FORMAT; }
+  });
   const [draftFmt,setDraftFmt]     = useState(DEFAULT_FORMAT);
   const [toast,showToast]          = useToast();
 
@@ -6402,8 +6749,8 @@ function FileNameGeneratorPage() {
               ))}
             </div>
             <div style={{display:'flex',gap:10,marginTop:16}}>
-              <button onClick={()=>{setFormat(draftFmt);setEditingFormat(false);showToast('Format saved ✅','success');}} className="btn btn-save" style={{flex:1,justifyContent:'center'}}>Save Format</button>
-              <button onClick={()=>{setFormat(DEFAULT_FORMAT);setDraftFmt(DEFAULT_FORMAT);showToast('Reset to default','info');}} className="btn btn-ghost" style={{fontSize:12}}>Reset</button>
+              <button onClick={()=>{setFormat(draftFmt);if(typeof window!=="undefined") localStorage.setItem("ch_fng_format",JSON.stringify(draftFmt));setEditingFormat(false);showToast('Format saved ✅','success');}} className="btn btn-save" style={{flex:1,justifyContent:'center'}}>Save Format</button>
+              <button onClick={()=>{setFormat(DEFAULT_FORMAT);setDraftFmt(DEFAULT_FORMAT);if(typeof window!=="undefined") localStorage.removeItem("ch_fng_format");showToast('Reset to default','info');}} className="btn btn-ghost" style={{fontSize:12}}>Reset</button>
               <button onClick={()=>setEditingFormat(false)} className="btn btn-cancel" style={{fontSize:12}}>Cancel</button>
             </div>
           </div>
