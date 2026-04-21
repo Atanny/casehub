@@ -154,12 +154,13 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   padding-right:0 !important;
 }
 
-/* ensure icon is truly centered */
+/* ensure icon is truly centered when collapsed */
 .sidebar.collapsed .nav-icon-wrap{
-  width:100%;
-  display:flex;
+  width:auto;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
+  position:relative;
 }
 
 /* hide elements that affect spacing */
@@ -242,36 +243,42 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 
 .nav-badge-dot{
   position:absolute;
-  top:-5px;
-  right:-6px;
-  min-width:14px;
-  height:14px;
-  border-radius:7px;
+  top:-6px;
+  right:-8px;
+  min-width:16px;
+  height:16px;
+  border-radius:8px;
   background:var(--accent);
   color:#fff;
-  font-size:8px;
+  font-size:9px;
   font-weight:700;
-  line-height:14px;
+  line-height:16px;
   text-align:center;
-  padding:0 3px;
+  padding:0 4px;
   pointer-events:none;
   display:none;
+  box-shadow:0 0 0 2px var(--bg);
+  z-index:2;
 }
 
 .sidebar.collapsed .nav-badge-dot{
-  display:block;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 .nav-active-dot{
   position:absolute;
-  top:-3px;
-  right:-3px;
-  width:7px;
-  height:7px;
+  top:-4px;
+  right:-4px;
+  width:8px;
+  height:8px;
   border-radius:50%;
   background:var(--accent);
   display:none;
   animation:pulse-dot 1.4s ease-in-out infinite;
+  box-shadow:0 0 0 2px var(--bg);
+  z-index:2;
 }
 
 .sidebar.collapsed .nav-active-dot{
@@ -1974,6 +1981,7 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
     password:     <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="4" cy="8" r="2" stroke={color} strokeWidth="1.5"/><path d="M6 8h8M11 6v4M13 7v2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
     snooze:       <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="9" r="6" stroke={color} strokeWidth="1.5"/><path d="M5.5 7h3L5.5 11H9" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><path d="M3 3L2 2M13 3l1-2" stroke={color} strokeWidth="1.5" strokeLinecap="square"/></svg>,
     inprogress:   <svg viewBox="0 0 16 16" fill="none" style={s}><circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5"/><path d="M8 5v3.5l2.5 1.5" stroke={color} strokeWidth="1.5" strokeLinecap="square"/><circle cx="8" cy="8" r="2" fill={color} opacity=".25"/></svg>,
+    archive:      <svg viewBox="0 0 16 16" fill="none" style={s}><rect x="1" y="4" width="14" height="2" fill={color} opacity=".7"/><rect x="1" y="1" width="14" height="3" rx="0" stroke={color} strokeWidth="1.5"/><rect x="1" y="6" width="14" height="9" rx="0" stroke={color} strokeWidth="1.5"/><path d="M5.5 10.5h5" stroke={color} strokeWidth="1.4" strokeLinecap="square" opacity=".6"/></svg>,
   };
   const el = icons[name] || <svg viewBox="0 0 16 16" style={s}/>;
   return <span style={sp}>{el}</span>;
@@ -2828,7 +2836,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
           <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
-        {(()=>{const b=c._bundledWith;if(!b)return null;const nums=(Array.isArray(b)?b:[b]).filter(Boolean);if(!nums.length)return null;return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",color:"#10b981",fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>🔗 w/ #{nums.join(", #")}</span>;})()}
+        {(()=>{const b=c._bundledWith;if(!b)return null;const nums=(Array.isArray(b)?b:[b]).filter(Boolean);if(!nums.length)return null;const isMulti=nums.length>1;const col=isMulti?"#f59e0b":"#10b981";const bg=isMulti?"rgba(245,158,11,.14)":"rgba(16,185,129,.14)";const bdr=isMulti?"1px solid rgba(245,158,11,.35)":"1px solid rgba(16,185,129,.35)";return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:bg,border:bdr,color:col,fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>🔗 w/ #{nums.join(", #")}</span>;})()}
         {onEdit&&<button className="btn btn-ghost" style={{fontSize:10,padding:"3px 10px",marginLeft:4}} onClick={e=>{e.stopPropagation();onEdit(c);}}><Icon name="edit" size={11} style={{marginRight:3}}/>Edit</button>}
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
       </div>
@@ -2894,7 +2902,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST LIVE PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
+function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, onMinimise, allSavedCases, dbDrafts, onSaveDraft, onDeleteDraft, onArchiveDraft, user, onTimerEnd, specialRequestors=[], alarmMins=30, globalTimeIn, timedIn, breakActive=false, onTimeIn, onTimeOut, onTimerReset, sessionDbId, sessionLog=[], addSessionLog, setSessionLog, closeWithOutcome, closeSessionLog, clearSessionLog, onStartBreak, onStartBreakFull, resumeTick=0 }) {
   const [mode,setMode]=useState(()=>{
     if(typeof window==="undefined") return null;
     return localStorage.getItem("ch_form_active")==="1"
@@ -3258,6 +3266,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   exitMode();
 }}
           onSaveDraftDirect={async(fd)=>{
+            // Apply bundle info before suspending (mirrors onSave logic)
+            const bundledWithDraft = typeof window!=="undefined" ? (localStorage.getItem("ch_bundle_case_num")||"").trim() : "";
+            if(bundledWithDraft){
+              const prevOwn = fd._bundledWith ? (Array.isArray(fd._bundledWith)?fd._bundledWith:[fd._bundledWith]) : [];
+              fd = {...fd, _bundledWith:[...new Set([...prevOwn,bundledWithDraft])]};
+            }
             await onSaveDraft(mode,{...fd,_mode:mode});
             // Clear minimised form data since it's now properly suspended
             setMinimisedFormData(null);
@@ -3420,12 +3434,12 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       {/* Amend type chooser */}
       <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
         {deleteDraftConfirm&&(<div className="modal-bg"><div className="modal">
-          <div style={{marginBottom:14,fontSize:36}}>🗑</div>
-          <h3>Delete Suspended?</h3>
-          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>This Suspended case will be permanently deleted and cannot be recovered.</p>
+          <div style={{marginBottom:14,fontSize:36}}>📦</div>
+          <h3>Archive Suspended Case?</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>This case will be moved to the <strong style={{color:"var(--text)"}}>Archive</strong> page. You can view it there anytime — nothing is permanently deleted.</p>
           <div className="modal-btns">
             <button className="btn btn-ghost" onClick={()=>setDeleteDraftConfirm(null)}>Keep Suspended</button>
-            <button className="btn btn-danger" onClick={()=>{onDeleteDraft&&onDeleteDraft(deleteDraftConfirm.id,deleteDraftConfirm.mode);setDeleteDraftConfirm(null);}}>Yes, Delete</button>
+            <button className="btn btn-primary" style={{background:"var(--amber)",borderColor:"var(--amber)"}} onClick={()=>{onArchiveDraft&&onArchiveDraft(deleteDraftConfirm.id,deleteDraftConfirm.mode);setDeleteDraftConfirm(null);}}>📦 Move to Archive</button>
           </div>
         </div></div>)}
         <button className="pl-type-btn" disabled={amendTypesDisabled} onClick={()=>enterMode("siteComment")} style={{opacity:amendTypesDisabled?.4:1,flex:1,minWidth:220}}>
@@ -3775,18 +3789,19 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
+              {(()=>{const b=d._bundledWith;if(!b)return null;const nums=(Array.isArray(b)?b:[b]).filter(Boolean);if(!nums.length)return null;const isMulti=nums.length>1;const col=isMulti?"#f59e0b":"#10b981";const bg=isMulti?"rgba(245,158,11,.14)":"rgba(16,185,129,.14)";const bdr=isMulti?"1px solid rgba(245,158,11,.35)":"1px solid rgba(16,185,129,.35)";return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:bg,border:bdr,color:col,fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>🔗 w/ #{nums.join(", #")}</span>;})()}
               <button className="draft-resume" disabled={!timedIn||breakActive||isMinimised} onClick={()=>enterMode(d._mode, true, d._id)} style={{opacity:(!timedIn||breakActive||isMinimised)?.45:1,cursor:(!timedIn||breakActive||isMinimised)?"not-allowed":"pointer"}}><Icon name="play" size={11} style={{marginRight:4}}/> Continue</button>
               <button
                 className="entry-del"
-                title="Delete"
+                title="Archive"
                 disabled={!timedIn||breakActive||isMinimised}
                 onClick={() => setDeleteDraftConfirm({ id: d._id, mode: d._mode })}
                 style={{
                   marginLeft: 4,
                   borderRadius: "6px",
-                  backgroundColor: "var(--red)",
+                  backgroundColor: "var(--amber)",
                   padding: "10px 10px",
-                  border: "white 1px solid",
+                  border: "rgba(245,158,11,.4) 1px solid",
                   cursor: (!timedIn||breakActive||isMinimised)?"not-allowed":"pointer",
                   display: "flex",
                   alignItems: "center",
@@ -3796,13 +3811,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                   fontSize: "clamp(12px, 1vw, 14px)"
                 }}
                 onMouseEnter={(e) => {
-                  if(!(!timedIn||breakActive||isMinimised)) e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(255, 0, 0, 0.14)";
+                  if(!(!timedIn||breakActive||isMinimised)) e.currentTarget.style.boxShadow = "0 0 8px 2px rgba(245,158,11,0.3)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                <Icon name="trash" size={13} color="#fff" />
+                <Icon name="archive" size={13} color="#fff" />
               </button>
             
             </div>
@@ -3925,7 +3940,8 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         "Open Hour Ended":"var(--accent)",
         "Cancelled":"var(--red)",
         "On going":"var(--blue)",
-        "Suspended Completed":"var(--green)"
+        "Suspended Completed":"var(--green)",
+        "Archived":"var(--amber)"
       };
       
       const col=statusColors[entry.status]||"var(--text)";
@@ -3959,8 +3975,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
 
       // ── Bundle badge: look up this case in saved cases and drafts ──
       // ── Post-save bundle: look up _bundledWith on saved/draft case ──
-      const savedCaseForEntry = caseNum ? allSavedCases?.find(c => c.caseNum === caseNum) : null;
-      const draftCaseForEntry = caseNum ? dbDrafts?.find(d => d.caseNum === caseNum) : null;
+      // Use only the correct source: suspended entries live in drafts, completed ones in saved cases.
+      // Merging both caused cross-contamination (e.g. completed case showing suspended partner badge).
+      const entryIsSuspended = outcome === "Suspended";
+      const savedCaseForEntry = !entryIsSuspended && caseNum ? allSavedCases?.find(c => c.caseNum === caseNum) : null;
+      const draftCaseForEntry = entryIsSuspended && caseNum ? dbDrafts?.find(d => d.caseNum === caseNum) : null;
       const rawBundledWith = savedCaseForEntry?._bundledWith ?? draftCaseForEntry?._bundledWith ?? null;
       const savedBundleNums = rawBundledWith
         ? (Array.isArray(rawBundledWith) ? rawBundledWith : [rawBundledWith]).filter(Boolean)
@@ -3986,7 +4005,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       return (
         <div key={entry.id} className="session-log-row" style={{
           background: i%2===0?"var(--none)":"transparent",
-          borderLeft: isDuplicate ? `3px solid ${activeDupColor.border}` : isBundled ? "3px solid #10b981" : "3px solid transparent"
+          borderLeft: isDuplicate ? `3px solid ${activeDupColor.border}` : "3px solid transparent"
         }}>
           
           {/* Case Number cell — wraps case # + bundle badge in one grid column */}
@@ -4007,11 +4026,17 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               {isDuplicate && <span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}></span>}
               {caseNum && <CopyCaseBtn caseNum={caseNum}/>}
             </span>
-            {isBundled && (
-              <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:9,fontWeight:800,color:"#10b981",background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>
-                {isSavedBundle ? `🔗 w/ #${bundleNums.join(", #")}` : isChosenBundle ? "🔗 Bundling w/ new case" : `🔗 Bundle of #${activeBundleCaseNum}`}
-              </span>
-            )}
+            {isBundled && (()=>{
+              const isMulti = bundleNums.length > 1;
+              const col = isMulti ? "#f59e0b" : "#10b981";
+              const bg  = isMulti ? "rgba(245,158,11,.14)" : "rgba(16,185,129,.14)";
+              const bdr = isMulti ? "1px solid rgba(245,158,11,.35)" : "1px solid rgba(16,185,129,.35)";
+              return (
+                <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:9,fontWeight:800,color:col,background:bg,border:bdr,padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>
+                  {isSavedBundle ? `🔗 w/ #${bundleNums.join(", #")}` : isChosenBundle ? "🔗 Bundling w/ new case" : `🔗 Bundle of #${activeBundleCaseNum}`}
+                </span>
+              );
+            })()}
           </div>
           
           <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
@@ -4360,7 +4385,8 @@ function EditableCaseCard({ c, onUpdate, onRequestDelete, onLightbox, openId, se
               if(!bundled) return null;
               const nums = Array.isArray(bundled) ? bundled : [bundled];
               if(!nums.length) return null;
-              return <span style={{marginLeft:4,fontSize:10,padding:"2px 9px",borderRadius:20,background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",color:"#10b981",fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>🔗 Bundled w/ #{nums.join(", #")}</span>;
+              const isMulti=nums.length>1;const col=isMulti?"#f59e0b":"#10b981";const bg=isMulti?"rgba(245,158,11,.14)":"rgba(16,185,129,.14)";const bdr=isMulti?"1px solid rgba(245,158,11,.35)":"1px solid rgba(16,185,129,.35)";
+              return <span style={{marginLeft:4,fontSize:10,padding:"2px 9px",borderRadius:20,background:bg,border:bdr,color:col,fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>🔗 Bundled w/ #{nums.join(", #")}</span>;
             })()}
             {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:600}}> · Done {c.endedAt}</span>}
             {(()=>{
@@ -5483,7 +5509,7 @@ function App() {
   const [page,setPage]=useState(()=>{
     if(typeof window!=="undefined"){
       const saved=localStorage.getItem("ch_page");
-      if(saved&&["dashboard","postlive","history","announcements","links","profile","build","prelive","sessions","filenames"].includes(saved)) return saved;
+      if(saved&&["dashboard","postlive","history","announcements","links","profile","build","prelive","sessions","filenames","archives"].includes(saved)) return saved;
     }
     return "dashboard";
   });
@@ -5494,6 +5520,7 @@ function App() {
   const dbStatus = useDbStatus();
   const [allCases,setAllCases]=useState([]);
   const [drafts,setDrafts]=useState([]);
+  const [archivedDrafts,setArchivedDrafts]=useState([]);
   const [formActive,setFormActive]=useState(false);
   const [globalTimeIn,setGlobalTimeIn]=useState(()=>{
     if(typeof window!=="undefined"){const v=localStorage.getItem("ch_timein");return v?parseInt(v):null;}
@@ -6065,12 +6092,14 @@ function App() {
       fetch("/api/requestors").then(r=>r.json()).catch(()=>[]),
       fetch(`/api/drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
       fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
-    ]).then(([cases,anns,lnks,reqs,draftList,profile])=>{
+      fetch(`/api/archived-drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
+    ]).then(([cases,anns,lnks,reqs,draftList,profile,archivedList])=>{
       setAllCases(Array.isArray(cases)?[...cases].reverse():[]);
       setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
       setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
       setDrafts(Array.isArray(draftList)?draftList:[]);
+      setArchivedDrafts(Array.isArray(archivedList)?archivedList:[]);
       // Merge profile data into user object so filenames/avatar are always current
       if(profile && profile.email){
         const merged={...user,
@@ -6151,13 +6180,12 @@ function App() {
     setDrafts(ds=>[...ds.filter(d=>d._mode!==mode),saved]);
   };
   const deleteDraft=async(id,mode,skipDeleteLog=false)=>{
-    // Find the draft being deleted to get its caseNum
+    // Used only when completing/saving a suspended case (skipDeleteLog=true).
+    // Direct user-triggered removal now goes through archiveDraft instead.
     const draft=drafts.find(d=>d._id===id||d._mode===mode);
     const deletedCaseNum=draft?.caseNum||"";
     try{await fetch(`/api/drafts/${id}`,{method:"DELETE"});}catch(e){console.error(e);}
     setDrafts(ds=>ds.filter(d=>d._id!==id&&d._mode!==mode));
-    // Only mark session log "Suspended" entries as "Deleted" when user explicitly deletes
-    // (not when completing/saving a suspended case)
     if(deletedCaseNum&&!skipDeleteLog){
       setSessionLog(prev=>{
         const updated=prev.map(e=>{
@@ -6169,6 +6197,42 @@ function App() {
         if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(updated));
         return updated;
       });
+    }
+  };
+
+  const archiveDraft=async(id,mode)=>{
+    const draft=drafts.find(d=>d._id===id||d._mode===mode);
+    if(!draft) return;
+    const archivedCaseNum=draft.caseNum||"";
+    try{
+      // 1. Copy to archived_drafts
+      const res=await fetch("/api/archived-drafts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        userEmail:user.email,
+        mode,
+        draftData:{...draft,_id:undefined,draftAt:undefined},
+        savedAt:draft.draftAt||null,
+      })});
+      const saved=await res.json();
+      if(!res.ok) throw new Error(saved.error||"Failed to archive");
+      setArchivedDrafts(a=>[saved,...a]);
+      // 2. Remove from drafts
+      await fetch(`/api/drafts/${id}`,{method:"DELETE"});
+      setDrafts(ds=>ds.filter(d=>d._id!==id&&d._mode!==mode));
+      // 3. Mark session log entry as Archived
+      if(archivedCaseNum){
+        setSessionLog(prev=>{
+          const updated=prev.map(e=>{
+            if((e.caseNum||"")===(archivedCaseNum||"")&&e.outcome==="Suspended"){
+              return {...e,outcome:"Archived"};
+            }
+            return e;
+          });
+          if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }catch(e){
+      console.error("[archiveDraft]",e);
     }
   };
 
@@ -6268,7 +6332,7 @@ function App() {
     localStorage.removeItem("ch_break");
     localStorage.removeItem("ch_session_db_id");
     setUser(null);setAuthPage("login");setPage("dashboard");
-    setAllCases([]);setDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
+    setAllCases([]);setDrafts([]);setArchivedDrafts([]);setLinks([]);setAnnouncements([]);setSpecialRequestors([]);
   };
 
   // ── Show nothing while checking stored session (prevents login flash) ──
@@ -6298,6 +6362,7 @@ function App() {
     {id:"postlive",label:"Post-Live Amends",icon:"postlive"},
     {id:"history",label:"Case History",icon:"history"},
     {id:"sessions",label:"Session Log",icon:"history"},
+    {id:"archives",label:"Archived Cases",icon:"archive"},
     {group:"Tools"},
     {id:"announcements",label:"Announcements",icon:"announce"},
     {id:"links",label:"Quick Links",icon:"links"},
@@ -6363,6 +6428,7 @@ function App() {
         {/* Badges */}
         {n.id==="history"&&allCases.length>0&&<span className="nav-badge nav-label">{allCases.length}</span>}
         {n.id==="announcements"&&announcements.length>0&&<span className="nav-badge nav-label">{announcements.length}</span>}
+        {n.id==="archives"&&archivedDrafts.length>0&&<span className="nav-badge nav-label">{archivedDrafts.length}</span>}
 
         {/* 🔒 Lock indicator when disabled */}
         {isDisabled && (
@@ -6465,13 +6531,14 @@ function App() {
           {!dataLoading&&page==="build"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="casebox" size={80} color="var(--muted)"/></div><div className="soon-title">Build</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&page==="prelive"&&<div className="soon-wrap"><div className="soon-badge"><Icon name="prelive" size={80} color="var(--muted)"/></div><div className="soon-title">Pre-Live Amends</div><div className="soon-sub">Coming soon — hang tight!</div></div>}
           {!dataLoading&&<div style={{display:page==="postlive"?"block":"none"}}>
-            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
+            <PostLivePage onSaveCase={addCase} onUpdateCase={updateCase} onFormActive={setFormActivePersist} onFormInFields={setFormInFields} onMinimise={()=>{setPage("postlive"); if(typeof window!=="undefined") localStorage.setItem("ch_page","postlive");}} allSavedCases={allCases} dbDrafts={drafts} onSaveDraft={saveDraft} onDeleteDraft={deleteDraft} onArchiveDraft={archiveDraft} user={user} onTimerEnd={playEndAlarm} specialRequestors={specialRequestors} alarmMins={alarmMins} globalTimeIn={globalTimeIn} timedIn={timedIn} breakActive={!!breakTimer||openHourActive} onTimeIn={doTimeIn} onTimeOut={doTimeOut} onTimerReset={doTimerReset} sessionDbId={sessionDbId} sessionLog={sessionLog} addSessionLog={addSessionLog} setSessionLog={setSessionLog} closeWithOutcome={closeWithOutcome} closeSessionLog={closeSessionLog} clearSessionLog={clearSessionLog} onStartBreak={startBreak} onStartBreakFull={(label,mins)=>startBreak(label,mins,true)} resumeTick={resumeFormTick}/>
           </div>}
           {!dataLoading&&page==="history"&&<CaseHistory cases={allCases} onUpdate={updateCase} onDelete={deleteCase}/>}
           {!dataLoading&&page==="announcements"&&<AnnouncementsPage announcements={announcements} addAnnouncement={addAnnouncement} updateAnnouncement={updateAnnouncement} removeAnnouncement={removeAnnouncement} user={user}/>}
           {!dataLoading&&page==="links"&&<LinksPage links={links} setLinks={setLinks} addLink={addLink} updateLink={updateLink} removeLink={removeLink}/>}
           {!dataLoading&&page==="profile"&&<ProfilePage user={user} setUser={setUser} onLogout={logout} timerLimit={timerLimit} saveTimerLimit={saveTimerLimit} shiftStartTime={shiftStartTime} saveShiftStartTime={saveShiftStartTime} shiftStartWarnMins={shiftStartWarnMins} saveShiftStartWarnMins={saveShiftStartWarnMins} shiftEndTime={shiftEndTime} saveShiftEndTime={saveShiftEndTime} shiftWarnMins={shiftWarnMins} saveShiftWarnMins={saveShiftWarnMins} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor}/>}
           {!dataLoading&&page==="sessions"&&<SessionLogPage user={user} refreshKey={sessionRefreshKey}/>}
+          {!dataLoading&&page==="archives"&&<ArchivePage archivedDrafts={archivedDrafts} onDelete={async(id)=>{try{await fetch(`/api/archived-drafts/${id}`,{method:"DELETE"});setArchivedDrafts(a=>a.filter(x=>x._id!==id));}catch(e){console.error(e);}}}/>}
           {!dataLoading&&page==="filenames"&&<FileNameGeneratorPage/>}
         </main>
       </div>
@@ -6844,6 +6911,117 @@ function SidebarShiftTimer({globalTimeIn, shiftEndTime}){
           <div style={{height:"100%",width:`${pct}%`,background:isWarn?"var(--amber)":"var(--green)",borderRadius:99,transition:"width 1s linear"}}/>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ArchivePage — view and permanently delete archived suspended cases
+// ─────────────────────────────────────────────────────────────────────────────
+function ArchivePage({ archivedDrafts=[], onDelete }) {
+  const [expandedId,setExpandedId]=useState(null);
+  const [confirmDelete,setConfirmDelete]=useState(null);
+
+  if(archivedDrafts.length===0){
+    return (
+      <div className="page-wrap">
+        <div className="page-title">📦 Archived Cases</div>
+        <div className="page-sub">Suspended cases you've archived are stored here.</div>
+        <div style={{textAlign:"center",color:"var(--muted)",padding:"60px 0",fontSize:14}}>
+          <div style={{marginBottom:16}}><Icon name="archive" size={52} color="var(--muted)"/></div>
+          <div>No archived cases yet.</div>
+          <div style={{fontSize:12,marginTop:6,opacity:.6}}>When you archive a suspended case it will appear here.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-wrap">
+      <div className="page-title">📦 Archived Cases</div>
+      <div className="page-sub">{archivedDrafts.length} archived case{archivedDrafts.length!==1?"s":""} — view-only</div>
+
+      {confirmDelete&&(
+        <div className="modal-bg"><div className="modal">
+          <div style={{marginBottom:14,fontSize:36}}>🗑</div>
+          <h3>Permanently Delete?</h3>
+          <p style={{color:"var(--muted)",fontSize:13,marginBottom:20,lineHeight:1.6}}>
+            This archived case will be <strong style={{color:"var(--red)"}}>permanently deleted</strong> and cannot be recovered.
+          </p>
+          <div className="modal-btns">
+            <button className="btn btn-ghost" onClick={()=>setConfirmDelete(null)}>Cancel</button>
+            <button className="btn btn-danger" onClick={()=>{onDelete&&onDelete(confirmDelete);setConfirmDelete(null);}}>Yes, Delete Forever</button>
+          </div>
+        </div></div>
+      )}
+
+      <div style={{marginTop:16}}>
+        {archivedDrafts.map((d,i)=>{
+          const isSC=d._mode==="siteComment";
+          const isOpen=expandedId===d._id;
+          const nums=(Array.isArray(d._bundledWith)?d._bundledWith:(d._bundledWith?[d._bundledWith]:[])).filter(Boolean);
+          const isMulti=nums.length>1;
+          const bundleCol=isMulti?"#f59e0b":"#10b981";
+          const bundleBg=isMulti?"rgba(245,158,11,.14)":"rgba(16,185,129,.14)";
+          const bundleBdr=isMulti?"1px solid rgba(245,158,11,.35)":"1px solid rgba(16,185,129,.35)";
+
+          return (
+            <div key={d._id||i} style={{background:"var(--card)",border:"1.5px solid var(--border)",borderRadius:12,marginBottom:10,overflow:"hidden",boxShadow:"var(--shadow-sm)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",cursor:"pointer"}} onClick={()=>setExpandedId(isOpen?null:d._id)}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:"var(--amber)",flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"var(--text)",fontFamily:"'Poppins',sans-serif"}}>Case #{d.caseNum||"—"} — {d.accountNum||"—"}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{d.amendType||"No amend type"} · Archived {d.archivedAt}</div>
+                </div>
+                <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:30,background:isSC?"var(--h-badge-site-bg)":"var(--h-badge-email-bg)",color:isSC?"var(--accent)":"var(--accent2)",whiteSpace:"nowrap"}}>
+                  {isSC?"Site Comment":"Inbound Email"}
+                </span>
+                {nums.length>0&&(
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:bundleBg,border:bundleBdr,color:bundleCol,fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>
+                    🔗 w/ #{nums.join(", #")}
+                  </span>
+                )}
+                <button
+                  className="entry-del"
+                  title="Permanently delete"
+                  onClick={e=>{e.stopPropagation();setConfirmDelete(d._id);}}
+                  style={{borderRadius:6,backgroundColor:"var(--red)",padding:"8px 10px",border:"white 1px solid",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}
+                >
+                  <Icon name="trash" size={13} color="#fff"/>
+                </button>
+                <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:isOpen?"rotate(180deg)":"none"}}>▼</span>
+              </div>
+
+              {isOpen&&(
+                <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px",background:"var(--entry-bg)"}}>
+                  {(d.entries||[]).filter(e=>e.note||e.number||e.clarification).map((e,ei)=>(
+                    <div key={ei} className="case-entry-card" style={{marginBottom:8}}>
+                      <div className="case-entry-num">{isSC?`Site Comment #${e.number||ei+1}`:`Assumption ${ei+1}`}</div>
+                      {e.note&&<div className="case-entry-field"><span className="case-entry-key">Note: </span>{e.note}</div>}
+                      {e.clarification&&<div className="case-entry-field"><span className="case-entry-key">Clarification: </span>{e.clarification}</div>}
+                    </div>
+                  ))}
+                  {(d.entries||[]).filter(e=>e.note||e.number||e.clarification).length===0&&(
+                    <div style={{color:"var(--muted)",fontSize:12}}>No entries recorded.</div>
+                  )}
+                  {d.emailAddress&&(
+                    <div style={{marginTop:8,fontSize:12,color:"var(--muted)"}}>
+                      <Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>
+                      Email: <span style={{color:"var(--text)",fontWeight:600}}>{d.emailAddress}</span>
+                    </div>
+                  )}
+                  {d.trackerChecklistLink&&(
+                    <div style={{marginTop:8,fontSize:12}}>
+                      <a href={d.trackerChecklistLink} target="_blank" rel="noreferrer" style={{color:"var(--accent)",fontWeight:600,textDecoration:"none"}}>🔗 Tracker Link</a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

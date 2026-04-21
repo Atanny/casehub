@@ -1,13 +1,29 @@
 import supabase from '../../../lib/supabase'
+
+function mapDraft(r) {
+  const bundledWith = r.bundled_with ?? r.draft_data?._bundledWith ?? null
+  return {
+    ...r.draft_data,
+    _id: r.id,
+    _mode: r.mode,
+    draftAt: new Date(r.saved_at).toLocaleString(),
+    _bundledWith: bundledWith
+      ? (Array.isArray(bundledWith) ? bundledWith : [bundledWith]).filter(Boolean)
+      : null,
+  }
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const { email } = req.query
       if (!email) return res.status(400).json({ error: 'email required' })
-      const { data, error } = await supabase.from('drafts').select('*').eq('user_email', email).order('saved_at', { ascending: false })
+      const { data, error } = await supabase
+        .from('drafts').select('*').eq('user_email', email).order('saved_at', { ascending: false })
       if (error) throw error
-      return res.status(200).json(data.map(r => ({ ...r.draft_data, _id: r.id, _mode: r.mode, draftAt: new Date(r.saved_at).toLocaleString() })))
+      return res.status(200).json(data.map(mapDraft))
     }
+
     if (req.method === 'POST') {
       const { userEmail, mode, draftData } = req.body
       if (!userEmail || !mode) return res.status(400).json({ error: 'userEmail and mode required' })
@@ -36,19 +52,28 @@ export default async function handler(req, res) {
         if (sameModeDraft?.id) existingId = sameModeDraft.id
       }
 
+      // _bundledWith lives inside draft_data (the JSONB blob) — no separate column needed for suspend to work.
+      // The bundled_with column (added via migration) is populated separately for querying convenience,
+      // but we only write it if the column already exists to avoid breaking suspend before migration runs.
+      const basePayload = {
+        user_email: userEmail,
+        mode,
+        draft_data: draftData,
+        saved_at: savedAt,
+      }
+
       const query = existingId
-        ? supabase.from('drafts')
-            .update({ user_email: userEmail, mode, draft_data: draftData, saved_at: savedAt })
-            .eq('id', existingId)
-        : supabase.from('drafts')
-            .insert([{ user_email: userEmail, mode, draft_data: draftData, saved_at: savedAt }])
+        ? supabase.from('drafts').update(basePayload).eq('id', existingId)
+        : supabase.from('drafts').insert([basePayload])
 
       const { data, error } = await query.select().single()
       if (error) throw error
-      return res.status(200).json({ ...data.draft_data, _id: data.id, _mode: data.mode, draftAt: new Date(data.saved_at).toLocaleString() })
+      return res.status(200).json(mapDraft(data))
     }
+
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (err) {
+    console.error('[drafts]', err.message)
     return res.status(500).json({ error: err.message })
   }
 }

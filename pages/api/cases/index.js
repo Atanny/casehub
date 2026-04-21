@@ -41,6 +41,9 @@ export function caseToDb(c) {
     email_type: c.emailType || 'clarification',
     ended_at: c.endedAt || null,
     tracker_checklist_link: c.trackerChecklistLink || null,
+    bundled_with: c._bundledWith
+      ? (Array.isArray(c._bundledWith) ? c._bundledWith : [c._bundledWith]).filter(Boolean)
+      : null,
     image_urls: [
       ...(c.images || []).map(i => ({ url: i.url, name: i.name, path: i.path || null, type: 'main' })),
       ...(c.backupImages || []).map(i => ({ url: i.url, name: i.name, path: i.path || null, type: 'backup' })),
@@ -59,6 +62,9 @@ export function dbToCase(row) {
     devices: row.devices || {}, checklist: row.checklist || {},
     emailAddress: row.email_address, emailType: row.email_type,
     trackerChecklistLink: row.tracker_checklist_link || '',
+    _bundledWith: row.bundled_with
+      ? (Array.isArray(row.bundled_with) ? row.bundled_with : [row.bundled_with]).filter(Boolean)
+      : null,
     images: imgs.filter(i => i.type === 'main').map(i => ({ ...i, id: i.path || i.url })),
     backupImages: imgs.filter(i => i.type === 'backup').map(i => ({ ...i, id: i.path || i.url })),
     savedAt: row.saved_at ? new Date(row.saved_at).toLocaleString() : new Date().toLocaleString(),
