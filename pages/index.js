@@ -76,7 +76,6 @@ body.light ::-webkit-scrollbar-thumb:hover{background:rgba(212,114,74,.45);}
 body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
 /* ── Shell ── */
 .shell{display:flex;min-height:100vh;}
-
 .sidebar{
   width:240px;
   background:var(--glass-bg);
@@ -106,10 +105,9 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   overflow-y:hidden;
 }
 
-/* ❌ ORIGINAL GLOBAL TEXT HIDING (UNCHANGED EXCEPT nav-label FIX) */
+/* ── SAFE COLLAPSE STATE (DO NOT USE DISPLAY NONE FOR CORE STRUCTURE) ── */
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-group,
-/* ❌ REMOVED FROM HERE: .nav-label (FIXED BELOW) */
 .sidebar.collapsed .profile-name,
 .sidebar.collapsed .profile-role,
 .sidebar.collapsed .theme-toggle .toggle-label,
@@ -124,11 +122,11 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   max-width:0;
   overflow:hidden;
   white-space:nowrap;
-  transition:opacity .2s ease,
-              max-width .25s cubic-bezier(.4,0,.2,1);
+  transform:translateX(-4px);
+  transition:opacity .2s ease, max-width .25s ease, transform .2s ease;
 }
 
-/* KEEP ORIGINAL EXPANDED STATE */
+/* ── expanded state ── */
 .sidebar .logo-text,
 .sidebar .nav-group,
 .sidebar .nav-label,
@@ -147,168 +145,31 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
               max-width .25s cubic-bezier(.4,0,.2,1);
 }
 
-/* ── Center icons ── */
+/* ── FIX: NAV ITEM CENTERING ── */
 .sidebar.collapsed .nav-item{
-  justify-content:center;
-  gap:0;
-  padding-left:6px;
-  padding-right:6px;
+  justify-content:center !important;
+  align-items:center !important;
+  gap:0 !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
 }
 
-.sidebar.collapsed .nav-badge{display:none !important;}
-.sidebar.collapsed .nav-inprogress{display:none !important;}
-
-.sidebar.collapsed .sidebar-profile{
-  justify-content:center;
-  gap:0;
-}
-
-.sidebar.collapsed .sidebar-profile .profile-text{
-  display:none;
-}
-
-.sidebar.collapsed .theme-toggle{
-  justify-content:center;
-  gap:0;
-}
-
-.sidebar.collapsed .logo{
-  justify-content:center;
-  gap:0;
-  padding-left:0;
-  padding-right:0;
-}
-
-.sidebar.collapsed .db-status{
-  justify-content:center;
-}
-
-.sidebar.collapsed .sidebar-shift-timer{
-  display:none;
-}
-
-/* ── icon wrapper ── */
+/* ensure icon is truly centered */
 .sidebar.collapsed .nav-icon-wrap{
-  display:inline-flex;
-  position:relative;
-}
-
-/* ── collapse button ── */
-.sidebar-collapse-btn{
-  position:absolute;
-  top:50%;
-  right:-12px;
-  transform:translateY(-50%);
-  width:24px;
-  height:24px;
-  border-radius:30px;
-  background:var(--accent);
-  border:none;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  z-index:200;
-  box-shadow:0 2px 8px rgba(0,0,0,.28);
-  transition:background .15s;
-  padding:0;
-  flex-shrink:0;
-}
-
-.sidebar-collapse-btn:hover{
-  background:var(--accent2);
-}
-
-.sidebar-wrap{
-  position:relative;
-  flex-shrink:0;
-}
-
-/* ── shift timer ── */
-.sidebar-shift-timer{
-  margin:0 2px 10px;
-  padding:10px 12px;
-  background:var(--entry-bg);
-  border:1px solid var(--border);
-  border-radius:10px;
-  transition:border-color .3s,
-              transform .2s;
-}
-
-.sidebar-shift-row{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:8px;
-  margin-bottom:6px;
-  flex-wrap:wrap;
-}
-
-.sidebar-shift-label{
-  font-size:9px;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:.8px;
-  font-family:'Poppins',sans-serif;
-}
-
-.sidebar-shift-meta{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:4px;
-  flex-wrap:wrap;
-  font-size:10px;
-  color:var(--muted);
-  font-family:monospace;
-}
-
-.sidebar-shift-elapsed{
-  font-size:clamp(24px,2.5vw,30px);
-  font-weight:800;
-  letter-spacing:-1.5px;
-  font-family:monospace;
-  line-height:1;
-  word-break:break-word;
-}
-
-/* ── logo ── */
-.logo{
-  font-size:18px;
-  font-weight:800;
-  color:var(--text);
-  padding:4px 10px 20px;
-  letter-spacing:-.5px;
-  display:flex;
-  align-items:center;
-  gap:9px;
-}
-
-.logo-icon{
-  width:30px;
-  height:30px;
-  flex-shrink:0;
+  width:100%;
   display:flex;
   align-items:center;
   justify-content:center;
 }
 
-.logo-text span{
-  color:var(--accent);
+/* hide elements that affect spacing */
+.sidebar.collapsed .nav-badge,
+.sidebar.collapsed .nav-inprogress,
+.sidebar.collapsed .nav-text{
+  display:none !important;
 }
 
-/* ── nav group ── */
-.nav-group{
-  font-family:'Poppins',sans-serif;
-  font-size:9px;
-  font-weight:700;
-  color:var(--muted);
-  text-transform:uppercase;
-  letter-spacing:1.5px;
-  padding:14px 10px 4px;
-}
-
-/* ── nav item ── */
+/* ── extra safety (prevents offset issues) ── */
 .nav-item{
   display:flex;
   align-items:center;
@@ -339,6 +200,15 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   font-weight:600;
 }
 
+/* ── icons wrapper ── */
+.nav-icon-wrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+
 /* ── badges ── */
 .nav-badge{
   margin-left:auto;
@@ -350,6 +220,17 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
   padding:1px 7px;
   line-height:1.6;
 }
+
+/* ── nav section group labels ── */
+.nav-group{
+  font-size:8px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1.2px;
+  padding:10px 12px 3px;
+  font-family:'Poppins',sans-serif;
+  opacity:.55;
+}
+
+/* keep your existing styles below untouched */
 
 .nav-icon-wrap{
   position:relative;
@@ -417,13 +298,16 @@ body.light *{scrollbar-color:rgba(212,114,74,.2) transparent;}
     transform .25s ease;
 }
 
+/* ── SAFE TEXT COLLAPSE (DO NOT BREAK LAYOUT) ── */
 .sidebar.collapsed .nav-text{
   max-width:0;
   opacity:0;
+  overflow:hidden;
+  white-space:nowrap;
   transform:translateX(-6px);
   pointer-events:none;
+  transition:all .25s ease;
 }
-
 .nav-text{
   will-change:opacity, transform;
 }
@@ -1153,6 +1037,8 @@ select.inp{cursor:pointer;}
 .sidebar.collapsed .sidebar-logout-btn .nav-label{display:none;max-width:0;overflow:hidden;}
 .break-btn:hover{background:var(--card2);color:var(--text);border-color:var(--accent);}
 .break-btn.active{background:var(--entry-accent-bg);color:var(--accent);border-color:var(--accent);}
+.sidebar.collapsed .break-collapsed-label{display:inline !important;}
+.sidebar.collapsed .break-btn .nav-text{display:none !important;max-width:0 !important;}
 
 /* DB status bar */
 .db-status{
@@ -1227,9 +1113,14 @@ body.light .logo{border-bottom-color:rgba(200,130,80,.12);}
   margin-bottom:1px;
   letter-spacing:.01em;
 }
-.nav-item.active{
-  border-radius:6px;
-  box-shadow:0 2px 8px rgba(1,118,211,.15);
+/* Active item becomes muted AND non-interactive */
+.nav-item.active {
+  background: var(--nav-active-bg);
+  color: var(--muted); /* muted instead of accent */
+  border: 1px solid var(--nav-active-border);
+  font-weight: 600;
+  opacity: 0.7;
+  pointer-events: none; /* disables clicking */
 }
 .nav-item:hover{border-radius:6px;}
 
@@ -2096,7 +1987,7 @@ const emptyBase  = ()=>({
   customerName:"",customerEmail:"",businessName:"",
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
-  checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,emailSales:false,trackerChecklist:false,completeStatus:false},
+  checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,closeSiteComment:false,emailSales:false,trackerChecklist:false,completeStatus:false},
   trackerChecklistLink:"",
   images:[],backupImages:[],emailAddress:"",emailType:"clarification",
   _startTime: Date.now(), _elapsedAtSave: 0
@@ -2213,7 +2104,16 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
 
   const [form,setForm] = useState(()=> draftData ? {...emptyBase(),...draftData} : emptyBase());
   const formRef = useRef(form);
-  useEffect(()=>{formRef.current=form; if(externalFormRef) externalFormRef.current=form;},[form]);
+  useEffect(()=>{
+    formRef.current=form;
+    if(externalFormRef) externalFormRef.current=form;
+    // Auto-persist form to localStorage on every change so refresh restores it
+    // Only do this for active (non-edit) forms — edit mode doesn't need persistence
+    if(!isEditMode && typeof window!=="undefined"){
+      const toSave={...form,_mode:mode,_startTime:startTimeRef.current,images:(form.images||[]).filter(i=>i._inDB),backupImages:(form.backupImages||[]).filter(i=>i._inDB)};
+      localStorage.setItem("ch_minimised_form",JSON.stringify(toSave));
+    }
+  },[form]);
 
   // Always use caseStartTime (globalTimeIn passed from session) so the form timer is consistent
   // with the session active timer — whether opening fresh, continuing suspended, or editing.
@@ -2314,7 +2214,13 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
   const step5Done = step4Done;
   const step6Done = !!form._afterCopied;
   const step7NameDone = !!form._screenshotCopied||form.images?.length>0;
-  const step7Done = Object.values(form.checklist).every(Boolean);
+  // Only check the keys that are actually rendered for this mode.
+  // For inbound: exclude closeSiteComment (SC-only) and check closeInboundCase instead.
+  // For siteComment: exclude closeInboundCase and check closeSiteComment instead.
+  const relevantChecklistKeys = isSC
+    ? ["backup","caseComment","combinedTracker","qaChecklist","closeSiteComment","completeJob","emailSales","trackerChecklist","completeStatus"]
+    : ["backup","caseComment","combinedTracker","qaChecklist","completeJob","closeInboundCase","emailSales","trackerChecklist","completeStatus"];
+  const step7Done = relevantChecklistKeys.every(k => !!form.checklist[k]);
 
   const addEntry    = ()=>setF({entries:[...form.entries,emptyEntry()]});
   const updateEntry = (id,val)=>setF({entries:form.entries.map(e=>e.id===id?val:e)});
@@ -2547,7 +2453,10 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
         <StepCard num={8} title="Final Checklist" done={step7Done} locked={!step7NameDone&&!isDraft} {...stepProps}>
           <p style={{fontSize:12,color:"var(--muted)",marginBottom:11}}>All items must be checked <span className="req">*</span></p>
           <div className="check-group" style={{flexDirection:"column"}}>
-            {[["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],...(isSC?[["completeJob","Complete Job?"]]:[["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"]]),...[["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]].map(([k,l])=>(
+            {(isSC
+              ? [["closeSiteComment","Close Site Comment?"],["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
+              : [["backup","Before/After Backup?"],["caseComment","Case Comment"],["combinedTracker","Combined Tracker?"],["qaChecklist","QA Checklist?"],["completeJob","Complete Job?"],["closeInboundCase","Close Inbound Case?"],["emailSales","Email Sales?"],["trackerChecklist","Complete Status Tracker?"],["completeStatus","Tracker Checklist?"]]
+            ).map(([k,l])=>(
               <div key={k}>
                 <label className={cls("check-label",form.checklist[k]&&"checked")} style={{width:"fit-content"}}><input type="checkbox" checked={!!form.checklist[k]} onChange={e=>{
                   const newChecklist={...form.checklist,[k]:e.target.checked};
@@ -2919,6 +2828,7 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
           <div className="saved-meta">{c.amendType} · {c.savedAt}{c.endedAt&&<span style={{marginLeft:8,color:"var(--green)",fontWeight:700}}>✓ {c.endedAt}</span>}</div>
         </div>
         <span className="saved-type">{isSC?"Site Comment":"Inbound Email"}</span>
+        {(()=>{const b=c._bundledWith;if(!b)return null;const nums=(Array.isArray(b)?b:[b]).filter(Boolean);if(!nums.length)return null;return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",color:"#10b981",fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>🔗 w/ #{nums.join(", #")}</span>;})()}
         {onEdit&&<button className="btn btn-ghost" style={{fontSize:10,padding:"3px 10px",marginLeft:4}} onClick={e=>{e.stopPropagation();onEdit(c);}}><Icon name="edit" size={11} style={{marginRight:3}}/>Edit</button>}
         <span style={{color:"var(--muted)",fontSize:12,transition:".25s",display:"inline-block",transform:open?"rotate(180deg)":"none"}}>▼</span>
       </div>
@@ -3010,6 +2920,11 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   const [toast,showToast]=useToast();
   const [bundleModal,setBundleModal]=useState(false); // bundle linking modal
   const [bundleForm,setBundleForm]=useState({type:"site",caseNum:""});
+  // Tracks the case number of the existing case chosen in the bundle modal (a DIFFERENT case number)
+  const [activeBundleCaseNum,setActiveBundleCaseNum]=useState(()=>{
+    if(typeof window==="undefined") return "";
+    return localStorage.getItem("ch_bundle_case_num")||"";
+  });
   const handledResumeTick=useRef(0);
   const sharedFormRef=useRef(null); // shared ref so minimiseMode can access PostLiveForm's current fields
   const [headerTimerState,setHeaderTimerState]=useState({footerElapsed:0,resumeElapsed:0,phase2Elapsed:null,isDraftResumed:false,isEditMode:false,prevElapsedSecs:0,originalTotalSecs:0,originalOutcome:""});
@@ -3100,6 +3015,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     setEditingCase(null);
     setIsMinimised(false);
     setMinimisedFormData(null);
+    setActiveBundleCaseNum("");
     if(typeof window!=="undefined"){
       localStorage.removeItem("ch_active_form_mode");
       localStorage.removeItem("ch_active_form_use_draft");
@@ -3107,6 +3023,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_case_start_time");
       localStorage.removeItem("ch_resume_start");
       localStorage.removeItem("ch_phase2_start");
+      localStorage.removeItem("ch_bundle_case_num");
     }
     onFormActive&&onFormActive(false);
     onFormInFields&&onFormInFields(false);
@@ -3295,21 +3212,24 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
           onSave={f=>{
   const now=new Date();const rec={...f,_mode:mode,savedAt:now.toLocaleString(),endedAt:now.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
   // Check if this case was started as a bundle
-  const bundledWith = typeof window!=="undefined" ? (localStorage.getItem("ch_bundle_case_num")||"") : "";
+  const bundledWith = typeof window!=="undefined" ? (localStorage.getItem("ch_bundle_case_num")||"").trim() : "";
   if(bundledWith) {
-    rec._bundledWith = bundledWith;
-    // Also mark the existing case as bundled with this one
+    // New case stores bundled-with as array
+    const prevOwn = rec._bundledWith ? (Array.isArray(rec._bundledWith)?rec._bundledWith:[rec._bundledWith]) : [];
+    rec._bundledWith = [...new Set([...prevOwn, bundledWith])];
+    // Update the existing case to point back at this new case number (deferred — newCaseNum available after save)
     const existingCase = allSavedCases.find(c=>c.caseNum===bundledWith);
     if(existingCase) {
-      const existingBundles = existingCase._bundledWith ? (Array.isArray(existingCase._bundledWith)?existingCase._bundledWith:[existingCase._bundledWith]) : [];
-      if(!existingBundles.includes(rec.caseNum||"")) {
-        onUpdateCase&&onUpdateCase(existingCase._id,{...existingCase,_bundledWith:[...existingBundles,rec.caseNum||""].filter(Boolean)});
+      const prevExisting = existingCase._bundledWith ? (Array.isArray(existingCase._bundledWith)?existingCase._bundledWith:[existingCase._bundledWith]) : [];
+      const newNum = f.caseNum||"";
+      if(newNum && !prevExisting.includes(newNum)) {
+        onUpdateCase&&onUpdateCase(existingCase._id,{...existingCase,_bundledWith:[...prevExisting,newNum]});
       }
     }
     if(typeof window!=="undefined") localStorage.removeItem("ch_bundle_case_num");
+    setActiveBundleCaseNum("");
   }
   if(isEditingFromLog){
-    // Editing an existing case — update it, don't create new
     onUpdateCase&&onUpdateCase(editingCase.savedCase._id,rec);
     setEditingCase(null);
   } else {
@@ -3535,36 +3455,301 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       </div>
 
       {/* Bundle Modal */}
-      {bundleModal&&(
-        <div className="modal-bg"><div className="modal" style={{maxWidth:420}}>
-          <div style={{marginBottom:14,fontSize:36}}>🔗</div>
-          <h3 style={{marginBottom:6}}>Bundle Cases</h3>
-          <p style={{color:"var(--muted)",fontSize:13,marginBottom:18,lineHeight:1.6}}>Link this case to an existing case number. A bundle badge will appear on both cases in Case History.</p>
-          <div className="field">
-            <label>Bundle Type</label>
-            <div className="radio-group">
-              <label className={cls("radio-label",bundleForm.type==="site"&&"selected-clarif")}><input type="radio" checked={bundleForm.type==="site"} onChange={()=>setBundleForm(f=>({...f,type:"site"}))}/>Site Comment</label>
-              <label className={cls("radio-label",bundleForm.type==="inbound"&&"selected-complete")}><input type="radio" checked={bundleForm.type==="inbound"} onChange={()=>setBundleForm(f=>({...f,type:"inbound"}))}/>Inbound Email</label>
-            </div>
-          </div>
-          <div className="field">
-            <label>Existing Case Number to Bundle With <span className="req">*</span></label>
-            <input className="inp" placeholder="e.g. 1234567" value={bundleForm.caseNum} onChange={e=>setBundleForm(f=>({...f,caseNum:e.target.value}))} autoFocus/>
-          </div>
-          <div className="modal-btns">
-            <button className="btn btn-ghost" onClick={()=>setBundleModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={()=>{
-              if(!bundleForm.caseNum.trim()){showToast("Enter a case number to bundle","error");return;}
-              const existingCase=allSavedCases.find(c=>c.caseNum===bundleForm.caseNum.trim());
-              if(!existingCase){showToast("Case #"+bundleForm.caseNum+" not found in history","error");return;}
-              // We'll open the new form and mark it as a bundle after save — for now enter the mode
-              setBundleModal(false);
-              enterMode(bundleForm.type==="inbound"?"inbound":"siteComment",false,null,bundleForm.caseNum.trim());
-              showToast("Bundle set — save the new case to link both","info");
-            }}>🔗 Start Bundled Case</button>
-          </div>
-        </div></div>
+      {bundleModal&&(()=>{
+        // Only show cases that appear in the CURRENT session log
+        const sessionCaseNums = [...new Set(
+          (sessionLog||[]).filter(e=>e.caseNum&&e.caseNum.trim()).map(e=>e.caseNum.trim())
+        )];
+
+        // For each session case number, enrich with data from saved cases or drafts
+        const caseOptions = sessionCaseNums.map(cn=>{
+          const saved = allSavedCases.find(c=>c.caseNum===cn);
+          const draft = (dbDrafts||[]).find(d=>d.caseNum===cn);
+          const src = saved ? "saved" : draft ? "suspended" : "session";
+          return {
+            caseNum: cn,
+            accountNum: (saved||draft)?.accountNum||"",
+            amendType: (saved||draft)?.amendType||"",
+            _mode: (saved||draft)?._mode||"",
+            _bundledWith: saved?._bundledWith||null,
+            source: src,
+            _id: saved?._id||draft?._id||cn,
+          };
+        });
+
+        return (
+        <div className="modal-bg">
+  <div className="modal" style={{ maxWidth: 440 }}>
+    
+    <div style={{ marginBottom: 10, fontSize: 32, textAlign: "center" }}>🔗</div>
+
+    <h3 style={{ marginBottom: 6, textAlign: "center" }}>Bundle Cases</h3>
+
+    <p
+      style={{
+        color: "var(--muted)",
+        fontSize: 13,
+        marginBottom: 18,
+        lineHeight: 1.6,
+        textAlign: "center",
+      }}
+    >
+      Start a new case bundled with an existing one. A{" "}
+      <span style={{ color: "#10b981", fontWeight: 700 }}>🔗 Bundled</span>{" "}
+      badge will appear on <strong>both</strong> cases in Case History.
+    </p>
+
+    <div className="field" style={{ marginBottom: 14 }}>
+      <label style={{ marginBottom: 6, display: "block" }}>
+        New Case Type
+      </label>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <label
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: "1px solid",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 600,
+            background:
+              bundleForm.type === "site"
+                ? "#fef3c7"
+                : "var(--entry-bg)",
+            borderColor:
+              bundleForm.type === "site"
+                ? "#f59e0b"
+                : "var(--border)",
+            color:
+              bundleForm.type === "site"
+                ? "#92400e"
+                : "var(--text)",
+          }}
+        >
+          <input
+            type="radio"
+            name="bundleType"
+            checked={bundleForm.type === "site"}
+            onChange={() =>
+              setBundleForm((f) => ({ ...f, type: "site" }))
+            }
+          />
+          Site Comment
+        </label>
+
+        <label
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: "1px solid",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 600,
+            background:
+              bundleForm.type === "inbound"
+                ? "#dcfce7"
+                : "var(--entry-bg)",
+            borderColor:
+              bundleForm.type === "inbound"
+                ? "#22c55e"
+                : "var(--border)",
+            color:
+              bundleForm.type === "inbound"
+                ? "#166534"
+                : "var(--text)",
+          }}
+        >
+          <input
+            type="radio"
+            name="bundleType"
+            checked={bundleForm.type === "inbound"}
+            onChange={() =>
+              setBundleForm((f) => ({ ...f, type: "inbound" }))
+            }
+          />
+          Inbound Email
+        </label>
+      </div>
+    </div>
+
+    <div className="field">
+      <label>
+        Bundle with Case from This Session{" "}
+        <span className="req">*</span>
+      </label>
+
+      {caseOptions.length > 0 ? (
+        <select
+          className="inp"
+          value={bundleForm.caseNum}
+          onChange={(e) =>
+            setBundleForm((f) => ({
+              ...f,
+              caseNum: e.target.value,
+            }))
+          }
+          style={{ cursor: "pointer" }}
+        >
+          <option value="">— Select a case —</option>
+          {caseOptions.map((c) => (
+            <option key={c._id || c.caseNum} value={c.caseNum}>
+              #{c.caseNum}
+              {c.accountNum ? ` — ${c.accountNum}` : ""}
+              {c.amendType ? ` · ${c.amendType}` : ""}
+              {c.source === "suspended" ? " ⏸" : ""}
+              {c.source === "saved" ? " ✅" : ""}
+              {c._bundledWith ? " 🔗" : ""}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--entry-bg)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "var(--muted)",
+            textAlign: "center",
+            lineHeight: 1.6,
+          }}
+        >
+          No cases in this session yet.
+          <br />
+          Complete or suspend a case first, then bundle.
+        </div>
       )}
+
+      {bundleForm.caseNum &&
+        (() => {
+          const sel = caseOptions.find(
+            (o) => o.caseNum === bundleForm.caseNum
+          );
+          if (!sel) return null;
+
+          const statusLabel =
+            sel.source === "suspended"
+              ? "⏸ Suspended"
+              : sel.source === "saved"
+              ? "✅ Saved"
+              : "🕐 Session";
+
+          return (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                color: "var(--muted)",
+                padding: "6px 10px",
+                background: "var(--entry-bg)",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <strong style={{ color: "var(--text)" }}>
+                #{sel.caseNum}
+              </strong>
+
+              {sel.accountNum && (
+                <span>· {sel.accountNum}</span>
+              )}
+
+              {sel._mode && (
+                <span>
+                  ·{" "}
+                  {sel._mode === "siteComment"
+                    ? "Site Comment"
+                    : "Inbound Email"}
+                </span>
+              )}
+
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  padding: "1px 7px",
+                  borderRadius: 20,
+                  background: "var(--card2)",
+                  color: "var(--muted)",
+                  fontWeight: 600,
+                }}
+              >
+                {statusLabel}
+              </span>
+
+              {sel._bundledWith && (
+                <span
+                  style={{
+                    color: "#10b981",
+                    fontWeight: 700,
+                    fontSize: 10,
+                  }}
+                >
+                  🔗 Already bundled
+                </span>
+              )}
+            </div>
+          );
+        })()}
+    </div>
+
+    <div className="modal-btns">
+      <button
+        className="btn btn-ghost"
+        onClick={() => setBundleModal(false)}
+      >
+        Cancel
+      </button>
+
+      <button
+        className="btn btn-primary"
+        onClick={() => {
+          if (!bundleForm.caseNum.trim()) {
+            showToast("Select a case to bundle", "error");
+            return;
+          }
+
+          setBundleModal(false);
+
+          enterMode(
+            bundleForm.type === "inbound"
+              ? "inbound"
+              : "siteComment",
+            false,
+            null,
+            bundleForm.caseNum.trim()
+          );
+
+          showToast(
+            "🔗 Bundle set — save the new case to link both",
+            "info"
+          );
+        }}
+      >
+        🔗 Start Bundled Case
+      </button>
+    </div>
+  </div>
+</div>
+     
+        );
+      })()}
       {!timedIn&&<div style={{fontSize:12,color:"var(--muted)",marginTop:-16,marginBottom:24,fontFamily:"'Poppins',sans-serif",padding:"10px 14px",background:"var(--entry-bg)",border:"1px solid var(--border)",borderRadius:8,display:"flex",alignItems:"center",gap:8}}>
         <span style={{fontSize:16}}>⏰</span> Click <strong style={{color:"var(--text)"}}>Clock In</strong> above to start your session and unlock amend types.
       </div>}
@@ -3630,7 +3815,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
         <div className="session-log-wrap">
           <div className="session-log-header">
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:16}}>🕐</span>
+              
               <div className="section-title" style={{marginBottom:0,borderBottom:"none",paddingBottom:0,fontSize:13}}>Session Time Log</div>
               <span style={{fontSize:10,padding:"2px 8px",background:"rgba(1,118,211,.12)",color:"var(--accent)",borderRadius:20,fontWeight:700,fontFamily:"'Poppins',sans-serif"}}>{new Set(sessionLog.filter(e=>e.caseNum).map(e=>e.caseNum)).size} cases</span>
             </div>
@@ -3771,30 +3956,63 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       const isContinueSuspended = outcome === "Suspended";
       const isDeleted = outcome === "Deleted";
       const buttonText = isContinueSuspended ? "Continue" : "Edit";
+
+      // ── Bundle badge: look up this case in saved cases and drafts ──
+      // ── Post-save bundle: look up _bundledWith on saved/draft case ──
+      const savedCaseForEntry = caseNum ? allSavedCases?.find(c => c.caseNum === caseNum) : null;
+      const draftCaseForEntry = caseNum ? dbDrafts?.find(d => d.caseNum === caseNum) : null;
+      const rawBundledWith = savedCaseForEntry?._bundledWith ?? draftCaseForEntry?._bundledWith ?? null;
+      const savedBundleNums = rawBundledWith
+        ? (Array.isArray(rawBundledWith) ? rawBundledWith : [rawBundledWith]).filter(Boolean)
+        : [];
+      const isSavedBundle = savedBundleNums.length > 0;
+
+      // ── Pre-save bundle: detect using activeBundleCaseNum (the chosen partner) ──
+      // The EXISTING chosen case: its caseNum matches activeBundleCaseNum
+      const isChosenBundle = !!activeBundleCaseNum && caseNum === activeBundleCaseNum;
+      // The NEW active case: it is the current open (not yet ended) form entry while a bundle is set
+      const isNewActiveBundle = !!activeBundleCaseNum && !entry.endedAt &&
+        (entry.status === "Site Comment" || entry.status === "Inbound Email" || entry.status === "Ongoing");
+
+      const isBundled = isSavedBundle || isChosenBundle || isNewActiveBundle;
+
+      // Build the label text for the badge
+      const bundleNums = isSavedBundle
+        ? savedBundleNums
+        : isChosenBundle
+          ? ["new case"]           // existing case: partner is the new case being worked on
+          : [activeBundleCaseNum]; // new active case: partner is the chosen existing case
    
       return (
         <div key={entry.id} className="session-log-row" style={{
           background: i%2===0?"var(--none)":"transparent",
-          borderLeft: isDuplicate ? `3px solid ${activeDupColor.border}` : "3px solid transparent"
+          borderLeft: isDuplicate ? `3px solid ${activeDupColor.border}` : isBundled ? "3px solid #10b981" : "3px solid transparent"
         }}>
           
-          {/* Duplicate Case Number UI styling */}
-          <span style={{
-            color: isDuplicate ? activeDupColor.border : (caseNum ? "var(--text)" : "var(--muted)"),
-            fontFamily: "monospace",
-            fontSize: 12,
-            fontWeight: caseNum ? 700 : 400,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            background: isDuplicate ? activeDupColor.bg : "transparent",
-            padding: isDuplicate ? "2px 8px" : "0",
-            borderRadius: isDuplicate ? "4px" : "0"
-          }}>
-            {caseNum ? `#${caseNum}` : "-"}
-            {isDuplicate && <span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}></span>}
-            {caseNum && <CopyCaseBtn caseNum={caseNum}/>}
-          </span>
+          {/* Case Number cell — wraps case # + bundle badge in one grid column */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-center",gap:4,justifyContent:"center"}}>
+            <span style={{
+              color: isDuplicate ? activeDupColor.border : (caseNum ? "var(--text)" : "var(--muted)"),
+              fontFamily: "monospace",
+              fontSize: 12,
+              fontWeight: caseNum ? 700 : 400,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              background: isDuplicate ? activeDupColor.bg : "transparent",
+              padding: isDuplicate ? "2px 8px" : "0",
+              borderRadius: isDuplicate ? "4px" : "0"
+            }}>
+              {caseNum ? `#${caseNum}` : "-"}
+              {isDuplicate && <span style={{fontSize:9,fontFamily:"'Poppins',sans-serif",fontWeight:800}}></span>}
+              {caseNum && <CopyCaseBtn caseNum={caseNum}/>}
+            </span>
+            {isBundled && (
+              <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:9,fontWeight:800,color:"#10b981",background:"rgba(16,185,129,.14)",border:"1px solid rgba(16,185,129,.35)",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",fontFamily:"'Poppins',sans-serif",lineHeight:1.4}}>
+                {isSavedBundle ? `🔗 w/ #${bundleNums.join(", #")}` : isChosenBundle ? "🔗 Bundling w/ new case" : `🔗 Bundle of #${activeBundleCaseNum}`}
+              </span>
+            )}
+          </div>
           
           <div style={{color:col,display:"flex",alignItems:"center",gap:6,fontWeight:700,fontFamily:"'Poppins',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
             <span className={`session-log-status-dot${isOngoing?" ongoing-dot":""}`} style={{background:col,boxShadow:`0 0 6px ${col}55`,width:7,height:7,borderRadius:"50%",flexShrink:0}}/>
@@ -4049,7 +4267,7 @@ function InlineEdit({ value, onSave }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CASE HISTORY — fully editable
 // ─────────────────────────────────────────────────────────────────────────────
-const CHECKLIST_LABELS={backup:"Before/After Backup",caseComment:"Case Comment",combinedTracker:"Combined Tracker",qaChecklist:"QA Checklist",completeJob:"Complete Job",emailSales:"Email Sales",trackerChecklist:"Complete Status Tracker",completeStatus:"Tracker Checklist"};
+const CHECKLIST_LABELS={backup:"Before/After Backup",caseComment:"Case Comment",combinedTracker:"Combined Tracker",qaChecklist:"QA Checklist",completeJob:"Complete Job",closeSiteComment:"Close Site Comment",closeInboundCase:"Close Inbound Case",emailSales:"Email Sales",trackerChecklist:"Complete Status Tracker",completeStatus:"Tracker Checklist"};
 const emptyEditEntry=()=>({id:Date.now()+Math.random(),number:"",note:"",clarification:""});
 
 // A single editable case card (extracted so it has its own state)
@@ -5484,7 +5702,17 @@ function App() {
     if(typeof window!=="undefined") localStorage.removeItem("ch_session_log");
   };
   // Persist formActive so pill shows even after page switch
-  const [formInFields,setFormInFields]=useState(false); // true only when editing form steps
+  const [formInFields,setFormInFieldsRaw]=useState(()=>{
+    if(typeof window!=="undefined") return localStorage.getItem("ch_form_in_fields")==="1";
+    return false;
+  });
+  const setFormInFields=(v)=>{
+    setFormInFieldsRaw(v);
+    if(typeof window!=="undefined"){
+      if(v) localStorage.setItem("ch_form_in_fields","1");
+      else localStorage.removeItem("ch_form_in_fields");
+    }
+  };
   const [resumeFormTick,setResumeFormTick]=useState(0);
   const setFormActivePersist=(v)=>{
     setFormActive(v);
@@ -5494,6 +5722,8 @@ function App() {
         localStorage.removeItem("ch_form_active");
         localStorage.removeItem("ch_active_form_mode");
         localStorage.removeItem("ch_active_form_use_draft");
+        localStorage.removeItem("ch_form_in_fields");
+        localStorage.removeItem("ch_minimised_form");
       }
     }
   };
@@ -5850,6 +6080,7 @@ function App() {
           beforeName: profile.before_name  || user.beforeName||"",
           afterName:  profile.after_name   || user.afterName||"",
           screenshotName: profile.screenshot_name || user.screenshotName||"",
+          greetingMessages: (profile.greeting_messages&&profile.greeting_messages.length>0) ? profile.greeting_messages : (user.greetingMessages||[]),
         };
         localStorage.setItem("ch_user",JSON.stringify(merged));
         setUser(merged);
@@ -5991,15 +6222,22 @@ function App() {
   };
 
  const handleNav = (id) => {
-  const restricted = ["build", "prelive", "postlive"].includes(id);
+  // 🚫 Only block build/prelive when a form is active on postlive
+  // postlive itself must always be navigatable so users can return to their in-progress form
+  const restricted = ["build", "prelive"].includes(id);
 
-  // 🚫 ONLY block these 3 pages
   if (restricted && formActive && page !== id) {
     return;
   }
 
   if (id === "postlive") {
-    setFormInFields(false);
+    // If a form is active, restore the full form layout (form-mode class)
+    // so the user sees their in-progress form, not the chooser.
+    if (formActive) {
+      setFormInFields(true);
+    } else {
+      setFormInFields(false);
+    }
     setPage("postlive");
     if (typeof window !== "undefined") localStorage.setItem("ch_page", "postlive");
     return;
@@ -6008,6 +6246,9 @@ function App() {
   if (id === page) return;
 
   // ✅ allow ALL other pages (dashboard, history, etc.)
+  // If a form is active, mark that the user is no longer viewing form fields
+  // so the floating "Form In Progress" pill becomes visible on other pages.
+  if (formActive) setFormInFields(false);
   setPage(id);
   if (typeof window !== "undefined") localStorage.setItem("ch_page", id);
 };
@@ -6084,7 +6325,7 @@ function App() {
           </div>
 
           {coreNav.map((n,i)=>{
-  const isRestricted = ["build","prelive","postlive"].includes(n.id);
+  const isRestricted = ["build","prelive"].includes(n.id);
   const isDisabled = isRestricted && formActive && page !== n.id;
 
   return n.group
@@ -6162,7 +6403,7 @@ function App() {
           {/* Break Timers */}
           <div className="nav-group">Breaks</div>
           <div className="break-btns">
-            {[{label:"15 min",icon:"coffee",mins:15},{label:"30 min",icon:"meditate",mins:30},{label:"Lunch",icon:"lunch",mins:60}].map(({label,icon,mins})=>{
+            {[{label:"15 min",shortLabel:"15m",icon:"coffee",mins:15},{label:"30 min",shortLabel:"30m",icon:"meditate",mins:30},{label:"Lunch",shortLabel:"1h",icon:"lunch",mins:60}].map(({label,shortLabel,icon,mins})=>{
               const isActiveBreak = breakTimer&&breakTimer.mins===mins;
               const isOtherBreak = breakTimer&&breakTimer.mins!==mins;
               const disabledByForm = formInFields && !isActiveBreak;
@@ -6171,7 +6412,8 @@ function App() {
               <button key={mins} className={cls("break-btn",isActiveBreak&&"active")} disabled={disabled} style={{opacity:disabled?.35:1,cursor:disabled?"not-allowed":"pointer",position:"relative"}}
                 onClick={()=>isActiveBreak?setCancelBreakConfirm(true):setBreakPending({label,mins})}>
                 <Icon name={icon} size={14} color={isActiveBreak?"var(--accent)":"var(--muted)"}/>
-                <span style={{flex:1}}>{label}</span>
+                <span className="nav-text" style={{flex:1}}>{label}</span>
+                <span className="break-collapsed-label" style={{display:"none",fontSize:9,fontWeight:800,fontFamily:"monospace",color:isActiveBreak?"var(--accent)":"var(--muted)"}}>{shortLabel}</span>
                 {isActiveBreak&&<Icon name="play" size={9} color="var(--accent)"/>}
                 {disabledByForm&&!isActiveBreak&&<span style={{fontSize:8,position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",color:"var(--muted)",opacity:.7}}>🔒</span>}
               </button>
@@ -6216,7 +6458,7 @@ function App() {
         </aside>
         </div>
 
-        <main className={cls("main-area", formInFields&&"form-mode")} style={{paddingBottom: formInFields ? 0 : (breakTimer?80:32)}}>
+        <main className={cls("main-area", formInFields&&page==="postlive"&&"form-mode")} style={{paddingBottom: formInFields&&page==="postlive" ? 0 : (breakTimer?80:32)}}>
           {dataLoading&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",flexDirection:"column",gap:16}}><div style={{animation:"float 1.5s ease-in-out infinite"}}><Icon name="loading" size={48} color="var(--accent)"/></div><div style={{color:"var(--muted)",fontSize:13,fontFamily:"Poppins,sans-serif"}}>Loading your workspace...</div></div>}
 
           {!dataLoading&&page==="dashboard"&&<Dashboard savedCases={allCases} setPage={setPage} specialRequestors={specialRequestors} addRequestor={addRequestor} removeRequestor={removeRequestor} user={user}/>}
