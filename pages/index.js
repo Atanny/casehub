@@ -2082,6 +2082,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   const [elapsed,setElapsed]=useState(0);
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
+  const [dlState,setDlState]=useState("idle"); // idle | downloading | done | error
   useEffect(()=>{
     const t=setInterval(()=>{
       const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
@@ -2109,7 +2110,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         <CopyRow label="Amend Type" value={f.amendType}/>
         {f.customerName&&<CopyRow label="Customer Name" value={f.customerName}/>}
         {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail}/>}
-        {f.businessName&&<CopyRow label="Business Name" value={f.businessName}/>}
+        {f.businessName&&<CopyRow label="Business Name" value={f.businessName+(f.businessSuffix?' '+f.businessSuffix:'')}/>}
         <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()}/>
         {f.caseNum&&(
           <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
@@ -2119,8 +2120,14 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {allImages.length > 0 && (
   <div
     className="copy-row-wrap"
-    style={{ cursor: "pointer" }}
+    style={{
+      cursor: dlState==="downloading"?"wait":"pointer",
+      border: dlState==="done"?"1px solid var(--green)":dlState==="error"?"1px solid var(--red)":"",
+      transition:".25s",
+    }}
     onClick={async () => {
+      if(dlState==="downloading") return;
+      setDlState("downloading");
       try {
         const folderName = `Case_${f.caseNum || "unknown"}_${f.accountNum || "acc"}`
           .replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -2147,9 +2154,10 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
                 console.warn("img failed:", err);
               }
             }
+            setDlState("done"); setTimeout(()=>setDlState("idle"),3000);
             return;
           } catch (err) {
-            if (err.name === "AbortError") return;
+            if (err.name === "AbortError"){ setDlState("idle"); return; }
           }
         }
 
@@ -2186,8 +2194,10 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         a.href = URL.createObjectURL(zipBlob);
         a.download = `${folderName}.zip`;
         a.click();
+        setDlState("done"); setTimeout(()=>setDlState("idle"),3000);
       } catch (err) {
         console.error("Bulk download failed:", err);
+        setDlState("error"); setTimeout(()=>setDlState("idle"),3000);
       }
     }}
   >
@@ -2204,7 +2214,8 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
             height: 52,
             borderRadius: 6,
             overflow: "hidden",
-            border: "1.5px solid var(--border)",
+            border: img._inDB ? "1.5px solid var(--green)" : "1.5px solid var(--amber)",
+            position: "relative",
           }}
         >
           <img
@@ -2212,22 +2223,26 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
             alt=""
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            background: img._inDB ? "rgba(16,185,129,.85)" : "rgba(245,158,11,.85)",
+            color: "#fff", fontSize: 8, textAlign: "center",
+            padding: "2px 0", fontWeight: 700, letterSpacing: ".3px",
+          }}>
+            {img._inDB ? "✓ SAVED" : "⏳ ON SAVE"}
+          </div>
         </div>
       ))}
     </div>
 
-    {/* 👇 TEXT BELOW */}
-    <div
-      style={{
-        marginTop: 6,
-        fontSize: 11,
-        color: "var(--green)",
-        fontWeight: 600,
-        textAlign: "center",
-        opacity: 0.85,
-      }}
-    >
-      Click to download All
+    {/* 👇 STATUS TEXT */}
+    <div style={{marginTop:6,fontSize:11,fontWeight:700,textAlign:"center",transition:".2s",
+      color: dlState==="done"?"var(--green)":dlState==="downloading"?"var(--accent)":dlState==="error"?"var(--red)":"var(--muted)",
+    }}>
+      {dlState==="done"   && "✅ Download Complete!"}
+      {dlState==="downloading" && "⏳ Downloading…"}
+      {dlState==="error"  && "❌ Download failed"}
+      {dlState==="idle"   && "Click to download All"}
     </div>
   </div>
 )}
@@ -2297,7 +2312,7 @@ function Icon({ name, size=16, color="currentColor", style={} }) {
 const emptyEntry = ()=>({id:String(Date.now()+Math.random()),number:"",note:"",clarification:""});
 const emptyBase  = ()=>({
   caseNum:"",accountNum:"",amendType:"",inProgress:false,inboundNum:"",
-  customerName:"",customerEmail:"",businessName:"",
+  customerName:"",customerEmail:"",businessName:"",businessSuffix:"",
   entries:[emptyEntry()],
   devices:{mobile:false,tablet:false,desktop:false},
   checklist:{backup:false,caseComment:false,combinedTracker:false,qaChecklist:false,completeJob:false,closeSiteComment:false,emailSales:false,trackerChecklist:false,completeStatus:false},
@@ -2616,7 +2631,14 @@ function PostLiveForm({ mode, onSave, onBack, onCancelForm, onSaveDraftDirect, o
           <div className="field"><label>Amend Type <span className="req">*</span></label><input className="inp" placeholder="e.g. Content, Layout, Link..." value={form.amendType} onChange={e=>setF({amendType:e.target.value})}/></div>
           <div className="field"><label>Customer Name</label><input className="inp" placeholder="e.g. John Smith" value={form.customerName||""} onChange={e=>setF({customerName:e.target.value})}/></div>
           <div className="field"><label>Customer Email</label><input className="inp" type="email" placeholder="e.g. client@email.com" value={form.customerEmail||""} onChange={e=>setF({customerEmail:e.target.value})}/></div>
-          <div className="field"><label>Business Name</label><input className="inp" placeholder="e.g. Acme Corp" value={form.businessName||""} onChange={e=>setF({businessName:e.target.value})}/></div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Business Name</label>
+            <div style={{display:"flex",gap:8}}>
+              <input className="inp" placeholder="e.g. Fire Force" style={{flex:2}} value={form.businessName||""} onChange={e=>setF({businessName:e.target.value})}/>
+              <input className="inp" placeholder="LLC / Corp / Inc…" style={{flex:1}} value={form.businessSuffix||""} onChange={e=>setF({businessSuffix:e.target.value})}/>
+            </div>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Business name · Suffix (optional)</div>
+          </div>
           <label className={cls("check-label",form.inProgress&&"checked")} style={{marginTop:4,width:"fit-content"}}><input type="checkbox" checked={form.inProgress} onChange={e=>setF({inProgress:e.target.checked})}/>In-Progress Salesforce</label>
         </StepCard>
 
@@ -3168,6 +3190,13 @@ function SavedCaseCard({ c, openId, setOpenId, idx=0, onEdit }) {
               {e.clarification&&<div className="case-entry-field"><span className="case-entry-key">Clarification: </span>{e.clarification}</div>}
             </div>
           ))}
+          {(c.customerName||c.customerEmail||c.businessName)&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+              {c.customerName&&<span style={{fontSize:11,padding:"2px 10px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--text)",fontWeight:600,fontFamily:"'Poppins',sans-serif"}}>👤 {c.customerName}</span>}
+              {c.customerEmail&&<span style={{fontSize:11,padding:"2px 10px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--text)",fontWeight:600,fontFamily:"'Poppins',sans-serif"}}>✉️ {c.customerEmail}</span>}
+              {c.businessName&&<span style={{fontSize:11,padding:"2px 10px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--text)",fontWeight:600,fontFamily:"'Poppins',sans-serif"}}>🏢 {c.businessName}{c.businessSuffix?' '+c.businessSuffix:''}</span>}
+            </div>
+          )}
           {!isSC&&c.emailAddress&&(<div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}><Icon name="inbound" size={12} style={{marginRight:4,verticalAlign:"middle"}}/>{c.emailType==="clarification"?"Clarification":"Completed"} → <span style={{color:"var(--text)",fontWeight:600}}>{c.emailAddress}</span></div>)}
           <div style={{marginBottom:8}}>
             <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"var(--muted)",marginBottom:5,fontFamily:"'Poppins',sans-serif"}}>🔗 Tracker Link</div>
@@ -3432,22 +3461,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     setSessionLog&&setSessionLog(prev=>{
       let next=[...prev];
       if(mode){
-        // Close the currently open form entry as Draft (don't stack new row)
         const nowMs=Date.now();
         next=next.map((e,i)=>i===next.length-1&&!e.endedAt
           ?{...e,endedAt:nowMs,outcome:"Suspended",caseNum:e.caseNum||""}
           :e);
       }
-      // Update the last open "Ongoing" row in-place: rename its status + set caseNum
-      // If all entries are closed (no open Ongoing), add a fresh one for the edit
-      const hasOpen=next.some(e=>!e.endedAt);
-      if(hasOpen){
-        next=next.map((e,i)=>i===next.length-1&&!e.endedAt
-          ?{...e,status:editStatusLabel,caseNum:editCaseNum}
-          :e);
-      } else {
-        const nowMs=Date.now();
-        next=[...next,{id:nowMs,status:editStatusLabel,note:"",startedAt:nowMs,endedAt:null,outcome:"",caseNum:editCaseNum,endNote:""}];
+      // Only mark the most recent CLOSED row for this caseNum as "Editing…"
+      // Never tag the open Ongoing row — that causes a duplicate stacked row on save.
+      const lastIdx=next.map((e,i)=>({e,i})).filter(({e})=>e.caseNum===editCaseNum&&e.endedAt).pop()?.i;
+      if(lastIdx!=null){
+        next=next.map((e,i)=>i===lastIdx?{...e,outcome:"Editing…"}:e);
       }
       if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
       return next;
@@ -3462,7 +3485,16 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       localStorage.removeItem("ch_resume_start");
     }
 
-    setEditingCase({savedCase:foundCase,mode:editModeVal});
+    let enrichedCase={...foundCase};
+    try{
+      const raw=typeof window!=="undefined"?localStorage.getItem("ch_case_extra_cache"):null;
+      if(raw){const cache=JSON.parse(raw);const cached=cache[foundCase.caseNum];if(cached){enrichedCase={...enrichedCase,customerName:enrichedCase.customerName||cached.customerName||"",customerEmail:enrichedCase.customerEmail||cached.customerEmail||"",businessName:enrichedCase.businessName||cached.businessName||"",businessSuffix:enrichedCase.businessSuffix||cached.businessSuffix||"",inboundNum:enrichedCase.inboundNum||cached.inboundNum||"",inProgress:enrichedCase.inProgress??cached.inProgress??false,entries:(enrichedCase.entries&&enrichedCase.entries.length>0)?enrichedCase.entries:(cached.entries||enrichedCase.entries||[]),checklist:enrichedCase.checklist||cached.checklist||{},devices:enrichedCase.devices||cached.devices||{},trackerChecklistLink:enrichedCase.trackerChecklistLink||cached.trackerChecklistLink||"",emailAddress:enrichedCase.emailAddress||cached.emailAddress||"",emailType:enrichedCase.emailType||cached.emailType||""};}}
+    }catch(e){}
+    try{
+      const minData=typeof window!=="undefined"?localStorage.getItem("ch_minimised_form"):null;
+      if(minData){const fd=JSON.parse(minData);if(fd.caseNum===foundCase.caseNum){enrichedCase={...enrichedCase,customerName:enrichedCase.customerName||fd.customerName||"",customerEmail:enrichedCase.customerEmail||fd.customerEmail||"",businessName:enrichedCase.businessName||fd.businessName||"",businessSuffix:enrichedCase.businessSuffix||fd.businessSuffix||""};}}
+    }catch(e){}
+    setEditingCase({savedCase:enrichedCase,mode:editModeVal});
     setMode(editModeVal);
     setUseDraft(false);
     if(typeof window!=="undefined"){
@@ -3488,10 +3520,14 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
     // Cancelling an edit from the session log: revert the Ongoing row back to "Ongoing"
     // with no caseNum — no new row, no stack, nothing logged.
     if(editingCase){
+      const cancelCaseNum=editingCase.savedCase?.caseNum||"";
       setSessionLog&&setSessionLog(prev=>{
-        const next=prev.map((e,i)=>i===prev.length-1&&!e.endedAt
-          ?{...e,status:"Ongoing",caseNum:""}
-          :e);
+        // Clear the "Editing…" marker from the entry we tagged, revert open row to plain Ongoing
+        const next=prev.map(e=>{
+          if(e.outcome==="Editing…"&&e.caseNum===cancelCaseNum) return {...e,outcome:e._prevOutcome||""};
+          if(!e.endedAt&&e.caseNum===cancelCaseNum) return {...e,caseNum:"",status:"Ongoing"};
+          return e;
+        });
         if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
         return next;
       });
@@ -3607,22 +3643,35 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
   setMinimisedFormData(null);
   if(typeof window!=="undefined"){
     // Persist key fields so File Name Generator auto-fills from latest saved case
-    localStorage.setItem("ch_last_saved_case",JSON.stringify({businessName:f.businessName||"",accountNum:f.accountNum||""}));
+    localStorage.setItem("ch_last_saved_case",JSON.stringify({businessName:f.businessName||"",businessSuffix:f.businessSuffix||"",accountNum:f.accountNum||""}));
     localStorage.removeItem("ch_minimised_form");
   }
-  onTimerReset&&onTimerReset();
+  if(!isEditingFromLog) onTimerReset&&onTimerReset();
   
   // Set outcome based on save type (clarification / completed) and whether it was a draft
-  const rawOutcome = f._saveOutcome === "clarification" ? "Clarification" : "Case Completed";
-  const outcomeLabel = isEditingFromLog ? "Case Updated" : (useDraft ? "Suspended Completed" : rawOutcome);
+  const rawOutcome = f._saveOutcome === "clarification" ? "Clarification" : "Completed";
+  const outcomeLabel = isEditingFromLog ? "Updated" : (useDraft ? "Completed" : rawOutcome);
   const statusLabel = mode === "siteComment" ? "Site Comment" : "Inbound Email";
   
-  // Stamp the correct status + outcome on the open entry, then add fresh Ongoing
+  // For edit mode: just update the existing open row's caseNum/outcome in-place, revert to Ongoing — no new row added.
+  // For new/suspended saves: close the open row and add a fresh Ongoing row.
   const nowMs=Date.now();
   setSessionLog&&setSessionLog(prev=>{
-    const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:isEditingFromLog?e.status:statusLabel,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
-    const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
-    const next=[...closed,fresh];
+    let next;
+    if(isEditingFromLog){
+      // Only update the CLOSED "Editing…" row (endedAt set) — never touch the open Ongoing row.
+      const entries=[...prev];
+      const lastCaseIdx=entries.map((e,i)=>({e,i})).filter(({e})=>e.caseNum===f.caseNum&&e.endedAt).pop()?.i;
+      next=entries.map((e,i)=>{
+        if(i===lastCaseIdx) return {...e,outcome:"Updated",status:e.status==="Ongoing"?statusLabel:e.status};
+        return e; // open Ongoing row untouched — no stacking, no duplicates
+      });
+    } else {
+      // Normal save / suspended complete: close open entry, add fresh Ongoing
+      const closed=prev.map((e,i)=>i===prev.length-1&&!e.endedAt?{...e,status:statusLabel,endedAt:nowMs,outcome:outcomeLabel,caseNum:f.caseNum||e.caseNum||""}:e);
+      const fresh={id:nowMs+1,status:"Ongoing",note:"",startedAt:nowMs,endedAt:null,outcome:"",endNote:""};
+      next=[...closed,fresh];
+    }
     if(typeof window!=="undefined") localStorage.setItem("ch_session_log",JSON.stringify(next));
     return next;
   });
@@ -4152,6 +4201,13 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
               <div className="saved-info">
                 <div className="saved-case">Case #{d.caseNum||"—"} — {d.accountNum||"—"}</div>
                 <div className="saved-meta">{d.amendType||"No amend type"} · {d.draftAt}</div>
+                {(d.customerName||d.customerEmail||d.businessName)&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}}>
+                    {d.customerName&&<span style={{fontSize:10,padding:"1px 7px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>👤 {d.customerName}</span>}
+                    {d.customerEmail&&<span style={{fontSize:10,padding:"1px 7px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>✉️ {d.customerEmail}</span>}
+                    {d.businessName&&<span style={{fontSize:10,padding:"1px 7px",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:20,color:"var(--muted)",fontFamily:"'Poppins',sans-serif"}}>🏢 {d.businessName}{d.businessSuffix?' '+d.businessSuffix:''}</span>}
+                  </div>
+                )}
               </div>
               <span className="draft-badge">{d._mode==="siteComment"?"Site Comment":"Inbound Email"}</span>
               {(()=>{const b=d._bundledWith;if(!b)return null;const nums=(Array.isArray(b)?b:[b]).filter(Boolean);if(!nums.length)return null;const isMulti=nums.length>1;const col=isMulti?"#f59e0b":"#10b981";const bg=isMulti?"rgba(245,158,11,.14)":"rgba(16,185,129,.14)";const bdr=isMulti?"1px solid rgba(245,158,11,.35)":"1px solid rgba(16,185,129,.35)";return <span style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:bg,border:bdr,color:col,fontWeight:700,flexShrink:0,fontFamily:"'Poppins',sans-serif"}}>🔗 w/ #{nums.join(", #")}</span>;})()}
@@ -4294,18 +4350,17 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       };
       
       const outcomeColors={
-        "Case Completed":"var(--green)",
+        "Completed":"var(--green)",
+        "Updated":"var(--accent)",
         "Clarification":"var(--amber)",
-        "Draft Completed":"var(--green)",
         "Suspended":"var(--red)",
         "Deleted":"#f43f5e",
+        "Editing…":"var(--muted)",
         "Continued Draft Saved":"var(--amber)",
         "Draft Saved":"var(--amber)",
         "Break Ended":"var(--amber)",
         "Open Hour Ended":"var(--accent)",
         "Cancelled":"var(--red)",
-        "On going":"var(--blue)",
-        "Suspended Completed":"var(--green)",
         "Archived":"var(--amber)"
       };
       
@@ -4323,7 +4378,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
       const editButtonDisabled = !!editCase && (editCase._mode === "siteComment" || editCase._mode === "inbound");
       
       const hasSuspendedDraft = !!dbDrafts?.find(d => d.caseNum === caseNum);
-      const isSuspended = outcome === "Suspended" || outcome === "Suspended Completed";
+      const isSuspended = outcome === "Suspended";
       
       const isCaseEntry = entry.status==="Site Comment" || 
                           entry.status==="Inbound Email" || 
@@ -4457,7 +4512,7 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                     // ── Outcome counters ──
                     const uniqueCases=new Set(sessionLog.filter(e=>e.caseNum).map(e=>(e.caseNum||"").trim()));
                     const totalCasesCount=uniqueCases.size;
-                    const completedCount=sessionLog.filter(e=>e.outcome==="Case Completed"||e.outcome==="Draft Completed"||e.outcome==="Suspended Completed").length;
+                    const completedCount=sessionLog.filter(e=>e.outcome==="Completed").length;
                     const clarificationCount=sessionLog.filter(e=>e.outcome==="Clarification").length;
                     const suspendedCount=sessionLog.filter(e=>e.outcome==="Suspended").length;
 
@@ -4544,6 +4599,21 @@ function PostLivePage({ onSaveCase, onUpdateCase, onFormActive, onFormInFields, 
                 <input className="inp" value={editCase.inboundNum||""} onChange={e=>setEditCase(c=>({...c,inboundNum:e.target.value}))}/>
               </div>
             )}
+            <div className="field" style={{marginBottom:0}}>
+              <label>Customer Name</label>
+              <input className="inp" placeholder="e.g. John Smith" value={editCase.customerName||""} onChange={e=>setEditCase(c=>({...c,customerName:e.target.value}))}/>
+            </div>
+            <div className="field" style={{marginBottom:0}}>
+              <label>Customer Email</label>
+              <input className="inp" type="email" placeholder="e.g. client@email.com" value={editCase.customerEmail||""} onChange={e=>setEditCase(c=>({...c,customerEmail:e.target.value}))}/>
+            </div>
+            <div className="field" style={{marginBottom:0,gridColumn:"1/-1"}}>
+              <label>Business Name</label>
+              <div style={{display:"flex",gap:8}}>
+                <input className="inp" placeholder="e.g. Fire Force" style={{flex:2}} value={editCase.businessName||""} onChange={e=>setEditCase(c=>({...c,businessName:e.target.value}))}/>
+                <input className="inp" placeholder="LLC / Corp / Inc…" style={{flex:1}} value={editCase.businessSuffix||""} onChange={e=>setEditCase(c=>({...c,businessSuffix:e.target.value}))}/>
+              </div>
+            </div>
             <div className="field" style={{marginBottom:0}}>
               <label>Time In</label>
               <input className="inp" value={editCase.savedAt||""} onChange={e=>setEditCase(c=>({...c,savedAt:e.target.value}))}/>
@@ -6497,7 +6567,20 @@ function App() {
       fetch(`/api/profile?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>({})),
       fetch(`/api/archived-drafts?email=${encodeURIComponent(user.email)}`).then(r=>r.json()).catch(()=>[]),
     ]).then(([cases,anns,lnks,reqs,draftList,profile,archivedList])=>{
-      setAllCases(Array.isArray(cases)?[...cases].reverse():[]);
+      const mergeWithCache=(rawCases)=>{
+        if(!Array.isArray(rawCases)) return [];
+        try{
+          const raw=typeof window!=="undefined"?localStorage.getItem("ch_case_extra_cache"):null;
+          if(!raw) return rawCases;
+          const cache=JSON.parse(raw);
+          return rawCases.map(c=>{
+            const cached=c.caseNum?cache[c.caseNum]:null;
+            if(!cached) return c;
+            return{...c,customerName:c.customerName||cached.customerName||"",customerEmail:c.customerEmail||cached.customerEmail||"",businessName:c.businessName||cached.businessName||"",businessSuffix:c.businessSuffix||cached.businessSuffix||"",inboundNum:c.inboundNum||cached.inboundNum||"",inProgress:c.inProgress??cached.inProgress??false,entries:(c.entries&&c.entries.length>0)?c.entries:(cached.entries||c.entries||[]),checklist:c.checklist||cached.checklist||{},devices:c.devices||cached.devices||{},trackerChecklistLink:c.trackerChecklistLink||cached.trackerChecklistLink||"",emailAddress:c.emailAddress||cached.emailAddress||"",emailType:c.emailType||cached.emailType||""};
+          });
+        }catch(e){return rawCases;}
+      };
+      setAllCases(mergeWithCache(Array.isArray(cases)?[...cases].reverse():[]));
       setAnnouncements(Array.isArray(anns)?anns:[]);
       setLinks(Array.isArray(lnks)?lnks:[]);
       setSpecialRequestors(Array.isArray(reqs)?reqs:[]);
@@ -6543,7 +6626,32 @@ function App() {
       const res=await fetch("/api/cases",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const saved=await res.json();
       if(!res.ok){console.error("addCase API error:",saved.error);return;}
-      setAllCases(a=>[saved,...a]);
+      const merged={...payload,...saved,
+        customerName:   saved.customerName   || payload.customerName   || "",
+        customerEmail:  saved.customerEmail  || payload.customerEmail  || "",
+        businessName:   saved.businessName   || payload.businessName   || "",
+        businessSuffix: saved.businessSuffix || payload.businessSuffix || "",
+        inboundNum:     saved.inboundNum     || payload.inboundNum     || "",
+        inProgress:     saved.inProgress     ?? payload.inProgress     ?? false,
+        entries:        (saved.entries&&saved.entries.length>0)?saved.entries:(payload.entries||[]),
+        checklist:      saved.checklist      || payload.checklist      || {},
+        devices:        saved.devices        || payload.devices        || {},
+        trackerChecklistLink:saved.trackerChecklistLink||payload.trackerChecklistLink||"",
+        emailAddress:   saved.emailAddress   || payload.emailAddress   || "",
+        emailType:      saved.emailType      || payload.emailType      || "",
+        images:         (saved.images&&saved.images.length>0)?saved.images:(payload.images||[]),
+        backupImages:   (saved.backupImages&&saved.backupImages.length>0)?saved.backupImages:(payload.backupImages||[]),
+      };
+      try{
+        const cacheKey="ch_case_extra_cache";
+        const raw=typeof window!=="undefined"?localStorage.getItem(cacheKey):null;
+        const cache=raw?JSON.parse(raw):{};
+        if(merged.caseNum){
+          cache[merged.caseNum]={customerName:merged.customerName,customerEmail:merged.customerEmail,businessName:merged.businessName,businessSuffix:merged.businessSuffix,inboundNum:merged.inboundNum,inProgress:merged.inProgress,entries:merged.entries,checklist:merged.checklist,devices:merged.devices,trackerChecklistLink:merged.trackerChecklistLink,emailAddress:merged.emailAddress,emailType:merged.emailType};
+          if(typeof window!=="undefined") localStorage.setItem(cacheKey,JSON.stringify(cache));
+        }
+      }catch(e){}
+      setAllCases(a=>[merged,...a]);
       dbStatus.markSaved();
     }catch(e){
       console.error("addCase exception:",e);
@@ -6564,7 +6672,32 @@ function App() {
       const res=await fetch(`/api/cases/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const saved=await res.json();
       if(!res.ok){console.error("updateCase error:",saved.error);return;}
-      setAllCases(a=>a.map(c=>c._id===id?saved:c));
+      const merged={...payload,...saved,
+        customerName:   saved.customerName   || payload.customerName   || "",
+        customerEmail:  saved.customerEmail  || payload.customerEmail  || "",
+        businessName:   saved.businessName   || payload.businessName   || "",
+        businessSuffix: saved.businessSuffix || payload.businessSuffix || "",
+        inboundNum:     saved.inboundNum     || payload.inboundNum     || "",
+        inProgress:     saved.inProgress     ?? payload.inProgress     ?? false,
+        entries:        (saved.entries&&saved.entries.length>0)?saved.entries:(payload.entries||[]),
+        checklist:      saved.checklist      || payload.checklist      || {},
+        devices:        saved.devices        || payload.devices        || {},
+        trackerChecklistLink:saved.trackerChecklistLink||payload.trackerChecklistLink||"",
+        emailAddress:   saved.emailAddress   || payload.emailAddress   || "",
+        emailType:      saved.emailType      || payload.emailType      || "",
+        images:         (saved.images&&saved.images.length>0)?saved.images:(payload.images||[]),
+        backupImages:   (saved.backupImages&&saved.backupImages.length>0)?saved.backupImages:(payload.backupImages||[]),
+      };
+      try{
+        const cacheKey="ch_case_extra_cache";
+        const raw=typeof window!=="undefined"?localStorage.getItem(cacheKey):null;
+        const cache=raw?JSON.parse(raw):{};
+        if(merged.caseNum){
+          cache[merged.caseNum]={customerName:merged.customerName,customerEmail:merged.customerEmail,businessName:merged.businessName,businessSuffix:merged.businessSuffix,inboundNum:merged.inboundNum,inProgress:merged.inProgress,entries:merged.entries,checklist:merged.checklist,devices:merged.devices,trackerChecklistLink:merged.trackerChecklistLink,emailAddress:merged.emailAddress,emailType:merged.emailType};
+          if(typeof window!=="undefined") localStorage.setItem(cacheKey,JSON.stringify(cache));
+        }
+      }catch(e){}
+      setAllCases(a=>a.map(c=>c._id===id?merged:c));
       dbStatus.markSaved();
     }catch(e){console.error("updateCase exception:",e);}
   };
@@ -7225,10 +7358,25 @@ const FngCtx = createContext({});
 
 function CopyCell({val,id}){
   const {copy,copied}=useContext(FngCtx);
+  const done=copied===id;
   return (
-    <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'var(--entry-bg)',border:'1px solid var(--border)',marginBottom:4,minHeight:34,borderRadius:7}}>
+    <div
+      onClick={()=>val&&copy(val,id)}
+      title={val?"Click to copy":""}
+      style={{
+        display:'flex',alignItems:'center',justifyContent:'space-between',
+        gap:8,padding:'6px 14px',marginBottom:4,minHeight:34,borderRadius:7,
+        background: done?'rgba(16,185,129,.12)':'var(--entry-bg)',
+        border: done?'1px solid var(--green)':'1px solid var(--border)',
+        cursor: val?'pointer':'default',
+        transition:'background .15s,border .15s',
+        userSelect:'none',
+      }}
+      onMouseEnter={e=>{if(val&&!done){e.currentTarget.style.background='var(--card2)';e.currentTarget.style.borderColor='var(--accent)';}}}
+      onMouseLeave={e=>{if(!done){e.currentTarget.style.background='var(--entry-bg)';e.currentTarget.style.borderColor='var(--border)';}}}
+    >
       <span style={{flex:1,fontSize:12,fontFamily:'monospace',color:val?'var(--text)':'var(--muted)',wordBreak:'break-all'}}>{val||'—'}</span>
-      {val&&<button style={{padding:'3px 10px',fontSize:10,background:copied===id?'var(--green)':'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700,flexShrink:0,borderRadius:5,transition:'.15s'}} onClick={()=>copy(val,id)}>{copied===id?'✓':'Copy'}</button>}
+      {val&&<span style={{fontSize:10,fontWeight:700,flexShrink:0,color:done?'var(--green)':'var(--muted)',opacity:done?1:.5,transition:'.15s'}}>{done?'✓ Copied':'⌘ Copy'}</span>}
     </div>
   );
 }
@@ -7452,11 +7600,13 @@ function FileNameGeneratorPage() {
       const base     =saved?{...EMPTY,...JSON.parse(saved)}:EMPTY;
       if(active){
         const fd=JSON.parse(active);
-        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:fd.businessName||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
+        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:bizFull||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
       }
       if(lastSaved){
         const fd=JSON.parse(lastSaved);
-        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:fd.businessName||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
+        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+        return {...base,bizFilename:fd.businessName||base.bizFilename||"",bizAlt:bizFull||base.bizAlt||"",accountNum:fd.accountNum||base.accountNum||""};
       }
       return base;
     }catch{ return EMPTY; }
@@ -7491,7 +7641,8 @@ function FileNameGeneratorPage() {
         const biz=fd.businessName||"";
         const acc=fd.accountNum||"";
         // Always overwrite with latest source so new case data replaces old
-        setForm(f=>({...f,bizFilename:biz||f.bizFilename,bizAlt:biz||f.bizAlt,accountNum:acc||f.accountNum}));
+        const bizFull=(fd.businessName||"")+(fd.businessSuffix?' '+fd.businessSuffix:'');
+        setForm(f=>({...f,bizFilename:biz||f.bizFilename,bizAlt:bizFull||f.bizAlt,accountNum:acc||f.accountNum}));
       }catch{}
     };
     sync();
@@ -7501,11 +7652,26 @@ function FileNameGeneratorPage() {
   },[]);
 
   const nob = san(form.bizFilename);
+  const nobFull = san(form.bizAlt) || nob; // bizAlt = NOB + suffix e.g. 'fire-force-llc'
+
+  // Default fallbacks for every token — so any token used in any format always resolves
+  const defaultVars = {
+    page:   san(form.pages.filter(Boolean)[0]||''),
+    badge:  san(form.badges.filter(Boolean)[0]||''),
+    member: san(form.teamMembers.filter(Boolean)[0]||''),
+    menu:   san(form.menuNames.filter(Boolean)[0]||''),
+    pdf:    san(form.pdfNames.filter(Boolean)[0]||''),
+    nn:     '01',
+  };
+
   const applyFmt = (tpl,vars={}) => {
     if(!nob) return '';
+    // Merge: explicit vars override defaults
+    const resolved = {...defaultVars, ...vars};
     let s=tpl;
-    s=s.replace('{nob}',nob);
-    Object.entries(vars).forEach(([k,v])=>{ s=s.replace(`{${k}}`,san(v)||k); });
+    s=s.replace(/{nob}/g, nob);
+    s=s.replace(/{nobfull}/g, nobFull||nob);
+    Object.entries(resolved).forEach(([k,v])=>{ s=s.replace(new RegExp(`\{${k}\}`,'g'), san(v)||k); });
     return s;
   };
 
@@ -7599,7 +7765,7 @@ function FileNameGeneratorPage() {
               <button onClick={()=>setEditingFormat(false)} style={{background:'none',border:'none',color:'var(--muted)',fontSize:22,cursor:'pointer',lineHeight:1}}>×</button>
             </div>
             <div style={{fontSize:11,color:'var(--muted)',marginBottom:16,padding:'8px 12px',background:'var(--entry-bg)',borderRadius:8,border:'1px solid var(--border)',lineHeight:2}}>
-              Tokens: <code style={{color:'var(--accent)'}}>{'{nob}'}</code> name · <code style={{color:'var(--accent)'}}>{'{nn}'}</code> number · <code style={{color:'var(--accent)'}}>{'{page}'}</code> page · <code style={{color:'var(--accent)'}}>{'{member}'}</code> team · <code style={{color:'var(--accent)'}}>{'{badge}'}</code> badge · <code style={{color:'var(--accent)'}}>{'{menu}'}</code> menu · <code style={{color:'var(--accent)'}}>{'{pdf}'}</code> pdf
+              Tokens: <code style={{color:'var(--accent)'}}>{'{nob}'}</code> name (no suffix) · <code style={{color:'var(--accent)'}}>{'{nobfull}'}</code> name+suffix · <code style={{color:'var(--accent)'}}>{'{nn}'}</code> number · <code style={{color:'var(--accent)'}}>{'{page}'}</code> page · <code style={{color:'var(--accent)'}}>{'{member}'}</code> team · <code style={{color:'var(--accent)'}}>{'{badge}'}</code> badge · <code style={{color:'var(--accent)'}}>{'{menu}'}</code> menu · <code style={{color:'var(--accent)'}}>{'{pdf}'}</code> pdf
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               {Object.entries(draftFmt).map(([key,val])=>(
@@ -7622,13 +7788,16 @@ function FileNameGeneratorPage() {
         <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>🏢 Business Information</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
           <div className="field" style={{marginBottom:0}}>
-            <label style={{display:"flex",alignItems:"center",gap:6}}>Business Name (filename) {form.bizFilename&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
-            <input className="inp" placeholder="e.g. Acme Plumbing" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
-            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Remove LLC, Corp, Inc etc.</div>
+            <label style={{display:"flex",alignItems:"center",gap:6}}>
+              Business Name — NOB {form.bizFilename&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}
+            </label>
+            <input className="inp" placeholder="e.g. Fire Force" value={form.bizFilename} onChange={e=>setForm(f=>({...f,bizFilename:e.target.value}))}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Used as <code style={{color:'var(--accent)'}}>&#123;nob&#125;</code> — no LLC/Corp/Inc</div>
           </div>
           <div className="field" style={{marginBottom:0}}>
-            <label style={{display:"flex",alignItems:"center",gap:6}}>Business Name (alt text) {form.bizAlt&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
-            <input className="inp" placeholder="Full name as-is" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
+            <label style={{display:"flex",alignItems:"center",gap:6}}>NOB + Suffix (Alt Text) {form.bizAlt&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
+            <input className="inp" placeholder="e.g. Fire Force LLC" value={form.bizAlt} onChange={e=>setForm(f=>({...f,bizAlt:e.target.value}))}/>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>Used as <code style={{color:'var(--accent)'}}>&#123;nobfull&#125;</code> — includes suffix</div>
           </div>
           <div className="field" style={{marginBottom:0}}>
             <label style={{display:"flex",alignItems:"center",gap:6}}>Account Number {form.accountNum&&<span style={{fontSize:9,fontWeight:700,color:"var(--green)",background:"rgba(16,185,129,.12)",border:"1px solid rgba(16,185,129,.3)",borderRadius:20,padding:"1px 7px"}}>auto-filled</span>}</label>
