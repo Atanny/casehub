@@ -2088,6 +2088,17 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   const [now,setNow]=useState(new Date());
   const firedRef=useRef(false);
   const [dlState,setDlState]=useState("idle"); // idle | downloading | done | error
+  const summaryPanelRef=useRef(null);
+
+  const scrollToGroup = useCallback((id) => {
+    const panel = summaryPanelRef.current;
+    const el = document.getElementById(id);
+    if (el && panel) {
+      const offset = el.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop;
+      panel.scrollTo({ top: Math.max(0, offset - 8), behavior: 'smooth' });
+    }
+  }, []);
+
   useEffect(()=>{
     const t=setInterval(()=>{
       const secs=Math.floor((Date.now()-startTimeRef.current)/1000);
@@ -2101,6 +2112,16 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   const f=form;
   const emailTypeLabel=f.emailType==="clarification"?"Clarification":"Completed";
   const allImages=[...(f.images||[]),...(f.backupImages||[])];
+
+  // Color dot nav entries — only show dots for visible groups
+  const navDots = [
+    { id:'sum-g-caseinfo',  color:'#0176D3', label:'Case Info',     abbr:'CI'  },
+    ...(f.customerName||f.customerEmail||f.businessName ? [{ id:'sum-g-customer', color:'#f59e0b', label:'Customer Info', abbr:'CU'  }] : []),
+    { id:'sum-g-amends',   color:'#f5945c', label:'Amends Copy',  abbr:'AC'  },
+    ...(f.caseNum ? [{ id:'sum-g-messages', color:'#38bdf8', label:'Messages',     abbr:'MSG' }] : []),
+    ...(!isSC ? [{ id:'sum-g-email', color:'#a78bfa', label:'Email',          abbr:'EM'  }] : []),
+  ];
+
   return (
     <div className="right-panel">
       <div className="right-panel-header">
@@ -2108,9 +2129,12 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         {f.caseNum&&<span style={{marginLeft:"auto",fontSize:11,fontWeight:600,color:"var(--accent)",background:"var(--entry-accent-bg)",padding:"2px 10px",borderRadius:20,border:"1px solid rgba(1,118,211,.2)"}}>#{f.caseNum}</span>}
       </div>
 
-      <div className="summary-panel">
+      {/* ── Body: summary content + right-side dot rail ── */}
+      <div style={{display:"flex",flex:1,minHeight:0,overflow:"hidden"}}>
+
+      <div className="summary-panel" ref={summaryPanelRef} style={{flex:1,minWidth:0}}>
         {/* ── GROUP 1: Case Info (blue) ── */}
-        <div style={{marginBottom:10}}>
+        <div id="sum-g-caseinfo" style={{marginBottom:10}}>
           <div style={{fontSize:9,fontWeight:700,color:"var(--accent)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Case Info</div>
           <CopyRow label="Account #" value={f.accountNum} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>
           <CopyRow label="Case #" value={f.caseNum} groupColor="rgba(1,118,211,.13)" groupBorder="rgba(1,118,211,.28)"/>
@@ -2119,7 +2143,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         </div>
         {/* ── GROUP 2: Customer Info (amber) — only if any filled ── */}
         {(f.customerName||f.customerEmail||f.businessName)&&(
-          <div style={{marginBottom:10}}>
+          <div id="sum-g-customer" style={{marginBottom:10}}>
             <div style={{fontSize:9,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Customer Info</div>
             {f.customerName&&<CopyRow label="Customer Name" value={f.customerName} groupColor="rgba(245,158,11,.1)" groupBorder="rgba(245,158,11,.3)"/>}
             {f.customerEmail&&<CopyRow label="Customer Email" value={f.customerEmail} groupColor="rgba(245,158,11,.1)" groupBorder="rgba(245,158,11,.3)"/>}
@@ -2127,7 +2151,7 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
           </div>
         )}
         {/* ── GROUP 3: Amends Copy (orange-accent) ── */}
-        <div style={{marginBottom:10}}>
+        <div id="sum-g-amends" style={{marginBottom:10}}>
           <div style={{fontSize:9,fontWeight:700,color:"rgb(245,148,92)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Amends Copy</div>
           <CopyRow label={isSC?"Site Comments":"Assumptions"} value={isSC?buildEntriesText():buildEmailText()} groupColor="rgba(245,148,92,.1)" groupBorder="rgba(245,148,92,.3)"/>
           {(()=>{
@@ -2141,14 +2165,14 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
         </div>
         {/* ── GROUP 4: Messages (blue chips) ── */}
         {f.caseNum&&(
-          <div style={{marginBottom:10}}>
+          <div id="sum-g-messages" style={{marginBottom:10}}>
             <div style={{fontSize:9,fontWeight:700,color:"var(--accent)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Messages</div>
             <GreetingRow greetingMessages={greetingMessages} caseNum={f.caseNum} inboundNum={f.inboundNum} isSC={isSC}/>
           </div>
         )}
         {/* ── GROUP 5: Email (purple) — inbound only ── */}
         {!isSC&&(
-          <div style={{marginBottom:10}}>
+          <div id="sum-g-email" style={{marginBottom:10}}>
             <div style={{fontSize:9,fontWeight:700,color:"#a78bfa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6,paddingLeft:2,opacity:.7}}>Email</div>
             <CopyRow label="Email Type" value={emailTypeLabel} groupColor="rgba(124,58,237,.1)" groupBorder="rgba(124,58,237,.3)"/>
             <CopyRow label="Email Address" value={f.emailAddress} groupColor="rgba(124,58,237,.1)" groupBorder="rgba(124,58,237,.3)"/>
@@ -2285,6 +2309,50 @@ function StickyPanel({ startTimeRef, form, isSC, buildEntriesText, buildEmailTex
   </div>
 )}
       </div>
+
+      {/* ── Right-side color dot rail ── */}
+      <div style={{
+        display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+        gap:10,padding:"10px 4px",
+        borderLeft:"1px solid var(--border)",
+        background:"var(--card)",
+        flexShrink:0,width:28,
+      }}>
+        {navDots.map(dot=>(
+          <button
+            key={dot.id}
+            onClick={()=>scrollToGroup(dot.id)}
+            title={dot.label}
+            style={{
+              display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+              background:"none",border:"none",padding:"3px 2px",
+              cursor:"pointer",flexShrink:0,
+              borderRadius:6,
+              transition:".15s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.background=`${dot.color}18`;}}
+            onMouseLeave={e=>{e.currentTarget.style.background="none";}}
+          >
+            <span style={{
+              width:9,height:9,borderRadius:"50%",
+              background:dot.color,
+              display:"inline-block",flexShrink:0,
+              opacity:.7,
+              transition:".15s",
+            }}/>
+            <span style={{
+              fontSize:7,fontWeight:800,
+              color:dot.color,
+              letterSpacing:".4px",
+              lineHeight:1,
+              fontFamily:"'Poppins',sans-serif",
+              opacity:.8,
+            }}>{dot.abbr}</span>
+          </button>
+        ))}
+      </div>
+
+      </div>{/* closes flex body wrapper */}
     </div>
   );
 }
